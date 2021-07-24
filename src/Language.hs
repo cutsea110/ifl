@@ -102,12 +102,14 @@ data Iseqrep = INil
              | IAppend Iseqrep Iseqrep
 
 instance Iseq Iseqrep where
-  iNil         = INil
-  iStr         = IStr
-  iAppend      = IAppend
-  iNewline     = IStr "\n"
-  iIndent seq  = seq
-  iDisplay seq = flatten [seq]
+  iNil              = INil
+  iStr              = IStr
+  iAppend INil seq  = seq
+  iAppend seq  INil = seq
+  iAppend seq1 seq2 = IAppend seq1 seq2
+  iNewline          = IStr "\n"
+  iIndent seq       = seq
+  iDisplay seq      = flatten [seq]
 
 flatten :: [Iseqrep] -> String
 flatten [] = ""
