@@ -110,10 +110,14 @@ data Iseqrep = INil
              | IAppend Iseqrep Iseqrep
              | IIndent Iseqrep
              | INewline
+             deriving Show
 
 instance Iseq Iseqrep where
   iNil              = INil
-  iStr              = IStr
+  iStr []           = INil
+  iStr s            = case break (=='\n') s of
+    (x, [])  -> IStr s
+    (x, _:y) -> IStr x `iAppend` INewline `iAppend` iStr y
   iAppend INil seq  = seq
   iAppend seq  INil = seq
   iAppend seq1 seq2 = IAppend seq1 seq2
