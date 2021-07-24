@@ -50,6 +50,12 @@ sampleProgram
         ,("z", EAp (EAp (EVar "+") (EVar "y")) (ENum 1))
         ]
         (EVar "z"))
+    , ("g", [], EAp
+                  (EAp
+                   (EVar ">")
+                   (EAp (EAp (EVar "+") (EVar "x")) (EVar "y")))
+                  (EAp (EAp (EVar "*") (EVar "p"))
+                    (EAp (EVar "length") (EVar "xs"))))
     ]
 
 preludeCode :: String
@@ -165,6 +171,30 @@ pprExpr (EConstr tag arity)
             , iStr (show tag), iStr ",", iStr (show arity)
             , iStr "}"
             ]
+pprExpr (EAp (EAp (EVar "+") e1) e2)
+  = iConcat [pprAExpr e1, iStr " + ", pprAExpr e2]
+pprExpr (EAp (EAp (EVar "-") e1) e2)
+  = iConcat [pprAExpr e1, iStr " - ", pprAExpr e2]
+pprExpr (EAp (EAp (EVar "*") e1) e2)
+  = iConcat [pprAExpr e1, iStr " * ", pprAExpr e2]
+pprExpr (EAp (EAp (EVar "/") e1) e2)
+  = iConcat [pprAExpr e1, iStr " / ", pprAExpr e2]
+pprExpr (EAp (EAp (EVar "==") e1) e2)
+  = iConcat [pprAExpr e1, iStr " == ", pprAExpr e2]
+pprExpr (EAp (EAp (EVar "/=") e1) e2)
+  = iConcat [pprAExpr e1, iStr " /= ", pprAExpr e2]
+pprExpr (EAp (EAp (EVar ">") e1) e2)
+  = iConcat [pprAExpr e1, iStr " > ", pprAExpr e2]
+pprExpr (EAp (EAp (EVar ">=") e1) e2)
+  = iConcat [pprAExpr e1, iStr " >= ", pprAExpr e2]
+pprExpr (EAp (EAp (EVar "<") e1) e2)
+  = iConcat [pprAExpr e1, iStr " < ", pprAExpr e2]
+pprExpr (EAp (EAp (EVar "<=") e1) e2)
+  = iConcat [pprAExpr e1, iStr " <= ", pprAExpr e2]
+pprExpr (EAp (EAp (EVar "&&") e1) e2)
+  = iConcat [pprAExpr e1, iStr " && ", pprAExpr e2]
+pprExpr (EAp (EAp (EVar "||") e1) e2)
+  = iConcat [pprAExpr e1, iStr " || ", pprAExpr e2]
 pprExpr (EAp e1 e2)
   = iConcat [ pprExpr e1, iStr " ", pprAExpr e2 ]
 pprExpr (ELet isrec defns expr)
