@@ -42,21 +42,38 @@ type CoreScDefn = ScDefn Name
 
 sampleProgram :: CoreProgram
 sampleProgram
-  = [ ("main", [], EAp (EVar "double") (ENum 21))
-    , ("double", ["x"], EAp (EAp (EVar "+") (EVar "x")) (EVar "x"))
+  = [ ("main", [], ap double _21)
+    , ("double", ["x"], add x x)
     , ("f", ["x"]
       , ELet recursive
-        [("y", EAp (EAp (EVar "+") (EVar "x")) (ENum 1))
-        ,("z", EAp (EAp (EVar "+") (EVar "y")) (ENum 1))
+        [("y", add x _1)
+        ,("z", add y _2)
         ]
-        (EVar "z"))
-    , ("g", [], EAp
-                  (EAp
-                   (EVar ">")
-                   (EAp (EAp (EVar "+") (EVar "x")) (EVar "y")))
-                  (EAp (EAp (EVar "*") (EVar "p"))
-                    (EAp (EVar "length") (EVar "xs"))))
+        z)
+      -- g = x + y > p * length xs
+    , ("g", [], (x `add` y) `gt` (p `mul` (length `ap` xs)))
+      -- h x y z = m f g (g x y) (f z)
+    , ("h", ["x", "y", "z"], (m `ap` f `ap` g) `ap` (g `ap` x `ap` y) `ap` (f `ap` z))
+      -- 2 * 1 + 2 * 3 /= 2 * 2 * 2 * 2
+    , ("i", [], (_2 `mul` _1) `add` (_2 `mul` _3) `ne` (_2 `mul` _2 `mul` _2 `mul` _2))
     ]
+  where
+    [x, y, z, f, g, h, p, m, xs, double, length]
+      = map EVar ["x", "y", "z", "f", "g", "h", "p", "m", "xs", "double", "length"]
+    [_1, _2, _3, _21] = map ENum [1, 2, 3, 21]
+    inc = EAp (EVar "+") _1
+    dec = EAp (EVar "-") _1
+    add x y = EAp (EAp (EVar "+") x) y
+    sub x y = EAp (EAp (EVar "-") x) y
+    mul x y = EAp (EAp (EVar "*") x) y
+    div x y = EAp (EAp (EVar "/") x) y
+    eq x y = EAp (EAp (EVar "==") x) y
+    ne x y = EAp (EAp (EVar "/=") x) y
+    gt x y = EAp (EAp (EVar ">") x) y
+    lt x y = EAp (EAp (EVar "<") x) y
+    ge x y = EAp (EAp (EVar ">=") x) y
+    le x y = EAp (EAp (EVar "<=") x) y
+    f `ap` x = EAp f x
 
 preludeCode :: String
 preludeCode
@@ -120,7 +137,10 @@ data Iseqrep = INil
 
 type Precedence = Int
 data Associativity = Infix | InfixL | InfixR deriving (Show, Enum, Eq)
-type PrecAssoc = (Precedence -> Associativity -> Bool, Precedence, Associativity)
+data PrecAssoc = PrecAssoc { weakp :: Precedence -> Associativity -> Bool
+                           , prec  :: Precedence
+                           , assoc :: Associativity
+                           }
 
 instance Iseq Iseqrep where
   iNil              = INil
@@ -171,26 +191,26 @@ pprArgs :: [String] -> Iseqrep
 pprArgs args = iInterleave iSpace $ map iStr args
 
 precAssoc :: String -> PrecAssoc
-precAssoc "*"  = (\p a -> p >  5, 5, InfixR)
-precAssoc "/"  = (\p a -> p >= 5, 5, Infix )
-precAssoc "+"  = (\p a -> p >  4, 4, InfixR)
-precAssoc "-"  = (\p a -> p >= 4, 4, Infix )
-precAssoc "==" = (\p a -> p >  3, 3, Infix )
-precAssoc "/=" = (\p a -> p >  3, 3, Infix )
-precAssoc ">"  = (\p a -> p >  3, 3, Infix )
-precAssoc ">=" = (\p a -> p >  3, 3, Infix )
-precAssoc "<"  = (\p a -> p >  3, 3, Infix )
-precAssoc "<=" = (\p a -> p >  3, 3, Infix )
-precAssoc "&&" = (\p a -> p >  2, 2, InfixR)
-precAssoc "||" = (\p a -> p >  1, 1, InfixR)
+precAssoc "*"  = PrecAssoc { weakp = \p a -> p >  5, prec = 5, assoc = InfixR }
+precAssoc "/"  = PrecAssoc { weakp = \p a -> p >= 5, prec = 5, assoc = Infix  }
+precAssoc "+"  = PrecAssoc { weakp = \p a -> p >  4, prec = 4, assoc = InfixR }
+precAssoc "-"  = PrecAssoc { weakp = \p a -> p >= 4, prec = 4, assoc = Infix  }
+precAssoc "==" = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
+precAssoc "/=" = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
+precAssoc ">"  = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
+precAssoc ">=" = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
+precAssoc "<"  = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
+precAssoc "<=" = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
+precAssoc "&&" = PrecAssoc { weakp = \p a -> p >  2, prec = 2, assoc = InfixR }
+precAssoc "||" = PrecAssoc { weakp = \p a -> p >  1, prec = 1, assoc = InfixR }
 precAssoc _    = error "Unknown infix operator"
 
 defaultPrecAssoc :: PrecAssoc
-defaultPrecAssoc = (\p a -> False, 0, Infix)  -- FIXME!
+defaultPrecAssoc = PrecAssoc { weakp = \p a -> False, prec = 0, assoc = Infix }  -- FIXME!
 functionPrecAssoc :: PrecAssoc
-functionPrecAssoc = (\p a -> p >= 6, 6, InfixL)
+functionPrecAssoc = PrecAssoc { weakp = \p a -> p > 6, prec = 6, assoc = InfixL }
 functionArgPrecAssoc :: PrecAssoc
-functionArgPrecAssoc = (\p a -> p > 6, 6, InfixL)
+functionArgPrecAssoc = PrecAssoc { weakp = \p a -> p >= 6, prec = 6, assoc = InfixL }
 
 infixOperator :: String -> Bool
 infixOperator op
@@ -206,18 +226,19 @@ pprExpr _ (ENum n) = iStr (show n)
 pprExpr _ (EVar v) = iStr v
 pprExpr _ (EConstr tag arity)
   = iConcat $ map iStr ["Pack{", show tag, ",", show arity, "}"]
-pprExpr pa@(_, p, a) (EAp (EAp (EVar op) e1) e2)
-  | infixOperator op = if pred p a then iParen e else e
+pprExpr pa (EAp (EAp (EVar op) e1) e2)
+  | infixOperator op = if weakp pa' (prec pa) (assoc pa) then iParen e else e
   where e = iConcat [ pprExpr pa' e1
                     , iSpace, iStr op, iSpace
                     , pprExpr pa' e2
                     ]
-        pa'@(pred, _, _) = precAssoc op
-pprExpr pa@(pred, p, a) (EAp e1 e2)
-  = iConcat [ pprExpr functionPrecAssoc e1
-            , iSpace
-            , pprExpr functionArgPrecAssoc e2
-            ]
+        pa' = precAssoc op
+pprExpr pa (EAp e1 e2)
+  = if weakp pa (prec pa) (assoc pa) then iParen e else e
+  where e = iConcat [ pprExpr functionPrecAssoc e1
+                    , iSpace
+                    , pprExpr functionArgPrecAssoc e2
+                    ]
 pprExpr _ (ELet isrec defns expr)
   = iConcat [ iStr keyword, iNewline
             , iStr "  ", iIndent (pprDefns defns), iNewline
