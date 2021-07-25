@@ -56,10 +56,42 @@ sampleProgram
     , ("h", ["x", "y", "z"], (m `ap` f `ap` g) `ap` (g `ap` x `ap` y) `ap` (f `ap` z))
       -- 2 * 1 + 2 * 3 /= 2 * 2 * 2 * 2
     , ("i", [], (_2 `mul` _1) `add` (_2 `mul` _3) `ne` (_2 `mul` _2 `mul` _2 `mul` _2)) -- このカッコは必要
+      -- ((x + y) + z) + w
+    , ("((x+y)+z)+w", [], ((x `add` y) `add` z) `add` w)
+      -- (x + y) + (z + w)
+    , ("(x+y)+(z+w)", [], (x `add` y) `add` (z `add` w))
+      -- x + (y + (z + w))
+    , ("x+(y+(z+w))", [], x `add` (y `add` (z `add` w)))
+      -- x + (y + z) + w
+    , ("x+(y+z)+w", [], x `add` (y `add` z) `add` w)
+      -- ((x - y) - z) - w
+    , ("((x-y)-z)-w", [], ((x `sub` y) `sub` z) `sub` w)
+      -- (x - y) - (z - w)
+    , ("(x-y)-(z-w)", [], (x `sub` y) `sub` (z `sub` w))
+      -- x - (y - (z - w))
+    , ("x-(y-(z-w))", [], x `sub` (y `sub` (z `sub` w)))
+      -- x - (y - z) - w
+    , ("x-(y-z)-w", [], x `sub` (y `sub` z) `sub` w)
+      -- ((x * y) * z) * w
+    , ("((x*y)*z)*w", [], ((x `mul` y) `mul` z) `mul` w)
+      -- (x * y) * (z * w)
+    , ("(x*y)*(z*w)", [], (x `mul` y) `mul` (z `mul` w))
+      -- x * (y * (z * w))
+    , ("x*(y*(z*w))", [], x `mul` (y `mul` (z `mul` w)))
+      -- x * (y * z) * w
+    , ("x*(y*z)*w", [], x `mul` (y `mul` z) `mul` w)
+      -- ((x / y) / z) / w
+    , ("((x/y)/z)/w", [], ((x `div` y) `div` z) `div` w)
+      -- (x / y) / (z / w)
+    , ("(x/y)/(z/w)", [], (x `div` y) `div` (z `div` w))
+      -- x / (y / (z / w))
+    , ("x/(y/(z/w))", [], x `div` (y `div` (z `div` w)))
+      -- x / (y / z) / w
+    , ("x/(y/z)/w", [], x `div` (y `div` z) `div` w)
     ]
   where
-    [x, y, z, f, g, h, p, m, xs, double, length]
-      = map EVar ["x", "y", "z", "f", "g", "h", "p", "m", "xs", "double", "length"]
+    [x, y, z, f, g, h, p, m, w, xs, double, length]
+      = map EVar ["x", "y", "z", "f", "g", "h", "p", "m", "w", "xs", "double", "length"]
     [_1, _2, _3, _21] = map ENum [1, 2, 3, 21]
     inc = EAp (EVar "+") _1
     dec = EAp (EVar "-") _1
