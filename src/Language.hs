@@ -425,6 +425,16 @@ sampleProgram
     , ("p&&(q||(r&&s))", [], p `and` (q `or` (r `and` s)))
       -- p && (q || r) && s
     , ("p&&(q||r)&&s", [], p `and` (q `or` r) `and` s)
+
+      -- 四則演算と関係
+      -- x + y == y + x
+    , ("x+y==y+x", [], (x `add` y) `eq` (y `add` x))
+      -- x - y /= y - x
+    , ("x-y/=x-y", [], (x `sub` y) `ne` (y `sub` x))
+      -- x * y == y * x
+    , ("x*y==y*x", [], (x `mul` y) `eq` (y `mul` x))
+      -- x / y /= y / x
+    , ("x/y/=x+y", [], (x `div` y) `ne` (y `div` x))
     
     ]
   where
