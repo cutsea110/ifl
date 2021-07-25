@@ -33,3 +33,17 @@ executable ifl
   build-depends:       base >=4.13 && <4.14, ifl
   hs-source-dirs:      app
   default-language:    Haskell2010
+
+test-suite ifl-test
+  type: exitcode-stdio-1.0
+  main-is: spec.hs
+  other-modules:
+      LanguageSpec
+  hs-source-dirs:
+      test
+  build-depends:
+      base >=4.7 && <5
+    , hspec
+    , ifl
+    , main-tester
+  default-language: Haskell2010
