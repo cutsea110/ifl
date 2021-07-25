@@ -56,6 +56,7 @@ sampleProgram
     , ("h", ["x", "y", "z"], (m `ap` f `ap` g) `ap` (g `ap` x `ap` y) `ap` (f `ap` z))
       -- 2 * 1 + 2 * 3 /= 2 * 2 * 2 * 2
     , ("i", [], (_2 `mul` _1) `add` (_2 `mul` _3) `ne` (_2 `mul` _2 `mul` _2 `mul` _2)) -- このカッコは必要
+    
       -- ((x + y) + z) + w
     , ("((x+y)+z)+w", [], ((x `add` y) `add` z) `add` w)
       -- (x + y) + (z + w)
@@ -64,6 +65,7 @@ sampleProgram
     , ("x+(y+(z+w))", [], x `add` (y `add` (z `add` w)))
       -- x + (y + z) + w
     , ("x+(y+z)+w", [], x `add` (y `add` z) `add` w)
+    
       -- ((x - y) - z) - w
     , ("((x-y)-z)-w", [], ((x `sub` y) `sub` z) `sub` w)
       -- (x - y) - (z - w)
@@ -72,6 +74,7 @@ sampleProgram
     , ("x-(y-(z-w))", [], x `sub` (y `sub` (z `sub` w)))
       -- x - (y - z) - w
     , ("x-(y-z)-w", [], x `sub` (y `sub` z) `sub` w)
+    
       -- ((x * y) * z) * w
     , ("((x*y)*z)*w", [], ((x `mul` y) `mul` z) `mul` w)
       -- (x * y) * (z * w)
@@ -80,6 +83,7 @@ sampleProgram
     , ("x*(y*(z*w))", [], x `mul` (y `mul` (z `mul` w)))
       -- x * (y * z) * w
     , ("x*(y*z)*w", [], x `mul` (y `mul` z) `mul` w)
+    
       -- ((x / y) / z) / w
     , ("((x/y)/z)/w", [], ((x `div` y) `div` z) `div` w)
       -- (x / y) / (z / w)
@@ -88,6 +92,25 @@ sampleProgram
     , ("x/(y/(z/w))", [], x `div` (y `div` (z `div` w)))
       -- x / (y / z) / w
     , ("x/(y/z)/w", [], x `div` (y `div` z) `div` w)
+    
+      -- ((x + y) - z) + w
+    , ("((x+y)-z)+w", [], ((x `add` y) `sub` z) `add` w)
+      -- (x + y) - (z + w)
+    , ("(x+y)-(z+w)", [], (x `add` y) `sub` (z `add` w))
+      -- x + (y - (z + w))
+    , ("x+(y-(z+w))", [], x `add` (y `sub` (z `add` w)))
+      -- x + (y - z) + w
+    , ("x+(y-z)+w", [], x `add` (y `sub` z) `add` w)
+    
+      -- ((x - y) + z) - w
+    , ("((x-y)+z)-w", [], ((x `sub` y) `add` z) `sub` w)
+      -- (x - y) + (z - w)
+    , ("(x-y)+(z-w)", [], (x `sub` y) `add` (z `sub` w))
+      -- x - (y + (z - w))
+    , ("x-(y+(z-w))", [], x `sub` (y `add` (z `sub` w)))
+      -- x - (y + z) - w
+    , ("x-(y+z)-w", [], x `sub` (y `add` z) `sub` w)
+    
     ]
   where
     [x, y, z, f, g, h, p, m, w, xs, double, length]
@@ -223,9 +246,9 @@ pprArgs :: [String] -> Iseqrep
 pprArgs args = iInterleave iSpace $ map iStr args
 
 precAssoc :: String -> PrecAssoc
-precAssoc "*"  = PrecAssoc { weakp = \p a -> p >  5, prec = 5, assoc = InfixR }
+precAssoc "*"  = PrecAssoc { weakp = \p a -> p >  5 || p == 4 && a /= InfixR, prec = 5, assoc = InfixR }
 precAssoc "/"  = PrecAssoc { weakp = \p a -> p >= 5, prec = 5, assoc = Infix  }
-precAssoc "+"  = PrecAssoc { weakp = \p a -> p >  4, prec = 4, assoc = InfixR }
+precAssoc "+"  = PrecAssoc { weakp = \p a -> p >  4 || p == 4 && a /= InfixR, prec = 4, assoc = InfixR }
 precAssoc "-"  = PrecAssoc { weakp = \p a -> p >= 4, prec = 4, assoc = Infix  }
 precAssoc "==" = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
 precAssoc "/=" = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
