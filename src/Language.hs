@@ -405,11 +405,31 @@ sampleProgram
     , ("x/(y*(z/w))", [], x `div` (y `mul` (z `div` w)))
       -- x / (y * z) / w
     , ("x/(y*z)/w", [], x `div` (y `mul` z) `div` w)
+
+      -- 連言と選言の混合1
+      -- ((p || q) && r) || s
+    , ("((p||q)&&r)||s", [], ((p `or` q) `and` r) `or` s)
+      -- (p || q) && (r || s)
+    , ("(p||q)&&(r||s)", [], (p `or` q) `and` (r `or` s))
+      -- p || (q && (r || s))
+    , ("p||(q&&(r||s))", [], p `or` (q `and` (r `or` s)))
+      -- p || (q && r) || s
+    , ("p||(q&&r)||s", [], p `or` (q `and` r) `or` s)
+    
+      -- 連言と選言の混合2
+      -- ((p && q) || r) && s
+    , ("((p&&q)||r)&&s", [], ((p `and` q) `or` r) `and` s)
+      -- (p && q) || (r && s)
+    , ("(p&&q)||(r&&s)", [], (p `and` q) `or` (r `and` s))
+      -- p && (q || (r && s))
+    , ("p&&(q||(r&&s))", [], p `and` (q `or` (r `and` s)))
+      -- p && (q || r) && s
+    , ("p&&(q||r)&&s", [], p `and` (q `or` r) `and` s)
     
     ]
   where
-    [x, y, z, f, g, h, p, m, w, xs, double, length]
-      = map EVar ["x", "y", "z", "f", "g", "h", "p", "m", "w", "xs", "double", "length"]
+    [x, y, z, f, g, h, p, q, r, s, m, w, xs, double, length]
+      = map EVar ["x", "y", "z", "f", "g", "h", "p", "q", "r", "s", "m", "w", "xs", "double", "length"]
     [_1, _2, _3, _21] = map ENum [1, 2, 3, 21]
     inc = EAp (EVar "+") _1
     dec = EAp (EVar "-") _1
@@ -424,6 +444,8 @@ sampleProgram
     ge x y = EAp (EAp (EVar ">=") x) y
     le x y = EAp (EAp (EVar "<=") x) y
     ap f x = EAp f x
+    and p q = EAp (EAp (EVar "&&") p) q
+    or  p q = EAp (EAp (EVar "||") p) q
 
 preludeCode :: String
 preludeCode
