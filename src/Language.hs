@@ -55,7 +55,7 @@ sampleProgram
       -- h x y z = m f g (g x y) (f z)
     , ("h", ["x", "y", "z"], (m `ap` f `ap` g) `ap` (g `ap` x `ap` y) `ap` (f `ap` z))
       -- 2 * 1 + 2 * 3 /= 2 * 2 * 2 * 2
-    , ("i", [], (_2 `mul` _1) `add` (_2 `mul` _3) `ne` (_2 `mul` _2 `mul` _2 `mul` _2))
+    , ("i", [], (_2 `mul` _1) `add` (_2 `mul` _3) `ne` (_2 `mul` _2 `mul` _2 `mul` _2)) -- このカッコは必要
     ]
   where
     [x, y, z, f, g, h, p, m, xs, double, length]
@@ -73,7 +73,7 @@ sampleProgram
     lt x y = EAp (EAp (EVar "<") x) y
     ge x y = EAp (EAp (EVar ">=") x) y
     le x y = EAp (EAp (EVar "<=") x) y
-    f `ap` x = EAp f x
+    ap f x = EAp f x
 
 preludeCode :: String
 preludeCode
