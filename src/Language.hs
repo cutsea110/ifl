@@ -118,6 +118,10 @@ data Iseqrep = INil
              | INewline
              deriving Show
 
+type Precedence = Int
+data Associativity = Infix | InfixL | InfixR deriving (Show, Enum, Eq)
+type PrecAssoc = (Precedence -> Associativity -> Bool, Precedence, Associativity)
+
 instance Iseq Iseqrep where
   iNil              = INil
   iStr []           = INil
@@ -154,8 +158,11 @@ pprScDefn :: CoreScDefn -> Iseqrep
 pprScDefn (name, args, expr)
   = iConcat [ iStr name, iSpace, pprArgs args
             , iStr " = "
-            , iIndent (pprExpr expr)
+            , iIndent (pprExpr defaultPrecAssoc expr)
             ]
+
+iParen :: Iseq iseq => iseq -> iseq
+iParen seq = iStr "(" `iAppend` seq `iAppend` iStr ")"
 
 iSpace :: Iseq iseq => iseq
 iSpace = iStr " "
@@ -163,71 +170,79 @@ iSpace = iStr " "
 pprArgs :: [String] -> Iseqrep
 pprArgs args = iInterleave iSpace $ map iStr args
 
-pprExpr :: CoreExpr -> Iseqrep
-pprExpr (ENum n) = iStr (show n)
-pprExpr (EVar v) = iStr v
-pprExpr (EConstr tag arity)
-  = iConcat [ iStr "Pack{"
-            , iStr (show tag), iStr ",", iStr (show arity)
-            , iStr "}"
+precAssoc :: String -> PrecAssoc
+precAssoc "*"  = (\p a -> p >  5, 5, InfixR)
+precAssoc "/"  = (\p a -> p >= 5, 5, Infix )
+precAssoc "+"  = (\p a -> p >  4, 4, InfixR)
+precAssoc "-"  = (\p a -> p >= 4, 4, Infix )
+precAssoc "==" = (\p a -> p >  3, 3, Infix )
+precAssoc "/=" = (\p a -> p >  3, 3, Infix )
+precAssoc ">"  = (\p a -> p >  3, 3, Infix )
+precAssoc ">=" = (\p a -> p >  3, 3, Infix )
+precAssoc "<"  = (\p a -> p >  3, 3, Infix )
+precAssoc "<=" = (\p a -> p >  3, 3, Infix )
+precAssoc "&&" = (\p a -> p >  2, 2, InfixR)
+precAssoc "||" = (\p a -> p >  1, 1, InfixR)
+precAssoc _    = error "Unknown infix operator"
+
+defaultPrecAssoc :: PrecAssoc
+defaultPrecAssoc = (\p a -> False, 0, Infix)  -- FIXME!
+functionPrecAssoc :: PrecAssoc
+functionPrecAssoc = (\p a -> p >= 6, 6, InfixL)
+functionArgPrecAssoc :: PrecAssoc
+functionArgPrecAssoc = (\p a -> p > 6, 6, InfixL)
+
+infixOperator :: String -> Bool
+infixOperator op
+  = op `elem` [ "*", "/"
+              , "+", "-"
+              , "==", "/="
+              , ">", ">=", "<", "<="
+              , "&&", "||"
+              ]
+
+pprExpr :: PrecAssoc -> CoreExpr -> Iseqrep
+pprExpr _ (ENum n) = iStr (show n)
+pprExpr _ (EVar v) = iStr v
+pprExpr _ (EConstr tag arity)
+  = iConcat $ map iStr ["Pack{", show tag, ",", show arity, "}"]
+pprExpr pa@(_, p, a) (EAp (EAp (EVar op) e1) e2)
+  | infixOperator op = if pred p a then iParen e else e
+  where e = iConcat [ pprExpr pa' e1
+                    , iSpace, iStr op, iSpace
+                    , pprExpr pa' e2
+                    ]
+        pa'@(pred, _, _) = precAssoc op
+pprExpr pa@(pred, p, a) (EAp e1 e2)
+  = iConcat [ pprExpr functionPrecAssoc e1
+            , iSpace
+            , pprExpr functionArgPrecAssoc e2
             ]
-pprExpr (EAp (EAp (EVar "+") e1) e2)
-  = iConcat [pprAExpr e1, iStr " + ", pprAExpr e2]
-pprExpr (EAp (EAp (EVar "-") e1) e2)
-  = iConcat [pprAExpr e1, iStr " - ", pprAExpr e2]
-pprExpr (EAp (EAp (EVar "*") e1) e2)
-  = iConcat [pprAExpr e1, iStr " * ", pprAExpr e2]
-pprExpr (EAp (EAp (EVar "/") e1) e2)
-  = iConcat [pprAExpr e1, iStr " / ", pprAExpr e2]
-pprExpr (EAp (EAp (EVar "==") e1) e2)
-  = iConcat [pprAExpr e1, iStr " == ", pprAExpr e2]
-pprExpr (EAp (EAp (EVar "/=") e1) e2)
-  = iConcat [pprAExpr e1, iStr " /= ", pprAExpr e2]
-pprExpr (EAp (EAp (EVar ">") e1) e2)
-  = iConcat [pprAExpr e1, iStr " > ", pprAExpr e2]
-pprExpr (EAp (EAp (EVar ">=") e1) e2)
-  = iConcat [pprAExpr e1, iStr " >= ", pprAExpr e2]
-pprExpr (EAp (EAp (EVar "<") e1) e2)
-  = iConcat [pprAExpr e1, iStr " < ", pprAExpr e2]
-pprExpr (EAp (EAp (EVar "<=") e1) e2)
-  = iConcat [pprAExpr e1, iStr " <= ", pprAExpr e2]
-pprExpr (EAp (EAp (EVar "&&") e1) e2)
-  = iConcat [pprAExpr e1, iStr " && ", pprAExpr e2]
-pprExpr (EAp (EAp (EVar "||") e1) e2)
-  = iConcat [pprAExpr e1, iStr " || ", pprAExpr e2]
-pprExpr (EAp e1 e2)
-  = iConcat [ pprExpr e1, iStr " ", pprAExpr e2 ]
-pprExpr (ELet isrec defns expr)
+pprExpr _ (ELet isrec defns expr)
   = iConcat [ iStr keyword, iNewline
             , iStr "  ", iIndent (pprDefns defns), iNewline
-            , iStr "in ", pprExpr expr
+            , iStr "in ", pprExpr defaultPrecAssoc expr
             ]
   where
     keyword | not isrec = "let"
             | isrec     = "letrec"
-pprExpr (ECase e alts)
-  = iConcat [ iStr "case ", iIndent (pprExpr e), iStr " of", iNewline
+pprExpr _ (ECase e alts)
+  = iConcat [ iStr "case ", iIndent (pprExpr defaultPrecAssoc e), iStr " of", iNewline
             , iStr "  ", iIndent (iInterleave iNL (map pprAlt alts))
             ]
-
-pprExpr (ELam args e)
+pprExpr _ (ELam args e)
   = iConcat [ iStr "\\ ", pprArgs args, iStr " -> "
-            , iIndent (pprExpr e)
+            , iIndent (pprExpr defaultPrecAssoc e)
             ]
 
 iNL :: Iseq iseq => iseq
-iNL = iStr " ;" `iAppend` iNewline
+iNL = iSpace `iAppend` iStr ";" `iAppend` iNewline
 
 pprAlt :: CoreAlter -> Iseqrep
 pprAlt (i, args, expr)
   = iConcat [ iStr "<", iStr (show i), iStr ">", iSpace, pprArgs args
-            , iStr " -> ", iIndent (pprExpr expr)
+            , iStr " -> ", iIndent (pprExpr defaultPrecAssoc expr)
             ]
-
-pprAExpr :: CoreExpr -> Iseqrep
-pprAExpr e
-  | isAtomicExpr e = pprExpr e
-  | otherwise      = iStr "(" `iAppend` pprExpr e `iAppend` iStr ")"
 
 pprDefns :: [(Name, CoreExpr)] -> Iseqrep
 pprDefns defns = iInterleave sep (map pprDefn defns)
@@ -236,7 +251,7 @@ pprDefns defns = iInterleave sep (map pprDefn defns)
 
 pprDefn :: (Name, CoreExpr) -> Iseqrep
 pprDefn (name, expr)
-  = iConcat [ iStr name, iStr " = ", iIndent (pprExpr expr) ]
+  = iConcat [ iStr name, iStr " = ", iIndent (pprExpr defaultPrecAssoc expr) ]
 
 iConcat :: Iseq iseq => [iseq] -> iseq
 iConcat = foldr iAppend iNil
