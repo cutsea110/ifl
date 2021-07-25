@@ -56,7 +56,8 @@ sampleProgram
     , ("h", ["x", "y", "z"], (m `ap` f `ap` g) `ap` (g `ap` x `ap` y) `ap` (f `ap` z))
       -- 2 * 1 + 2 * 3 /= 2 * 2 * 2 * 2
     , ("i", [], (_2 `mul` _1) `add` (_2 `mul` _3) `ne` (_2 `mul` _2 `mul` _2 `mul` _2)) -- このカッコは必要
-    
+
+      -- 加算の基本
       -- ((x + y) + z) + w
     , ("((x+y)+z)+w", [], ((x `add` y) `add` z) `add` w)
       -- (x + y) + (z + w)
@@ -66,6 +67,7 @@ sampleProgram
       -- x + (y + z) + w
     , ("x+(y+z)+w", [], x `add` (y `add` z) `add` w)
     
+      -- 減算の基本
       -- ((x - y) - z) - w
     , ("((x-y)-z)-w", [], ((x `sub` y) `sub` z) `sub` w)
       -- (x - y) - (z - w)
@@ -75,6 +77,7 @@ sampleProgram
       -- x - (y - z) - w
     , ("x-(y-z)-w", [], x `sub` (y `sub` z) `sub` w)
     
+      -- 乗算の基本
       -- ((x * y) * z) * w
     , ("((x*y)*z)*w", [], ((x `mul` y) `mul` z) `mul` w)
       -- (x * y) * (z * w)
@@ -84,6 +87,7 @@ sampleProgram
       -- x * (y * z) * w
     , ("x*(y*z)*w", [], x `mul` (y `mul` z) `mul` w)
     
+      -- 徐算の基本
       -- ((x / y) / z) / w
     , ("((x/y)/z)/w", [], ((x `div` y) `div` z) `div` w)
       -- (x / y) / (z / w)
@@ -93,6 +97,7 @@ sampleProgram
       -- x / (y / z) / w
     , ("x/(y/z)/w", [], x `div` (y `div` z) `div` w)
     
+      -- 加算と減算の混合1
       -- ((x + y) - z) + w
     , ("((x+y)-z)+w", [], ((x `add` y) `sub` z) `add` w)
       -- (x + y) - (z + w)
@@ -102,6 +107,7 @@ sampleProgram
       -- x + (y - z) + w
     , ("x+(y-z)+w", [], x `add` (y `sub` z) `add` w)
     
+      -- 加算と減算の混合2
       -- ((x - y) + z) - w
     , ("((x-y)+z)-w", [], ((x `sub` y) `add` z) `sub` w)
       -- (x - y) + (z - w)
@@ -110,6 +116,106 @@ sampleProgram
     , ("x-(y+(z-w))", [], x `sub` (y `add` (z `sub` w)))
       -- x - (y + z) - w
     , ("x-(y+z)-w", [], x `sub` (y `add` z) `sub` w)
+    
+      -- 加算と乗算の混合1
+      -- ((x + y) * z) + w
+    , ("((x+y)*z)+w", [], ((x `add` y) `mul` z) `add` w)
+      -- (x + y) * (z + w)
+    , ("(x+y)*(z+w)", [], (x `add` y) `mul` (z `add` w))
+      -- x + (y * (z + w))
+    , ("x+(y*(z+w))", [], x `add` (y `mul` (z `add` w)))
+      -- x + (y * z) + w
+    , ("x+(y*z)+w", [], x `add` (y `mul` z) `add` w)
+    
+      -- 加算と乗算の混合2
+      -- ((x * y) + z) * w
+    , ("((x*y)+z)*w", [], ((x `mul` y) `add` z) `mul` w)
+      -- (x * y) + (z * w)
+    , ("(x*y)+(z*w)", [], (x `mul` y) `add` (z `mul` w))
+      -- x * (y + (z * w))
+    , ("x*(y+(z*w))", [], x `mul` (y `add` (z `mul` w)))
+      -- x * (y + z) * w
+    , ("x*(y+z)*w", [], x `mul` (y `add` z) `mul` w)
+    
+      -- 加算と徐算の混合1
+      -- ((x + y) / z) + w
+    , ("((x+y)/z)+w", [], ((x `add` y) `div` z) `add` w)
+      -- (x + y) / (z + w)
+    , ("(x+y)/(z+w)", [], (x `add` y) `div` (z `add` w))
+      -- x + (y / (z + w))
+    , ("x+(y/(z+w))", [], x `add` (y `div` (z `add` w)))
+      -- x + (y / z) + w
+    , ("x+(y/z)+w", [], x `add` (y `div` z) `add` w)
+    
+      -- 加算と徐算の混合2
+      -- ((x / y) + z) / w
+    , ("((x/y)+z)/w", [], ((x `div` y) `add` z) `div` w)
+      -- (x / y) + (z / w)
+    , ("(x/y)+(z/w)", [], (x `div` y) `add` (z `div` w))
+      -- x / (y + (z / w))
+    , ("x/(y+(z/w))", [], x `div` (y `add` (z `div` w)))
+      -- x / (y + z) / w
+    , ("x/(y+z)/w", [], x `div` (y `add` z) `div` w)
+    
+      -- 減算と乗算の混合1
+      -- ((x - y) * z) - w
+    , ("((x-y)*z)-w", [], ((x `sub` y) `mul` z) `sub` w)
+      -- (x - y) * (z - w)
+    , ("(x-y)*(z-w)", [], (x `sub` y) `mul` (z `sub` w))
+      -- x - (y * (z - w))
+    , ("x-(y*(z-w))", [], x `sub` (y `mul` (z `sub` w)))
+      -- x - (y * z) - w
+    , ("x-(y*z)-w", [], x `sub` (y `mul` z) `sub` w)
+    
+      -- 減算と乗算の混合2
+      -- ((x * y) - z) * w
+    , ("((x*y)-z)*w", [], ((x `mul` y) `sub` z) `mul` w)
+      -- (x * y) - (z * w)
+    , ("(x*y)-(z*w)", [], (x `mul` y) `sub` (z `mul` w))
+      -- x * (y - (z * w))
+    , ("x*(y-(z*w))", [], x `mul` (y `sub` (z `mul` w)))
+      -- x * (y - z) * w
+    , ("x*(y-z)*w", [], x `mul` (y `sub` z) `mul` w)
+    
+      -- 減算と徐算の混合1
+      -- ((x - y) / z) - w
+    , ("((x-y)/z)-w", [], ((x `sub` y) `div` z) `sub` w)
+      -- (x - y) / (z - w)
+    , ("(x-y)/(z-w)", [], (x `sub` y) `div` (z `sub` w))
+      -- x - (y / (z - w))
+    , ("x-(y/(z-w))", [], x `sub` (y `div` (z `sub` w)))
+      -- x - (y / z) - w
+    , ("x-(y/z)-w", [], x `sub` (y `div` z) `sub` w)
+    
+      -- 減算と徐算の混合2
+      -- ((x / y) - z) / w
+    , ("((x/y)-z)/w", [], ((x `div` y) `sub` z) `div` w)
+      -- (x / y) - (z / w)
+    , ("(x/y)-(z/w)", [], (x `div` y) `sub` (z `div` w))
+      -- x / (y - (z / w))
+    , ("x/(y-(z/w))", [], x `div` (y `sub` (z `div` w)))
+      -- x / (y - z) / w
+    , ("x/(y-z)/w", [], x `div` (y `sub` z) `div` w)
+
+      -- 乗算と徐算の混合1
+      -- ((x * y) / z) * w
+    , ("((x*y)/z)*w", [], ((x `mul` y) `div` z) `mul` w)
+      -- (x * y) / (z * w)
+    , ("(x*y)/(z*w)", [], (x `mul` y) `div` (z `mul` w))
+      -- x * (y / (z * w))
+    , ("x*(y/(z*w))", [], x `mul` (y `div` (z `mul` w)))
+      -- x * (y / z) * w
+    , ("x*(y/z)*w", [], x `mul` (y `div` z) `mul` w)
+    
+      -- 乗算と徐算の混合2
+      -- ((x / y) * z) / w
+    , ("((x/y)*z)/w", [], ((x `div` y) `mul` z) `div` w)
+      -- (x / y) * (z / w)
+    , ("(x/y)*(z/w)", [], (x `div` y) `mul` (z `div` w))
+      -- x / (y * (z / w))
+    , ("x/(y*(z/w))", [], x `div` (y `mul` (z `div` w)))
+      -- x / (y * z) / w
+    , ("x/(y*z)/w", [], x `div` (y `mul` z) `div` w)
     
     ]
   where
@@ -246,7 +352,7 @@ pprArgs :: [String] -> Iseqrep
 pprArgs args = iInterleave iSpace $ map iStr args
 
 precAssoc :: String -> PrecAssoc
-precAssoc "*"  = PrecAssoc { weakp = \p a -> p >  5 || p == 4 && a /= InfixR, prec = 5, assoc = InfixR }
+precAssoc "*"  = PrecAssoc { weakp = \p a -> p >  5 || p == 5 && a /= InfixR, prec = 5, assoc = InfixR }
 precAssoc "/"  = PrecAssoc { weakp = \p a -> p >= 5, prec = 5, assoc = Infix  }
 precAssoc "+"  = PrecAssoc { weakp = \p a -> p >  4 || p == 4 && a /= InfixR, prec = 4, assoc = InfixR }
 precAssoc "-"  = PrecAssoc { weakp = \p a -> p >= 4, prec = 4, assoc = Infix  }
