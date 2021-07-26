@@ -106,6 +106,19 @@ double x = x + x
 
 >>> printScDefn ("main", [], ap double _42)
 main = double 42
+
+>>> printScDefn ("f", ["x"], ELet recursive [("y", x `add` _1), ("z", y `add` _2)] z)
+f x = letrec
+        y = x + 1;
+        z = y + 2
+      in z
+
+>>> let (foldr, xs, y, ys) = (EVar "foldr", EVar "xs", EVar "y", EVar "ys")
+>>> let caseExpr = ECase xs [(1, [], c), (2, ["y", "ys"], f `ap` y `ap` (foldr `ap` c `ap` f `ap` ys))]
+>>> printScDefn ("foldr", ["c", "f", "xs"], caseExpr)
+foldr c f xs = case xs of
+                 <1> -> c ;
+                 <2> y ys -> f y (foldr c f ys)
 -}
 pprProgram :: CoreProgram -> Iseqrep
 pprProgram scdefns = iInterleave iNL $ map pprScDefn scdefns
@@ -159,7 +172,7 @@ infixOperator op
               ]
 
 {- $setup
->>> [x, y, z, w, f, g, h, p, q, r, s] = map EVar ["x", "y", "z", "w", "f", "g", "h", "p", "q", "r", "s"]
+>>> [a, b, c, x, y, z, w, f, g, h, p, q, r, s] = map (EVar . (:[])) "abcxyzwfghpqrs"
 >>> [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9] = map ENum [0 .. 9]
 >>> inc = EAp (EVar "+") _1
 >>> dec = EAp (EVar "-") _1
@@ -452,9 +465,10 @@ iNL = iSpace `iAppend` iStr ";" `iAppend` iNewline
 
 pprAlt :: CoreAlter -> Iseqrep
 pprAlt (i, args, expr)
-  = iConcat [ iStr "<", iStr (show i), iStr ">", iSpace, pprArgs args
+  = iConcat [ iStr "<", iStr (show i), iStr ">", sep, pprArgs args
             , iStr " -> ", iIndent (pprExpr defaultPrecAssoc expr)
             ]
+    where sep = if null args then iNil else iSpace
 
 pprDefns :: [(Name, CoreExpr)] -> Iseqrep
 pprDefns defns = iInterleave sep (map pprDefn defns)
