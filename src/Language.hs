@@ -570,7 +570,7 @@ pprAlt (i, args, expr)
 pprDefns :: [(Name, CoreExpr)] -> Iseqrep
 pprDefns defns = iInterleave sep (map pprDefn defns)
   where
-    sep = iConcat [ iStr ";", iNewline ]
+    sep = iStr ";" `iAppend` iNewline
 
 pprDefn :: (Name, CoreExpr) -> Iseqrep
 pprDefn (name, expr)
