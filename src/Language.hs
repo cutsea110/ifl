@@ -100,7 +100,11 @@ space n = replicate n ' '
 {- |
 >>> double = EVar "double"
 >>> _42 = ENum 42
->>> putStrLn $ pprint $ [("main", [], ap double _42)]
+
+>>> printScDefn ("double", ["x"], x `add` x)
+double x = x + x
+
+>>> printScDefn ("main", [], ap double _42)
 main = double 42
 -}
 pprProgram :: CoreProgram -> Iseqrep
@@ -173,6 +177,7 @@ infixOperator op
 >>> and p q = EAp (EAp (EVar "&&") p) q
 >>> or  p q = EAp (EAp (EVar "||") p) q
 >>> printExpr = putStrLn . iDisplay . pprExpr defaultPrecAssoc
+>>> printScDefn = putStrLn . iDisplay . pprScDefn
 -}
 
 {- |
