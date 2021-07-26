@@ -137,7 +137,7 @@ unfoldr psi xs = case psi xs of
                    <2> y ys -> Pack{2,2} y (unfoldr psi ys)
 -}
 pprProgram :: CoreProgram -> Iseqrep
-pprProgram scdefns = iInterleave iNL $ map pprScDefn scdefns
+pprProgram scdefns = iInterleave iEOL' $ map pprScDefn scdefns
 
 pprScDefn :: CoreScDefn -> Iseqrep
 pprScDefn (name, args, expr)
@@ -152,6 +152,12 @@ iParen seq = iStr "(" `iAppend` seq `iAppend` iStr ")"
 
 iSpace :: Iseq iseq => iseq
 iSpace = iStr " "
+
+iEOL :: Iseq iseq => iseq
+iEOL = iStr ";" `iAppend` iNewline
+
+iEOL' :: Iseq iseq => iseq
+iEOL' = iSpace `iAppend` iEOL
 
 pprArgs :: [String] -> Iseqrep
 pprArgs args = iInterleave iSpace $ map iStr args
@@ -550,15 +556,13 @@ pprExpr l _ (ELet isrec defns expr)
 pprExpr l _ (ECase expr alts)
   = if l /= Top then iParen e else e
   where e = iConcat [ iStr "case ", iIndent (pprExpr Top defaultPrecAssoc expr), iStr " of", iNewline
-                    , iStr "  ", iIndent (iInterleave iNL (map pprAlt alts))
+                    , iStr "  ", iIndent (iInterleave iEOL' (map pprAlt alts))
                     ]
 pprExpr l _ (ELam args expr)
   = if l /= Top then iParen e else e
   where e = iConcat [ iStr "\\ ", pprArgs args, iStr " -> "
                     , iIndent (pprExpr Top defaultPrecAssoc expr)
                     ]
-iNL :: Iseq iseq => iseq
-iNL = iSpace `iAppend` iStr ";" `iAppend` iNewline
 
 pprAlt :: CoreAlter -> Iseqrep
 pprAlt (i, args, expr)
@@ -568,9 +572,7 @@ pprAlt (i, args, expr)
     where sep = if null args then iNil else iSpace
 
 pprDefns :: [(Name, CoreExpr)] -> Iseqrep
-pprDefns defns = iInterleave sep (map pprDefn defns)
-  where
-    sep = iStr ";" `iAppend` iNewline
+pprDefns defns = iInterleave iEOL (map pprDefn defns)
 
 pprDefn :: (Name, CoreExpr) -> Iseqrep
 pprDefn (name, expr)
