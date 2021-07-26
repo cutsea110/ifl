@@ -454,6 +454,12 @@ let
       in z
 in y + 2
 
+>>> printExpr $ ELet recursive [("y", ELet recursive [("z", x `sub` _2)] z)] (y `mul` _3)
+letrec
+  y = letrec
+        z = x - 2
+      in z
+in y * 3
 
 >>> let (xs, ys, sum) = (EVar "xs", EVar "ys", EVar "sum")
 >>> printExpr $ x `mul` (ECase xs [(1, [], x), (2, ["y", "ys"], y `add` (sum `ap` ys))])
