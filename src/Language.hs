@@ -162,6 +162,31 @@ infixOperator op
               , "&&", "||"
               ]
 
+{- $setup
+>>> [x, y, z, w, f, g, h, p, q, r, s] = map EVar ["x", "y", "z", "w", "f", "g", "h", "p", "q", "r", "s"]
+>>> [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9] = map ENum [0 .. 9]
+>>> inc = EAp (EVar "+") _1
+>>> dec = EAp (EVar "-") _1
+>>> add x y = EAp (EAp (EVar "+") x) y
+>>> sub x y = EAp (EAp (EVar "-") x) y
+>>> mul x y = EAp (EAp (EVar "*") x) y
+>>> div x y = EAp (EAp (EVar "/") x) y
+>>> eq x y = EAp (EAp (EVar "==") x) y
+>>> ne x y = EAp (EAp (EVar "/=") x) y
+>>> gt x y = EAp (EAp (EVar ">") x) y
+>>> lt x y = EAp (EAp (EVar "<") x) y
+>>> ge x y = EAp (EAp (EVar ">=") x) y
+>>> le x y = EAp (EAp (EVar "<=") x) y
+>>> ap f x = EAp f x
+>>> and p q = EAp (EAp (EVar "&&") p) q
+>>> or  p q = EAp (EAp (EVar "||") p) q
+>>> printExpr = putStrLn . iDisplay . pprExpr defaultPrecAssoc
+-}
+
+{- |
+>>> printExpr $ ((x `add` y) `add` z) `add` w
+x + y + z + w
+-}
 pprExpr :: PrecAssoc -> CoreExpr -> Iseqrep
 pprExpr _ (ENum n) = iStr (show n)
 pprExpr _ (EVar v) = iStr v
