@@ -580,11 +580,9 @@ iConcat :: Iseq iseq => [iseq] -> iseq
 iConcat = foldr iAppend iNil
 
 iInterleave :: Iseq iseq => iseq -> [iseq] -> iseq
-iInterleave sep [] = iNil
-iInterleave sep [x] = x
-iInterleave sep (x:xs)
-  = x `iAppend` sep `iAppend` iInterleave sep xs
-
+iInterleave sep []     = iNil
+iInterleave sep [x]    = x
+iInterleave sep (x:xs) = iConcat [x, sep, iInterleave sep xs]
 
 ----------------------------------------------------------------------------------------
 -- sample code and prelude
