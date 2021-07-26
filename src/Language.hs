@@ -68,6 +68,9 @@ data PrecAssoc = PrecAssoc { weakp :: Precedence -> Associativity -> Bool
                            , assoc :: Associativity
                            }
 
+-- 右辺値の最上位の式か下位の式か
+data Level = Root | Sub deriving (Eq, Show)
+
 instance Iseq Iseqrep where
   iNil              = INil
   iStr []           = INil
@@ -107,11 +110,18 @@ double x = x + x
 >>> printScDefn ("main", [], ap double _42)
 main = double 42
 
->>> printScDefn ("f", ["x"], ELet recursive [("y", x `add` _1), ("z", y `add` _2)] z)
-f x = letrec
+>>> printScDefn ("f", ["x"], ELet nonRecursive [("y", x `add` _1), ("z", y `add` _2)] z)
+f x = let
         y = x + 1;
         z = y + 2
       in z
+
+>>> let (bool, i, n) = (EVar "bool", EVar "i", EVar "n")
+>>> let func = ELam ["f", "i"] (bool `ap` (i `mul` (f `ap` (i `sub` _1))) `ap` _1 `ap` (i `eq` _1))
+>>> printScDefn ("fact", ["n"], ELet recursive [("y", ELam ["x"] (x `ap` (y `ap` x)))] (y `ap` func `ap` n))
+fact n = letrec
+           y = \ x -> x (y x)
+         in y (\ f i -> bool (i * f (i - 1)) 1 (i == 1)) n
 
 >>> let (foldr, xs, y, ys) = (EVar "foldr", EVar "xs", EVar "y", EVar "ys")
 >>> let caseExpr = ECase xs [(1, [], c), (2, ["y", "ys"], f `ap` y `ap` (foldr `ap` c `ap` f `ap` ys))]
@@ -119,6 +129,13 @@ f x = letrec
 foldr c f xs = case xs of
                  <1> -> c ;
                  <2> y ys -> f y (foldr c f ys)
+
+>>> let (unfoldr, psi, xs, y, ys) = (EVar "unfoldr", EVar "psi", EVar "xs", EVar "y", EVar "ys")
+>>> let caseExpr = ECase (psi `ap` xs) [(1, [], EConstr 1 0), (2, ["y", "ys"], EConstr 2 2 `ap` y `ap` (unfoldr `ap` psi `ap` ys))]
+>>> printScDefn ("unfoldr", ["psi", "xs"], caseExpr)
+unfoldr psi xs = case psi xs of
+                   <1> -> Pack{1,0} ;
+                   <2> y ys -> Pack{2,2} y (unfoldr psi ys)
 -}
 pprProgram :: CoreProgram -> Iseqrep
 pprProgram scdefns = iInterleave iNL $ map pprScDefn scdefns
@@ -127,7 +144,7 @@ pprScDefn :: CoreScDefn -> Iseqrep
 pprScDefn (name, args, expr)
   = iConcat [ iStr name, sep, pprArgs args
             , iStr " = "
-            , iIndent (pprExpr defaultPrecAssoc expr)
+            , iIndent (pprExpr Root defaultPrecAssoc expr)
             ]
     where sep = if null args then iNil else iSpace
 
@@ -189,7 +206,7 @@ infixOperator op
 >>> ap f x = EAp f x
 >>> and p q = EAp (EAp (EVar "&&") p) q
 >>> or  p q = EAp (EAp (EVar "||") p) q
->>> printExpr = putStrLn . iDisplay . pprExpr defaultPrecAssoc
+>>> printExpr = putStrLn . iDisplay . pprExpr Root defaultPrecAssoc
 >>> printScDefn = putStrLn . iDisplay . pprScDefn
 -}
 
@@ -425,48 +442,48 @@ x / y /= y / x
 >>> printExpr $ (h `ap` f `ap` g) `ap` (g `ap` x `ap` y) `ap` (f `ap` z)
 h f g (g x y) (f z)
 -}
-pprExpr :: PrecAssoc -> CoreExpr -> Iseqrep
-pprExpr _ (ENum n) = iStr (show n)
-pprExpr _ (EVar v) = iStr v
-pprExpr _ (EConstr tag arity)
+pprExpr :: Level -> PrecAssoc -> CoreExpr -> Iseqrep
+pprExpr _ _ (ENum n) = iStr (show n)
+pprExpr _ _ (EVar v) = iStr v
+pprExpr _ _ (EConstr tag arity)
   = iConcat $ map iStr ["Pack{", show tag, ",", show arity, "}"]
-pprExpr pa (EAp (EAp (EVar op) e1) e2)
+pprExpr _ pa (EAp (EAp (EVar op) e1) e2)
   | infixOperator op = if weakp pa' (prec pa) (assoc pa) then iParen e else e
-  where e = iConcat [ pprExpr pa' e1
+  where e = iConcat [ pprExpr Sub pa' e1
                     , iSpace, iStr op, iSpace
-                    , pprExpr pa' e2
+                    , pprExpr Sub pa' e2
                     ]
         pa' = precAssoc op
-pprExpr pa (EAp e1 e2)
+pprExpr _ pa (EAp e1 e2)
   = if weakp pa (prec pa) (assoc pa) then iParen e else e
-  where e = iConcat [ pprExpr functionPrecAssoc e1
+  where e = iConcat [ pprExpr Sub functionPrecAssoc e1
                     , iSpace
-                    , pprExpr functionArgPrecAssoc e2
+                    , pprExpr Sub functionArgPrecAssoc e2
                     ]
-pprExpr _ (ELet isrec defns expr)
+pprExpr _ _ (ELet isrec defns expr)
   = iConcat [ iStr keyword, iNewline
             , iStr "  ", iIndent (pprDefns defns), iNewline
-            , iStr "in ", pprExpr defaultPrecAssoc expr
+            , iStr "in ", pprExpr Root defaultPrecAssoc expr
             ]
   where
     keyword | not isrec = "let"
             | isrec     = "letrec"
-pprExpr _ (ECase e alts)
-  = iConcat [ iStr "case ", iIndent (pprExpr defaultPrecAssoc e), iStr " of", iNewline
+pprExpr _ _ (ECase e alts)
+  = iConcat [ iStr "case ", iIndent (pprExpr Root defaultPrecAssoc e), iStr " of", iNewline
             , iStr "  ", iIndent (iInterleave iNL (map pprAlt alts))
             ]
-pprExpr _ (ELam args e)
-  = iConcat [ iStr "\\ ", pprArgs args, iStr " -> "
-            , iIndent (pprExpr defaultPrecAssoc e)
-            ]
-
+pprExpr l _ (ELam args e)
+  = if l /= Root then iParen e' else e'
+  where e' = iConcat [ iStr "\\ ", pprArgs args, iStr " -> "
+                     , iIndent (pprExpr Root defaultPrecAssoc e)
+                     ]
 iNL :: Iseq iseq => iseq
 iNL = iSpace `iAppend` iStr ";" `iAppend` iNewline
 
 pprAlt :: CoreAlter -> Iseqrep
 pprAlt (i, args, expr)
   = iConcat [ iStr "<", iStr (show i), iStr ">", sep, pprArgs args
-            , iStr " -> ", iIndent (pprExpr defaultPrecAssoc expr)
+            , iStr " -> ", iIndent (pprExpr Root defaultPrecAssoc expr)
             ]
     where sep = if null args then iNil else iSpace
 
@@ -477,7 +494,7 @@ pprDefns defns = iInterleave sep (map pprDefn defns)
 
 pprDefn :: (Name, CoreExpr) -> Iseqrep
 pprDefn (name, expr)
-  = iConcat [ iStr name, iStr " = ", iIndent (pprExpr defaultPrecAssoc expr) ]
+  = iConcat [ iStr name, iStr " = ", iIndent (pprExpr Root defaultPrecAssoc expr) ]
 
 iConcat :: Iseq iseq => [iseq] -> iseq
 iConcat = foldr iAppend iNil
