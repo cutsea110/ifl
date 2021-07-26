@@ -583,12 +583,11 @@ sampleProgram :: CoreProgram
 sampleProgram
   = [ ("main", [], ap double _42)
     , ("double", ["x"], add x x)
-    , ("f", ["x"]
-      , ELet recursive
-        [("y", add x _1)
-        ,("z", add y _2)
-        ]
-        z)
+      -- f x = let
+      --         y = x + 1;
+      --         z = y + 2
+      --       in z
+    , ("f", ["x"], ELet recursive [("y", x `add` _1), ("z", y `add` _2)] z)
       -- g = x + y > p * length xs
     , ("g", [], (x `add` y) `gt` (p `mul` (length `ap` xs)))
     ]
