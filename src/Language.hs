@@ -190,6 +190,8 @@ infixOperator op
 
 {- $setup
 >>> [a, b, c, x, y, z, w, f, g, h, p, q, r, s] = map (EVar . (:[])) "abcxyzwfghpqrs"
+>>> [xs, ys, zs] = map EVar ["xs", "ys", "zs"]
+>>> [sum, length] = map EVar ["sum", "length"]
 >>> [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9] = map ENum [0 .. 9]
 >>> inc = EAp (EVar "+") _1
 >>> dec = EAp (EVar "-") _1
@@ -439,13 +441,36 @@ x * y == y * x
 >>> printExpr $ (x `div` y) `ne` (y `div` x)
 x / y /= y / x
 
->>> printExpr $ (h `ap` f `ap` g) `ap` (g `ap` x `ap` y) `ap` (f `ap` z)
-h f g (g x y) (f z)
+>>> printExpr $ f `ap` x `ap` (g `ap` x)
+f x (g x)
 
->>> printExpr $ x `add` (ELet nonRecursive [("y", x `add` x)] y)
+>>> printExpr $ f `ap` (g `ap` (h `ap` x))
+f (g (h x))
+
+>>> printExpr $ f `ap` (g `ap` x) `ap` (h `ap` y)
+f (g x) (h y)
+
+>>> printExpr $ x `add` (ELet nonRecursive [("y", x `add` _1), ("z", y `mul` _2)] z)
 x + (let
-  y = x + x
-in y)
+  y = x + 1;
+  z = y * 2
+in z)
+
+>>> printExpr $ (ELet nonRecursive [("y", x `add` _1), ("z", y `mul` _2)] z) `sub` x
+(let
+  y = x + 1;
+  z = y * 2
+in z) - x
+
+>>> printExpr $ x `mul` (ECase xs [(1, [], x), (2, ["y", "ys"], y `add` (sum `ap` ys))])
+x * (case xs of
+  <1> -> x ;
+  <2> y ys -> y + sum ys)
+
+>>> printExpr $ (ECase xs [(1, [], x), (2, ["y", "ys"], y `add` (length `ap` ys))]) `div` x
+(case xs of
+  <1> -> x ;
+  <2> y ys -> y + length ys) / x
 
 >>> printExpr $ ELet nonRecursive [("y", ELet nonRecursive [("z", x `add` _1)] z)] (y `add` _2)
 let
@@ -461,7 +486,6 @@ letrec
       in z
 in y * 3
 
->>> let xs = EVar "xs"
 >>> let letExpr1 = ELet nonRecursive [("z", x `add` _1)] (z `mul` x)
 >>> let letExpr2 = ELet recursive [("y", x `add` _2)] (y `add` x)
 >>> printExpr $ ECase xs [(1, [], letExpr1), (2, ["y", "ys"], letExpr2)]
@@ -473,7 +497,6 @@ case xs of
                 y = x + 2
               in y + x
 
->>> let (xs, ys) = (EVar "xs", EVar "ys")
 >>> let caseExpr1 = ECase xs [(1, [], x), (2, ["y", "ys"], y `add` _2)]
 >>> let caseExpr2 = ECase ys [(1, [], y), (2, ["x", "xs"], x `mul` _3)]
 >>> printExpr $ ELet recursive [("x", caseExpr1), ("y", caseExpr2)] (x `add` y)
@@ -485,12 +508,6 @@ letrec
         <1> -> y ;
         <2> x xs -> x * 3
 in x + y
-
->>> let (xs, ys, sum) = (EVar "xs", EVar "ys", EVar "sum")
->>> printExpr $ x `mul` (ECase xs [(1, [], x), (2, ["y", "ys"], y `add` (sum `ap` ys))])
-x * (case xs of
-  <1> -> x ;
-  <2> y ys -> y + sum ys)
 -}
 pprExpr :: Level -> PrecAssoc -> CoreExpr -> Iseqrep
 pprExpr _ _ (ENum n) = iStr (show n)
