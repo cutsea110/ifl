@@ -512,7 +512,7 @@ iInterleave sep (x:xs)
 
 sampleProgram :: CoreProgram
 sampleProgram
-  = [ ("main", [], ap double _21)
+  = [ ("main", [], ap double _42)
     , ("double", ["x"], add x x)
     , ("f", ["x"]
       , ELet recursive
@@ -524,24 +524,12 @@ sampleProgram
     , ("g", [], (x `add` y) `gt` (p `mul` (length `ap` xs)))
     ]
   where
-    [x, y, z, f, g, h, p, q, r, s, m, w, xs, double, length]
-      = map EVar ["x", "y", "z", "f", "g", "h", "p", "q", "r", "s", "m", "w", "xs", "double", "length"]
-    [_1, _2, _3, _21] = map ENum [1, 2, 3, 21]
-    inc = EAp (EVar "+") _1
-    dec = EAp (EVar "-") _1
+    [x, y, z, f, g, p, xs, double, length] = map EVar ["x", "y", "z", "f", "g", "p", "xs", "double", "length"]
+    [_1, _2, _3, _42] = map ENum [1, 2, 3, 42]
     add x y = EAp (EAp (EVar "+") x) y
-    sub x y = EAp (EAp (EVar "-") x) y
     mul x y = EAp (EAp (EVar "*") x) y
-    div x y = EAp (EAp (EVar "/") x) y
-    eq x y = EAp (EAp (EVar "==") x) y
-    ne x y = EAp (EAp (EVar "/=") x) y
     gt x y = EAp (EAp (EVar ">") x) y
-    lt x y = EAp (EAp (EVar "<") x) y
-    ge x y = EAp (EAp (EVar ">=") x) y
-    le x y = EAp (EAp (EVar "<=") x) y
     ap f x = EAp f x
-    and p q = EAp (EAp (EVar "&&") p) q
-    or  p q = EAp (EAp (EVar "||") p) q
 
 preludeCode :: String
 preludeCode
