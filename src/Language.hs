@@ -69,7 +69,7 @@ data PrecAssoc = PrecAssoc { weakp :: Precedence -> Associativity -> Bool
                            }
 
 -- 右辺値の最上位の式か下位の式か
-data Level = Root | Sub deriving (Eq, Show)
+data Level = Top | Sub deriving (Eq, Show)
 
 instance Iseq Iseqrep where
   iNil              = INil
@@ -143,7 +143,7 @@ pprScDefn :: CoreScDefn -> Iseqrep
 pprScDefn (name, args, expr)
   = iConcat [ iStr name, sep, pprArgs args
             , iStr " = "
-            , iIndent (pprExpr Root defaultPrecAssoc expr)
+            , iIndent (pprExpr Top defaultPrecAssoc expr)
             ]
     where sep = if null args then iNil else iSpace
 
@@ -158,17 +158,17 @@ pprArgs args = iInterleave iSpace $ map iStr args
 
 precAssoc :: String -> PrecAssoc
 precAssoc "*"  = PrecAssoc { weakp = \p a -> p >  5 || p == 5 && a /= InfixR, prec = 5, assoc = InfixR }
-precAssoc "/"  = PrecAssoc { weakp = \p a -> p >= 5, prec = 5, assoc = Infix  }
+precAssoc "/"  = PrecAssoc { weakp = \p a -> p >= 5,                          prec = 5, assoc = Infix  }
 precAssoc "+"  = PrecAssoc { weakp = \p a -> p >  4 || p == 4 && a /= InfixR, prec = 4, assoc = InfixR }
-precAssoc "-"  = PrecAssoc { weakp = \p a -> p >= 4, prec = 4, assoc = Infix  }
-precAssoc "==" = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
-precAssoc "/=" = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
-precAssoc ">"  = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
-precAssoc ">=" = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
-precAssoc "<"  = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
-precAssoc "<=" = PrecAssoc { weakp = \p a -> p >  3, prec = 3, assoc = Infix  }
-precAssoc "&&" = PrecAssoc { weakp = \p a -> p >  2, prec = 2, assoc = InfixR }
-precAssoc "||" = PrecAssoc { weakp = \p a -> p >  1, prec = 1, assoc = InfixR }
+precAssoc "-"  = PrecAssoc { weakp = \p a -> p >= 4,                          prec = 4, assoc = Infix  }
+precAssoc "==" = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssoc "/=" = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssoc ">"  = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssoc ">=" = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssoc "<"  = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssoc "<=" = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssoc "&&" = PrecAssoc { weakp = \p a -> p >  2,                          prec = 2, assoc = InfixR }
+precAssoc "||" = PrecAssoc { weakp = \p a -> p >  1,                          prec = 1, assoc = InfixR }
 precAssoc _    = error "Unknown infix operator"
 
 defaultPrecAssoc :: PrecAssoc
@@ -207,7 +207,7 @@ infixOperator op
 >>> ap f x = EAp f x
 >>> and p q = EAp (EAp (EVar "&&") p) q
 >>> or  p q = EAp (EAp (EVar "||") p) q
->>> printExpr = putStrLn . iDisplay . pprExpr Root defaultPrecAssoc
+>>> printExpr = putStrLn . iDisplay . pprExpr Top defaultPrecAssoc
 >>> printScDefn = putStrLn . iDisplay . pprScDefn
 -}
 
@@ -539,23 +539,23 @@ pprExpr _ pa (EAp e1 e2)
                     , pprExpr Sub functionArgPrecAssoc e2
                     ]
 pprExpr l _ (ELet isrec defns expr)
-  = if l /= Root then iParen e else e
+  = if l /= Top then iParen e else e
   where
     keyword | not isrec = "let"
             | isrec     = "letrec"
     e = iConcat [ iStr keyword, iNewline
                 , iStr "  ", iIndent (pprDefns defns), iNewline
-                , iStr "in ", pprExpr Root defaultPrecAssoc expr
+                , iStr "in ", pprExpr Top defaultPrecAssoc expr
                 ]
 pprExpr l _ (ECase expr alts)
-  = if l /= Root then iParen e else e
-  where e = iConcat [ iStr "case ", iIndent (pprExpr Root defaultPrecAssoc expr), iStr " of", iNewline
+  = if l /= Top then iParen e else e
+  where e = iConcat [ iStr "case ", iIndent (pprExpr Top defaultPrecAssoc expr), iStr " of", iNewline
                     , iStr "  ", iIndent (iInterleave iNL (map pprAlt alts))
                     ]
 pprExpr l _ (ELam args expr)
-  = if l /= Root then iParen e else e
+  = if l /= Top then iParen e else e
   where e = iConcat [ iStr "\\ ", pprArgs args, iStr " -> "
-                    , iIndent (pprExpr Root defaultPrecAssoc expr)
+                    , iIndent (pprExpr Top defaultPrecAssoc expr)
                     ]
 iNL :: Iseq iseq => iseq
 iNL = iSpace `iAppend` iStr ";" `iAppend` iNewline
@@ -563,7 +563,7 @@ iNL = iSpace `iAppend` iStr ";" `iAppend` iNewline
 pprAlt :: CoreAlter -> Iseqrep
 pprAlt (i, args, expr)
   = iConcat [ iStr "<", iStr (show i), iStr ">", sep, pprArgs args
-            , iStr " -> ", iIndent (pprExpr Root defaultPrecAssoc expr)
+            , iStr " -> ", iIndent (pprExpr Top defaultPrecAssoc expr)
             ]
     where sep = if null args then iNil else iSpace
 
@@ -574,7 +574,7 @@ pprDefns defns = iInterleave sep (map pprDefn defns)
 
 pprDefn :: (Name, CoreExpr) -> Iseqrep
 pprDefn (name, expr)
-  = iConcat [ iStr name, iStr " = ", iIndent (pprExpr Root defaultPrecAssoc expr) ]
+  = iConcat [ iStr name, iStr " = ", iIndent (pprExpr Top defaultPrecAssoc expr) ]
 
 iConcat :: Iseq iseq => [iseq] -> iseq
 iConcat = foldr iAppend iNil
