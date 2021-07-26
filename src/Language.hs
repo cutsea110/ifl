@@ -441,6 +441,25 @@ x / y /= y / x
 
 >>> printExpr $ (h `ap` f `ap` g) `ap` (g `ap` x `ap` y) `ap` (f `ap` z)
 h f g (g x y) (f z)
+
+>>> printExpr $ x `add` (ELet nonRecursive [("y", x `add` x)] y)
+x + (let
+  y = x + x
+in y)
+
+>>> printExpr $ ELet nonRecursive [("y", ELet nonRecursive [("z", x `add` _1)] z)] (y `add` _2)
+let
+  y = let
+        z = x + 1
+      in z
+in y + 2
+
+
+>>> let (xs, ys, sum) = (EVar "xs", EVar "ys", EVar "sum")
+>>> printExpr $ x `mul` (ECase xs [(1, [], x), (2, ["y", "ys"], y `add` (sum `ap` ys))])
+x * (case xs of
+  <1> -> x ;
+  <2> y ys -> y + sum ys)
 -}
 pprExpr :: Level -> PrecAssoc -> CoreExpr -> Iseqrep
 pprExpr _ _ (ENum n) = iStr (show n)
@@ -460,23 +479,25 @@ pprExpr _ pa (EAp e1 e2)
                     , iSpace
                     , pprExpr Sub functionArgPrecAssoc e2
                     ]
-pprExpr _ _ (ELet isrec defns expr)
-  = iConcat [ iStr keyword, iNewline
-            , iStr "  ", iIndent (pprDefns defns), iNewline
-            , iStr "in ", pprExpr Root defaultPrecAssoc expr
-            ]
+pprExpr l _ (ELet isrec defns expr)
+  = if l /= Root then iParen e else e
   where
     keyword | not isrec = "let"
             | isrec     = "letrec"
-pprExpr _ _ (ECase e alts)
-  = iConcat [ iStr "case ", iIndent (pprExpr Root defaultPrecAssoc e), iStr " of", iNewline
-            , iStr "  ", iIndent (iInterleave iNL (map pprAlt alts))
-            ]
-pprExpr l _ (ELam args e)
-  = if l /= Root then iParen e' else e'
-  where e' = iConcat [ iStr "\\ ", pprArgs args, iStr " -> "
-                     , iIndent (pprExpr Root defaultPrecAssoc e)
-                     ]
+    e = iConcat [ iStr keyword, iNewline
+                , iStr "  ", iIndent (pprDefns defns), iNewline
+                , iStr "in ", pprExpr Root defaultPrecAssoc expr
+                ]
+pprExpr l _ (ECase expr alts)
+  = if l /= Root then iParen e else e
+  where e = iConcat [ iStr "case ", iIndent (pprExpr Root defaultPrecAssoc expr), iStr " of", iNewline
+                    , iStr "  ", iIndent (iInterleave iNL (map pprAlt alts))
+                    ]
+pprExpr l _ (ELam args expr)
+  = if l /= Root then iParen e else e
+  where e = iConcat [ iStr "\\ ", pprArgs args, iStr " -> "
+                    , iIndent (pprExpr Root defaultPrecAssoc expr)
+                    ]
 iNL :: Iseq iseq => iseq
 iNL = iSpace `iAppend` iStr ";" `iAppend` iNewline
 
