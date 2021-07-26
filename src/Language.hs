@@ -461,6 +461,31 @@ letrec
       in z
 in y * 3
 
+>>> let xs = EVar "xs"
+>>> let letExpr1 = ELet nonRecursive [("z", x `add` _1)] (z `mul` x)
+>>> let letExpr2 = ELet recursive [("y", x `add` _2)] (y `add` x)
+>>> printExpr $ ECase xs [(1, [], letExpr1), (2, ["y", "ys"], letExpr2)]
+case xs of
+  <1> -> let
+           z = x + 1
+         in z * x ;
+  <2> y ys -> letrec
+                y = x + 2
+              in y + x
+
+>>> let (xs, ys) = (EVar "xs", EVar "ys")
+>>> let caseExpr1 = ECase xs [(1, [], x), (2, ["y", "ys"], y `add` _2)]
+>>> let caseExpr2 = ECase ys [(1, [], y), (2, ["x", "xs"], x `mul` _3)]
+>>> printExpr $ ELet recursive [("x", caseExpr1), ("y", caseExpr2)] (x `add` y)
+letrec
+  x = case xs of
+        <1> -> x ;
+        <2> y ys -> y + 2;
+  y = case ys of
+        <1> -> y ;
+        <2> x xs -> x * 3
+in x + y
+
 >>> let (xs, ys, sum) = (EVar "xs", EVar "ys", EVar "sum")
 >>> printExpr $ x `mul` (ECase xs [(1, [], x), (2, ["y", "ys"], y `add` (sum `ap` ys))])
 x * (case xs of
