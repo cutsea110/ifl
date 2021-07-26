@@ -110,14 +110,13 @@ double x = x + x
 >>> printScDefn ("main", [], ap double _42)
 main = double 42
 
->>> printScDefn ("f", ["x"], ELet nonRecursive [("y", x `add` _1), ("z", y `add` _2)] z)
+>>> printScDefn ("f", ["x"], ELet nonRecursive [("y", x `add` _1), ("z", y `mul` _2)] z)
 f x = let
         y = x + 1;
-        z = y + 2
+        z = y * 2
       in z
 
->>> let (bool, i, n) = (EVar "bool", EVar "i", EVar "n")
->>> let func = ELam ["f", "i"] (bool `ap` (i `mul` (f `ap` (i `sub` _1))) `ap` _1 `ap` (i `eq` _1))
+>>> let func = ELam ["f", "i"] (EVar "bool" `ap` (i `mul` (f `ap` (i `sub` _1))) `ap` _1 `ap` (i `eq` _1))
 >>> printScDefn ("fact", ["n"], ELet recursive [("y", ELam ["x"] (x `ap` (y `ap` x)))] (y `ap` func `ap` n))
 fact n = letrec
            y = \ x -> x (y x)
@@ -189,7 +188,7 @@ infixOperator op
               ]
 
 {- $setup
->>> [a, b, c, x, y, z, w, f, g, h, p, q, r, s] = map (EVar . (:[])) "abcxyzwfghpqrs"
+>>> [a, b, c, i, j, k, n, f, g, h, x, y, z, w, p, q, r, s] = map (EVar . (:[])) "abcijknfghxyzwpqrs"
 >>> [xs, ys, zs] = map EVar ["xs", "ys", "zs"]
 >>> [sum, length] = map EVar ["sum", "length"]
 >>> [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9] = map ENum [0 .. 9]
@@ -508,6 +507,18 @@ letrec
         <1> -> y ;
         <2> x xs -> x * 3
 in x + y
+
+>>> printExpr $ ELam ["x"] (x `ap` (y `ap` x))
+\ x -> x (y x)
+
+>>> printExpr $ ELam ["f"] (ELam ["x"] (f `ap` x `ap` x))
+\ f -> \ x -> f x x
+
+>>> let func = ELam ["f", "i"] (EVar "bool" `ap` (i `mul` (f `ap` (i `sub` _1))) `ap` _1 `ap` (i `eq` _1))
+>>> printExpr $ ELet recursive [("y", ELam ["x"] (x `ap` (y `ap` x)))] (y `ap` func)
+letrec
+  y = \ x -> x (y x)
+in y (\ f i -> bool (i * f (i - 1)) 1 (i == 1))
 -}
 pprExpr :: Level -> PrecAssoc -> CoreExpr -> Iseqrep
 pprExpr _ _ (ENum n) = iStr (show n)
