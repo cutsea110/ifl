@@ -44,21 +44,6 @@ type CoreScDefn = ScDefn Name
 pprint :: CoreProgram -> String
 pprint prog = iDisplay (pprProgram prog)
 
-{--
-pprExpr :: CoreExpr -> String
-pprExpr (ENum n)    = show n
-pprExpr (EVar v)    = v
-pprExpr (EAp e1 e2) = pprExpr e1 ++ " " ++ pprExpr e2
-
-pprAExpr :: CoreExpr -> String
-pprAExpr e
-  | isAtomicExpr e = pprExpr e
-  | otherwise      = "(" ++ pprExpr e ++ ")"
-
-mkMultiAp :: Int -> CoreExpr -> CoreExpr -> CoreExpr
-mkMultiAp n e1 e2 = foldl EAp e1 $ replicate n e2
---}
-
 class Iseq iseq where
   iNil :: iseq
   iStr :: String -> iseq
@@ -112,15 +97,22 @@ flatten col ((IIndent seq, indent) : seqs)
 space :: Int -> String
 space n = replicate n ' '
 
+{- |
+>>> double = EVar "double"
+>>> _42 = ENum 42
+>>> putStrLn $ pprint $ [("main", [], ap double _42)]
+main = double 42
+-}
 pprProgram :: CoreProgram -> Iseqrep
 pprProgram scdefns = iInterleave iNL $ map pprScDefn scdefns
 
 pprScDefn :: CoreScDefn -> Iseqrep
 pprScDefn (name, args, expr)
-  = iConcat [ iStr name, iSpace, pprArgs args
+  = iConcat [ iStr name, sep, pprArgs args
             , iStr " = "
             , iIndent (pprExpr defaultPrecAssoc expr)
             ]
+    where sep = if null args then iNil else iSpace
 
 iParen :: Iseq iseq => iseq -> iseq
 iParen seq = iStr "(" `iAppend` seq `iAppend` iStr ")"
@@ -186,6 +178,234 @@ infixOperator op
 {- |
 >>> printExpr $ ((x `add` y) `add` z) `add` w
 x + y + z + w
+
+>>> printExpr $ (x `add` y) `add` (z `add` w)
+x + y + z + w
+
+>>> printExpr $ x `add` (y `add` (z `add` w))
+x + y + z + w
+
+>>> printExpr $ x `add` (y `add` z) `add` w
+x + y + z + w
+
+>>> printExpr $ ((x `sub` y) `sub` z) `sub` w
+((x - y) - z) - w
+
+>>> printExpr $ (x `sub` y) `sub` (z `sub` w)
+(x - y) - (z - w)
+
+>>> printExpr $ x `sub` (y `sub` (z `sub` w))
+x - (y - (z - w))
+
+>>> printExpr $ x `sub` (y `sub` z) `sub` w
+(x - (y - z)) - w
+
+>>> printExpr $ ((x `mul` y) `mul` z) `mul` w
+x * y * z * w
+
+>>> printExpr $ (x `mul` y) `mul` (z `mul` w)
+x * y * z * w
+
+>>> printExpr $ x `mul` (y `mul` (z `mul` w))
+x * y * z * w
+
+>>> printExpr $ x `mul` (y `mul` z) `mul` w
+x * y * z * w
+
+>>> printExpr $ ((x `div` y) `div` z) `div` w
+((x / y) / z) / w
+
+>>> printExpr $ (x `div` y) `div` (z `div` w)
+(x / y) / (z / w)
+
+>>> printExpr $ x `div` (y `div` (z `div` w))
+x / (y / (z / w))
+
+>>> printExpr $ x `div` (y `div` z) `div` w
+(x / (y / z)) / w
+
+>>> printExpr $ ((x `add` y) `sub` z) `add` w
+((x + y) - z) + w
+
+>>> printExpr $ (x `add` y) `sub` (z `add` w)
+(x + y) - (z + w)
+
+>>> printExpr $ x `add` (y `sub` (z `add` w))
+x + (y - (z + w))
+
+>>> printExpr $ x `add` (y `sub` z) `add` w
+x + (y - z) + w
+
+>>> printExpr $ ((x `sub` y) `add` z) `sub` w
+((x - y) + z) - w
+
+>>> printExpr $ (x `sub` y) `add` (z `sub` w)
+(x - y) + (z - w)
+
+>>> printExpr $ x `sub` (y `add` (z `sub` w))
+x - (y + (z - w))
+
+>>> printExpr $ x `sub` (y `add` z) `sub` w
+(x - (y + z)) - w
+
+>>> printExpr $ ((x `add` y) `mul` z) `add` w
+(x + y) * z + w
+
+>>> printExpr $ (x `add` y) `mul` (z `add` w)
+(x + y) * (z + w)
+
+>>> printExpr $ x `add` (y `mul` (z `add` w))
+x + y * (z + w)
+
+>>> printExpr $ x `add` (y `mul` z) `add` w
+x + y * z + w
+
+>>> printExpr $ ((x `mul` y) `add` z) `mul` w
+(x * y + z) * w
+
+>>> printExpr $ (x `mul` y) `add` (z `mul` w)
+x * y + z * w
+
+>>> printExpr $ x `mul` (y `add` (z `mul` w))
+x * (y + z * w)
+
+>>> printExpr $ x `mul` (y `add` z) `mul` w
+x * (y + z) * w
+
+>>> printExpr $ ((x `add` y) `div` z) `add` w
+(x + y) / z + w
+
+>>> printExpr $ (x `add` y) `div` (z `add` w)
+(x + y) / (z + w)
+
+>>> printExpr $ x `add` (y `div` (z `add` w))
+x + y / (z + w)
+
+>>> printExpr $ x `add` (y `div` z) `add` w
+x + y / z + w
+
+>>> printExpr $ ((x `div` y) `add` z) `div` w
+(x / y + z) / w
+
+>>> printExpr $ (x `div` y) `add` (z `div` w)
+x / y + z / w
+
+>>> printExpr $ x `div` (y `add` (z `div` w))
+x / (y + z / w)
+
+>>> printExpr $ x `div` (y `add` z) `div` w
+(x / (y + z)) / w
+
+>>> printExpr $ ((x `sub` y) `mul` z) `sub` w
+(x - y) * z - w
+
+>>> printExpr $ (x `sub` y) `mul` (z `sub` w)
+(x - y) * (z - w)
+
+>>> printExpr $ x `sub` (y `mul` (z `sub` w))
+x - y * (z - w)
+
+>>> printExpr $ x `sub` (y `mul` z) `sub` w
+(x - y * z) - w
+
+>>> printExpr $ ((x `mul` y) `sub` z) `mul` w
+(x * y - z) * w
+
+>>> printExpr $ (x `mul` y) `sub` (z `mul` w)
+x * y - z * w
+
+>>> printExpr $ x `mul` (y `sub` (z `mul` w))
+x * (y - z * w)
+
+>>> printExpr $ x `mul` (y `sub` z) `mul` w
+x * (y - z) * w
+
+>>> printExpr $ ((x `sub` y) `div` z) `sub` w
+(x - y) / z - w
+
+>>> printExpr $ (x `sub` y) `div` (z `sub` w)
+(x - y) / (z - w)
+
+>>> printExpr $ x `sub` (y `div` (z `sub` w))
+x - y / (z - w)
+
+>>> printExpr $ x `sub` (y `div` z) `sub` w
+(x - y / z) - w
+
+>>> printExpr $ ((x `div` y) `sub` z) `div` w
+(x / y - z) / w
+
+>>> printExpr $ (x `div` y) `sub` (z `div` w)
+x / y - z / w
+
+>>> printExpr $ x `div` (y `sub` (z `div` w))
+x / (y - z / w)
+
+>>> printExpr $ x `div` (y `sub` z) `div` w
+(x / (y - z)) / w
+
+>>> printExpr $ ((x `mul` y) `div` z) `mul` w
+((x * y) / z) * w
+
+>>> printExpr $ (x `mul` y) `div` (z `mul` w)
+(x * y) / (z * w)
+
+>>> printExpr $ x `mul` (y `div` (z `mul` w))
+x * (y / (z * w))
+
+>>> printExpr $ x `mul` (y `div` z) `mul` w
+x * (y / z) * w
+
+>>> printExpr $ ((x `div` y) `mul` z) `div` w
+((x / y) * z) / w
+
+>>> printExpr $ (x `div` y) `mul` (z `div` w)
+(x / y) * (z / w)
+
+>>> printExpr $ x `div` (y `mul` (z `div` w))
+x / (y * (z / w))
+
+>>> printExpr $ x `div` (y `mul` z) `div` w
+(x / (y * z)) / w
+
+>>> printExpr $ ((p `or` q) `and` r) `or` s
+(p || q) && r || s
+
+>>> printExpr $ (p `or` q) `and` (r `or` s)
+(p || q) && (r || s)
+
+>>> printExpr $ p `or` (q `and` (r `or` s))
+p || q && (r || s)
+
+>>> printExpr $ p `or` (q `and` r) `or` s
+p || q && r || s
+
+>>> printExpr $ ((p `and` q) `or` r) `and` s
+(p && q || r) && s
+
+>>> printExpr $ (p `and` q) `or` (r `and` s)
+p && q || r && s
+
+>>> printExpr $ p `and` (q `or` (r `and` s))
+p && (q || r && s)
+
+>>> printExpr $ p `and` (q `or` r) `and` s
+p && (q || r) && s
+
+>>> printExpr $ (x `add` y) `eq` (y `add` x)
+x + y == y + x
+
+>>> printExpr $ (x `sub` y) `ne` (y `sub` x)
+x - y /= y - x
+
+>>> printExpr $ (x `mul` y) `eq` (y `mul` x)
+x * y == y * x
+
+>>> printExpr $ (x `div` y) `ne` (y `div` x)
+x / y /= y / x
+
+>>> printExpr $ (h `ap` f `ap` g) `ap` (g `ap` x `ap` y) `ap` (f `ap` z)
+h f g (g x y) (f z)
 -}
 pprExpr :: PrecAssoc -> CoreExpr -> Iseqrep
 pprExpr _ (ENum n) = iStr (show n)
@@ -266,201 +486,6 @@ sampleProgram
         z)
       -- g = x + y > p * length xs
     , ("g", [], (x `add` y) `gt` (p `mul` (length `ap` xs)))
-      -- h x y z = m f g (g x y) (f z)
-    , ("h", ["x", "y", "z"], (m `ap` f `ap` g) `ap` (g `ap` x `ap` y) `ap` (f `ap` z))
-      -- 2 * 1 + 2 * 3 /= 2 * 2 * 2 * 2
-    , ("i", [], (_2 `mul` _1) `add` (_2 `mul` _3) `ne` (_2 `mul` _2 `mul` _2 `mul` _2)) -- このカッコは必要
-
-      -- 加算の基本
-      -- ((x + y) + z) + w
-    , ("((x+y)+z)+w", [], ((x `add` y) `add` z) `add` w)
-      -- (x + y) + (z + w)
-    , ("(x+y)+(z+w)", [], (x `add` y) `add` (z `add` w))
-      -- x + (y + (z + w))
-    , ("x+(y+(z+w))", [], x `add` (y `add` (z `add` w)))
-      -- x + (y + z) + w
-    , ("x+(y+z)+w", [], x `add` (y `add` z) `add` w)
-    
-      -- 減算の基本
-      -- ((x - y) - z) - w
-    , ("((x-y)-z)-w", [], ((x `sub` y) `sub` z) `sub` w)
-      -- (x - y) - (z - w)
-    , ("(x-y)-(z-w)", [], (x `sub` y) `sub` (z `sub` w))
-      -- x - (y - (z - w))
-    , ("x-(y-(z-w))", [], x `sub` (y `sub` (z `sub` w)))
-      -- x - (y - z) - w
-    , ("x-(y-z)-w", [], x `sub` (y `sub` z) `sub` w)
-    
-      -- 乗算の基本
-      -- ((x * y) * z) * w
-    , ("((x*y)*z)*w", [], ((x `mul` y) `mul` z) `mul` w)
-      -- (x * y) * (z * w)
-    , ("(x*y)*(z*w)", [], (x `mul` y) `mul` (z `mul` w))
-      -- x * (y * (z * w))
-    , ("x*(y*(z*w))", [], x `mul` (y `mul` (z `mul` w)))
-      -- x * (y * z) * w
-    , ("x*(y*z)*w", [], x `mul` (y `mul` z) `mul` w)
-    
-      -- 徐算の基本
-      -- ((x / y) / z) / w
-    , ("((x/y)/z)/w", [], ((x `div` y) `div` z) `div` w)
-      -- (x / y) / (z / w)
-    , ("(x/y)/(z/w)", [], (x `div` y) `div` (z `div` w))
-      -- x / (y / (z / w))
-    , ("x/(y/(z/w))", [], x `div` (y `div` (z `div` w)))
-      -- x / (y / z) / w
-    , ("x/(y/z)/w", [], x `div` (y `div` z) `div` w)
-    
-      -- 加算と減算の混合1
-      -- ((x + y) - z) + w
-    , ("((x+y)-z)+w", [], ((x `add` y) `sub` z) `add` w)
-      -- (x + y) - (z + w)
-    , ("(x+y)-(z+w)", [], (x `add` y) `sub` (z `add` w))
-      -- x + (y - (z + w))
-    , ("x+(y-(z+w))", [], x `add` (y `sub` (z `add` w)))
-      -- x + (y - z) + w
-    , ("x+(y-z)+w", [], x `add` (y `sub` z) `add` w)
-    
-      -- 加算と減算の混合2
-      -- ((x - y) + z) - w
-    , ("((x-y)+z)-w", [], ((x `sub` y) `add` z) `sub` w)
-      -- (x - y) + (z - w)
-    , ("(x-y)+(z-w)", [], (x `sub` y) `add` (z `sub` w))
-      -- x - (y + (z - w))
-    , ("x-(y+(z-w))", [], x `sub` (y `add` (z `sub` w)))
-      -- x - (y + z) - w
-    , ("x-(y+z)-w", [], x `sub` (y `add` z) `sub` w)
-    
-      -- 加算と乗算の混合1
-      -- ((x + y) * z) + w
-    , ("((x+y)*z)+w", [], ((x `add` y) `mul` z) `add` w)
-      -- (x + y) * (z + w)
-    , ("(x+y)*(z+w)", [], (x `add` y) `mul` (z `add` w))
-      -- x + (y * (z + w))
-    , ("x+(y*(z+w))", [], x `add` (y `mul` (z `add` w)))
-      -- x + (y * z) + w
-    , ("x+(y*z)+w", [], x `add` (y `mul` z) `add` w)
-    
-      -- 加算と乗算の混合2
-      -- ((x * y) + z) * w
-    , ("((x*y)+z)*w", [], ((x `mul` y) `add` z) `mul` w)
-      -- (x * y) + (z * w)
-    , ("(x*y)+(z*w)", [], (x `mul` y) `add` (z `mul` w))
-      -- x * (y + (z * w))
-    , ("x*(y+(z*w))", [], x `mul` (y `add` (z `mul` w)))
-      -- x * (y + z) * w
-    , ("x*(y+z)*w", [], x `mul` (y `add` z) `mul` w)
-    
-      -- 加算と徐算の混合1
-      -- ((x + y) / z) + w
-    , ("((x+y)/z)+w", [], ((x `add` y) `div` z) `add` w)
-      -- (x + y) / (z + w)
-    , ("(x+y)/(z+w)", [], (x `add` y) `div` (z `add` w))
-      -- x + (y / (z + w))
-    , ("x+(y/(z+w))", [], x `add` (y `div` (z `add` w)))
-      -- x + (y / z) + w
-    , ("x+(y/z)+w", [], x `add` (y `div` z) `add` w)
-    
-      -- 加算と徐算の混合2
-      -- ((x / y) + z) / w
-    , ("((x/y)+z)/w", [], ((x `div` y) `add` z) `div` w)
-      -- (x / y) + (z / w)
-    , ("(x/y)+(z/w)", [], (x `div` y) `add` (z `div` w))
-      -- x / (y + (z / w))
-    , ("x/(y+(z/w))", [], x `div` (y `add` (z `div` w)))
-      -- x / (y + z) / w
-    , ("x/(y+z)/w", [], x `div` (y `add` z) `div` w)
-    
-      -- 減算と乗算の混合1
-      -- ((x - y) * z) - w
-    , ("((x-y)*z)-w", [], ((x `sub` y) `mul` z) `sub` w)
-      -- (x - y) * (z - w)
-    , ("(x-y)*(z-w)", [], (x `sub` y) `mul` (z `sub` w))
-      -- x - (y * (z - w))
-    , ("x-(y*(z-w))", [], x `sub` (y `mul` (z `sub` w)))
-      -- x - (y * z) - w
-    , ("x-(y*z)-w", [], x `sub` (y `mul` z) `sub` w)
-    
-      -- 減算と乗算の混合2
-      -- ((x * y) - z) * w
-    , ("((x*y)-z)*w", [], ((x `mul` y) `sub` z) `mul` w)
-      -- (x * y) - (z * w)
-    , ("(x*y)-(z*w)", [], (x `mul` y) `sub` (z `mul` w))
-      -- x * (y - (z * w))
-    , ("x*(y-(z*w))", [], x `mul` (y `sub` (z `mul` w)))
-      -- x * (y - z) * w
-    , ("x*(y-z)*w", [], x `mul` (y `sub` z) `mul` w)
-    
-      -- 減算と徐算の混合1
-      -- ((x - y) / z) - w
-    , ("((x-y)/z)-w", [], ((x `sub` y) `div` z) `sub` w)
-      -- (x - y) / (z - w)
-    , ("(x-y)/(z-w)", [], (x `sub` y) `div` (z `sub` w))
-      -- x - (y / (z - w))
-    , ("x-(y/(z-w))", [], x `sub` (y `div` (z `sub` w)))
-      -- x - (y / z) - w
-    , ("x-(y/z)-w", [], x `sub` (y `div` z) `sub` w)
-    
-      -- 減算と徐算の混合2
-      -- ((x / y) - z) / w
-    , ("((x/y)-z)/w", [], ((x `div` y) `sub` z) `div` w)
-      -- (x / y) - (z / w)
-    , ("(x/y)-(z/w)", [], (x `div` y) `sub` (z `div` w))
-      -- x / (y - (z / w))
-    , ("x/(y-(z/w))", [], x `div` (y `sub` (z `div` w)))
-      -- x / (y - z) / w
-    , ("x/(y-z)/w", [], x `div` (y `sub` z) `div` w)
-
-      -- 乗算と徐算の混合1
-      -- ((x * y) / z) * w
-    , ("((x*y)/z)*w", [], ((x `mul` y) `div` z) `mul` w)
-      -- (x * y) / (z * w)
-    , ("(x*y)/(z*w)", [], (x `mul` y) `div` (z `mul` w))
-      -- x * (y / (z * w))
-    , ("x*(y/(z*w))", [], x `mul` (y `div` (z `mul` w)))
-      -- x * (y / z) * w
-    , ("x*(y/z)*w", [], x `mul` (y `div` z) `mul` w)
-    
-      -- 乗算と徐算の混合2
-      -- ((x / y) * z) / w
-    , ("((x/y)*z)/w", [], ((x `div` y) `mul` z) `div` w)
-      -- (x / y) * (z / w)
-    , ("(x/y)*(z/w)", [], (x `div` y) `mul` (z `div` w))
-      -- x / (y * (z / w))
-    , ("x/(y*(z/w))", [], x `div` (y `mul` (z `div` w)))
-      -- x / (y * z) / w
-    , ("x/(y*z)/w", [], x `div` (y `mul` z) `div` w)
-
-      -- 連言と選言の混合1
-      -- ((p || q) && r) || s
-    , ("((p||q)&&r)||s", [], ((p `or` q) `and` r) `or` s)
-      -- (p || q) && (r || s)
-    , ("(p||q)&&(r||s)", [], (p `or` q) `and` (r `or` s))
-      -- p || (q && (r || s))
-    , ("p||(q&&(r||s))", [], p `or` (q `and` (r `or` s)))
-      -- p || (q && r) || s
-    , ("p||(q&&r)||s", [], p `or` (q `and` r) `or` s)
-    
-      -- 連言と選言の混合2
-      -- ((p && q) || r) && s
-    , ("((p&&q)||r)&&s", [], ((p `and` q) `or` r) `and` s)
-      -- (p && q) || (r && s)
-    , ("(p&&q)||(r&&s)", [], (p `and` q) `or` (r `and` s))
-      -- p && (q || (r && s))
-    , ("p&&(q||(r&&s))", [], p `and` (q `or` (r `and` s)))
-      -- p && (q || r) && s
-    , ("p&&(q||r)&&s", [], p `and` (q `or` r) `and` s)
-
-      -- 四則演算と関係
-      -- x + y == y + x
-    , ("x+y==y+x", [], (x `add` y) `eq` (y `add` x))
-      -- x - y /= y - x
-    , ("x-y/=x-y", [], (x `sub` y) `ne` (y `sub` x))
-      -- x * y == y * x
-    , ("x*y==y*x", [], (x `mul` y) `eq` (y `mul` x))
-      -- x / y /= y / x
-    , ("x/y/=x+y", [], (x `div` y) `ne` (y `div` x))
-    
     ]
   where
     [x, y, z, f, g, h, p, q, r, s, m, w, xs, double, length]
