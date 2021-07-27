@@ -12,9 +12,19 @@ data Expr a
   | ELam [a] (Expr a)
   deriving (Show)
 
+type Program a = [ScDefn a]
+type CoreProgram = Program Name
+
+type ScDefn a = (Name, [a], Expr a)
+type CoreScDefn = ScDefn Name
+
 type CoreExpr = Expr Name
 type Name = String
 type IsRec = Bool
+
+type Alter a = (Int, [a], Expr a)
+type CoreAlter = Alter Name
+
 recursive :: IsRec
 recursive = True
 nonRecursive :: IsRec
@@ -26,24 +36,16 @@ bindersOf defns = [ name | (name, rhs) <- defns ]
 rhssOf :: [(a, b)] -> [b]
 rhssOf defns = [ rhs | (name, rhs) <- defns ]
 
-type Alter a = (Int, [a], Expr a)
-type CoreAlter = Alter Name
-
 isAtomicExpr :: Expr a -> Bool
 isAtomicExpr (EVar v) = True
 isAtomicExpr (ENum n) = True
 isAtomicExpr e        = False
 
-type Program a = [ScDefn a]
-type CoreProgram = Program Name
-
-type ScDefn a = (Name, [a], Expr a)
-type CoreScDefn = ScDefn Name
-
 -- pretty printer
 pprint :: CoreProgram -> String
 pprint prog = iDisplay (pprProgram prog)
 
+-- | 抽象データ型的に使う
 class Iseq iseq where
   iNil :: iseq
   iStr :: String -> iseq
@@ -54,22 +56,13 @@ class Iseq iseq where
 
 infixr 5 `iAppend`
 
+-- | Iseq 抽象データ型の具体型
 data Iseqrep = INil
              | IStr String
              | IAppend Iseqrep Iseqrep
              | IIndent Iseqrep
              | INewline
              deriving Show
-
-type Precedence = Int
-data Associativity = Infix | InfixL | InfixR deriving (Show, Enum, Eq)
-data PrecAssoc = PrecAssoc { weakp :: Precedence -> Associativity -> Bool
-                           , prec  :: Precedence
-                           , assoc :: Associativity
-                           }
-
--- 右辺値の最上位の式か下位の式か
-data Level = Top | Sub deriving (Eq, Show)
 
 instance Iseq Iseqrep where
   iNil              = INil
@@ -83,6 +76,40 @@ instance Iseq Iseqrep where
   iNewline          = INewline
   iIndent seq       = IIndent seq
   iDisplay seq      = flatten 0 [(seq, 0)]
+
+iParen :: Iseq iseq => iseq -> iseq
+iParen seq = iStr "(" `iAppend` seq `iAppend` iStr ")"
+
+iSpace :: Iseq iseq => iseq
+iSpace = iStr " "
+
+iEOL :: Iseq iseq => iseq
+iEOL = iStr ";" `iAppend` iNewline
+
+iEOL' :: Iseq iseq => iseq
+iEOL' = iSpace `iAppend` iEOL
+
+iConcat :: Iseq iseq => [iseq] -> iseq
+iConcat = foldr iAppend iNil
+
+iInterleave :: Iseq iseq => iseq -> [iseq] -> iseq
+iInterleave sep []     = iNil
+iInterleave sep [x]    = x
+iInterleave sep (x:xs) = iConcat [x, sep, iInterleave sep xs]
+
+type Precedence = Int
+data Associativity = Infix | InfixL | InfixR deriving (Show, Enum, Eq)
+-- | PrecAssoc
+--
+-- 下位の部分式に対して上位側からどういう優先度/結合性の中で call されているかを教える
+-- 下位の式を pprExpr するところで判断してカッコを付けるかどうかなど決める
+data PrecAssoc = PrecAssoc { weakp :: Precedence -> Associativity -> Bool
+                           , prec  :: Precedence
+                           , assoc :: Associativity
+                           }
+
+-- | 右辺値の最上位の式か下位の式か
+data Level = Top | Sub deriving (Eq, Show)
 
 flatten :: Int -> [(Iseqrep, Int)] -> String
 flatten col [] = ""
@@ -146,18 +173,6 @@ pprScDefn (name, args, expr)
             , iIndent (pprExpr Top defaultPrecAssoc expr)
             ]
     where sep = if null args then iNil else iSpace
-
-iParen :: Iseq iseq => iseq -> iseq
-iParen seq = iStr "(" `iAppend` seq `iAppend` iStr ")"
-
-iSpace :: Iseq iseq => iseq
-iSpace = iStr " "
-
-iEOL :: Iseq iseq => iseq
-iEOL = iStr ";" `iAppend` iNewline
-
-iEOL' :: Iseq iseq => iseq
-iEOL' = iSpace `iAppend` iEOL
 
 pprArgs :: [String] -> Iseqrep
 pprArgs args = iInterleave iSpace $ map iStr args
@@ -564,13 +579,6 @@ pprExpr l _ (ELam args expr)
                     , iIndent (pprExpr Top defaultPrecAssoc expr)
                     ]
 
-pprAlt :: CoreAlter -> Iseqrep
-pprAlt (i, args, expr)
-  = iConcat [ iStr "<", iStr (show i), iStr ">", sep, pprArgs args
-            , iStr " -> ", iIndent (pprExpr Top defaultPrecAssoc expr)
-            ]
-    where sep = if null args then iNil else iSpace
-
 pprDefns :: [(Name, CoreExpr)] -> Iseqrep
 pprDefns defns = iInterleave iEOL (map pprDefn defns)
 
@@ -578,13 +586,12 @@ pprDefn :: (Name, CoreExpr) -> Iseqrep
 pprDefn (name, expr)
   = iConcat [ iStr name, iStr " = ", iIndent (pprExpr Top defaultPrecAssoc expr) ]
 
-iConcat :: Iseq iseq => [iseq] -> iseq
-iConcat = foldr iAppend iNil
-
-iInterleave :: Iseq iseq => iseq -> [iseq] -> iseq
-iInterleave sep []     = iNil
-iInterleave sep [x]    = x
-iInterleave sep (x:xs) = iConcat [x, sep, iInterleave sep xs]
+pprAlt :: CoreAlter -> Iseqrep
+pprAlt (i, args, expr)
+  = iConcat [ iStr "<", iStr (show i), iStr ">", sep, pprArgs args
+            , iStr " -> ", iIndent (pprExpr Top defaultPrecAssoc expr)
+            ]
+    where sep = if null args then iNil else iSpace
 
 ----------------------------------------------------------------------------------------
 -- sample code and prelude
