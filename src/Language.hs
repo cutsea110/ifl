@@ -619,8 +619,14 @@ type Token = String
 
 >>> clex "a_1 a_2 a_3"
 ["a_1","a_2","a_3"]
+
+>>> clex "Hello -- comment perapera ..\nWorld"
+["Hello","World"]
 -}
 clex :: String -> [Token]
+clex ('-':'-':cs) = case dropWhile (/='\n') cs of
+  [] -> []
+  (_:restCs) -> clex restCs
 clex (c:cs)
   | isWhiteSpace c = clex cs
   | isDigit c      = let (numCs, restCs) = span isDigit cs
