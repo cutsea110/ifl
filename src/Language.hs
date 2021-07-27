@@ -622,11 +622,29 @@ type Token = String
 
 >>> clex "Hello -- comment perapera ..\nWorld"
 ["Hello","World"]
+
+>>> clex "x == y"
+["x","==","y"]
+
+>>> clex "x /= y"
+["x","/=","y"]
+
+>>> clex "x >= y"
+["x",">=","y"]
+
+>>> clex "x <= y"
+["x","<=","y"]
+
+>>> clex "x -> y"
+["x","->","y"]
+
 -}
 clex :: String -> [Token]
 clex ('-':'-':cs) = case dropWhile (/='\n') cs of
   [] -> []
   (_:restCs) -> clex restCs
+clex (c1:c2:cs)
+  | [c1,c2] `elem` twoCharOps = [c1,c2] : clex cs
 clex (c:cs)
   | isWhiteSpace c = clex cs
   | isDigit c      = let (numCs, restCs) = span isDigit cs
@@ -643,6 +661,9 @@ isWhiteSpace c = c `elem` " \t\n"
 
 isIdChar :: Char -> Bool
 isIdChar c = isAlpha c || isDigit c || c == '_'
+
+twoCharOps :: [String]
+twoCharOps = [ "==", "/=", ">=", "<=", "->" ]
 
 syntax :: [Token] -> CoreProgram
 syntax = undefined
