@@ -640,9 +640,10 @@ type Token = String
 
 -}
 clex :: String -> [Token]
+clex ('\n':cs) = clex cs
 clex ('-':'-':cs) = case dropWhile (/='\n') cs of
   [] -> []
-  (_:restCs) -> clex restCs
+  cs -> clex cs
 clex (c1:c2:cs)
   | [c1,c2] `elem` twoCharOps = [c1,c2] : clex cs
 clex (c:cs)
