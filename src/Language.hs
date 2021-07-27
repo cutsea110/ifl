@@ -608,54 +608,54 @@ pprAlt (i, args, expr)
 -- parser
 ----------------------------------------------------------------------------------------
 
-type Token = String
+type Token = (Int, String)
 
 {- |
->>> clex "123abc"
-["123","abc"]
+>>> clex 1 "123abc"
+[(1,"123"),(1,"abc")]
 
->>> clex "_x 42"
-["_","x","42"]
+>>> clex 1 "_x 42"
+[(1,"_"),(1,"x"),(1,"42")]
 
->>> clex "a_1 a_2 a_3"
-["a_1","a_2","a_3"]
+>>> clex 1 "a_1 a_2 a_3"
+[(1,"a_1"),(1,"a_2"),(1,"a_3")]
 
->>> clex "Hello -- comment perapera ..\nWorld"
-["Hello","World"]
+>>> clex 1 "Hello -- comment perapera ..\nWorld"
+[(1,"Hello"),(2,"World")]
 
->>> clex "x == y"
-["x","==","y"]
+>>> clex 1 "x == y"
+[(1,"x"),(1,"=="),(1,"y")]
 
->>> clex "x /= y"
-["x","/=","y"]
+>>> clex 1 "x /= y"
+[(1,"x"),(1,"/="),(1,"y")]
 
->>> clex "x >= y"
-["x",">=","y"]
+>>> clex 1 "x >= y"
+[(1,"x"),(1,">="),(1,"y")]
 
->>> clex "x <= y"
-["x","<=","y"]
+>>> clex 1 "x <= y"
+[(1,"x"),(1,"<="),(1,"y")]
 
->>> clex "x -> y"
-["x","->","y"]
+>>> clex 1 "x -> y"
+[(1,"x"),(1,"->"),(1,"y")]
 
 -}
-clex :: String -> [Token]
-clex ('\n':cs) = clex cs
-clex ('-':'-':cs) = case dropWhile (/='\n') cs of
+clex :: Int -> String -> [Token]
+clex n ('\n':cs) = clex (n+1) cs
+clex n ('-':'-':cs) = case dropWhile (/='\n') cs of
   [] -> []
-  cs -> clex cs
-clex (c1:c2:cs)
-  | [c1,c2] `elem` twoCharOps = [c1,c2] : clex cs
-clex (c:cs)
-  | isWhiteSpace c = clex cs
+  cs -> clex n cs
+clex n (c1:c2:cs)
+  | [c1,c2] `elem` twoCharOps = (n, [c1,c2]) : clex n cs
+clex n (c:cs)
+  | isWhiteSpace c = clex n cs
   | isDigit c      = let (numCs, restCs) = span isDigit cs
                          numToken        = c : numCs
-                     in numToken : clex restCs
+                     in (n, numToken) : clex n restCs
   | isAlpha c      = let (idCs, restCs) = span isIdChar cs
                          varToken       = c : idCs
-                     in varToken : clex restCs
-  | otherwise      = [c] : clex cs
-clex []            = []
+                     in (n, varToken) : clex n restCs
+  | otherwise      = (n, [c]) : clex n cs
+clex n []            = []
 
 isWhiteSpace :: Char -> Bool
 isWhiteSpace c = c `elem` " \t\n"
@@ -670,8 +670,7 @@ syntax :: [Token] -> CoreProgram
 syntax = undefined
 
 parse :: String -> CoreProgram
-parse = syntax . clex
-
+parse = syntax . clex 1
 
 
 ----------------------------------------------------------------------------------------
