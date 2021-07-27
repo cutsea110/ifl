@@ -77,6 +77,19 @@ instance Iseq Iseqrep where
   iIndent seq       = IIndent seq
   iDisplay seq      = flatten 0 [(seq, 0)]
 
+flatten :: Int -> [(Iseqrep, Int)] -> String
+flatten col [] = ""
+flatten col ((INil, indent) : seqs)
+  = flatten col seqs
+flatten col ((IStr s, indent) : seqs)
+  = s ++ flatten (col + length s) seqs
+flatten col ((IAppend seq1 seq2, indent) : seqs)
+  = flatten col ((seq1, indent) : (seq2, indent) : seqs)
+flatten col ((INewline, indent) : seqs)
+  = '\n' : (space indent ++ flatten indent seqs)
+flatten col ((IIndent seq, indent) : seqs)
+  = flatten col ((seq, col) : seqs)
+
 iNum :: Iseq iseq => Int -> iseq
 iNum n = iStr (show n)
 
@@ -121,19 +134,6 @@ data PrecAssoc = PrecAssoc { weakp :: Precedence -> Associativity -> Bool
 
 -- | 右辺値の最上位の式か下位の式か
 data Level = Top | Sub deriving (Eq, Show)
-
-flatten :: Int -> [(Iseqrep, Int)] -> String
-flatten col [] = ""
-flatten col ((INil, indent) : seqs)
-  = flatten col seqs
-flatten col ((IStr s, indent) : seqs)
-  = s ++ flatten (col + length s) seqs
-flatten col ((IAppend seq1 seq2, indent) : seqs)
-  = flatten col ((seq1, indent) : (seq2, indent) : seqs)
-flatten col ((INewline, indent) : seqs)
-  = '\n' : (space indent ++ flatten indent seqs)
-flatten col ((IIndent seq, indent) : seqs)
-  = flatten col ((seq, col) : seqs)
 
 space :: Int -> String
 space n = replicate n ' '
@@ -193,19 +193,19 @@ pprArgs args = iInterleave iSpace $ map iStr args
 >>> [xs, ys, zs] = map EVar ["xs", "ys", "zs"]
 >>> [sum, length] = map EVar ["sum", "length"]
 >>> [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9] = map ENum [0 .. 9]
->>> inc = EAp (EVar "+") _1
->>> dec = EAp (EVar "-") _1
 >>> add x y = EAp (EAp (EVar "+") x) y
 >>> sub x y = EAp (EAp (EVar "-") x) y
 >>> mul x y = EAp (EAp (EVar "*") x) y
 >>> div x y = EAp (EAp (EVar "/") x) y
->>> eq x y = EAp (EAp (EVar "==") x) y
->>> ne x y = EAp (EAp (EVar "/=") x) y
->>> gt x y = EAp (EAp (EVar ">") x) y
->>> lt x y = EAp (EAp (EVar "<") x) y
->>> ge x y = EAp (EAp (EVar ">=") x) y
->>> le x y = EAp (EAp (EVar "<=") x) y
->>> ap f x = EAp f x
+>>> inc x   = x `add` _1
+>>> dec x   = x `sub` _1
+>>> eq x y  = EAp (EAp (EVar "==") x) y
+>>> ne x y  = EAp (EAp (EVar "/=") x) y
+>>> gt x y  = EAp (EAp (EVar ">") x) y
+>>> lt x y  = EAp (EAp (EVar "<") x) y
+>>> ge x y  = EAp (EAp (EVar ">=") x) y
+>>> le x y  = EAp (EAp (EVar "<=") x) y
+>>> ap f x  = EAp f x
 >>> and p q = EAp (EAp (EVar "&&") p) q
 >>> or  p q = EAp (EAp (EVar "||") p) q
 >>> printExpr = putStrLn . iDisplay . pprExpr Top defaultPrecAssoc
