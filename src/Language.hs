@@ -77,6 +77,17 @@ instance Iseq Iseqrep where
   iIndent seq       = IIndent seq
   iDisplay seq      = flatten 0 [(seq, 0)]
 
+iNum :: Iseq iseq => Int -> iseq
+iNum n = iStr (show n)
+
+iFWNum :: Iseq iseq => Int -> Int -> iseq
+iFWNum width n = iStr (space (width - length digits) ++ digits)
+  where digits = show n
+
+iLayn :: Iseq iseq => [iseq] -> iseq
+iLayn seqs = iConcat (zipWith lay_item [1..] seqs)
+  where lay_item n seq = iConcat [iFWNum 4 n, iStr ") ", iIndent seq, iNewline]
+
 iParen :: Iseq iseq => iseq -> iseq
 iParen seq = iStr "(" `iAppend` seq `iAppend` iStr ")"
 
@@ -511,10 +522,9 @@ letrec
 in y (\ f i -> bool (i * f (i - 1)) 1 (i == 1))
 -}
 pprExpr :: Level -> PrecAssoc -> CoreExpr -> Iseqrep
-pprExpr _ _ (ENum n) = iStr (show n)
+pprExpr _ _ (ENum n) = iNum n
 pprExpr _ _ (EVar v) = iStr v
-pprExpr _ _ (EConstr tag arity)
-  = iConcat $ map iStr ["Pack{", show tag, ",", show arity, "}"]
+pprExpr _ _ (EConstr tag arity) = iConcat $ map iStr ["Pack{", show tag, ",", show arity, "}"]
 pprExpr _ pa (EAp (EAp (EVar op) e1) e2)
   | infixOperator op = if weakp pa' (prec pa) (assoc pa) then iParen e else e
   where e = iConcat [ pprExpr Sub pa' e1
@@ -522,14 +532,12 @@ pprExpr _ pa (EAp (EAp (EVar op) e1) e2)
                     , pprExpr Sub pa' e2
                     ]
         pa' = precAssoc op
-pprExpr _ pa (EAp e1 e2)
-  = if weakp pa (prec pa) (assoc pa) then iParen e else e
+pprExpr _ pa (EAp e1 e2) = if weakp pa (prec pa) (assoc pa) then iParen e else e
   where e = iConcat [ pprExpr Sub functionPrecAssoc e1
                     , iSpace
                     , pprExpr Sub functionArgPrecAssoc e2
                     ]
-pprExpr l _ (ELet isrec defns expr)
-  = if l /= Top then iParen e else e
+pprExpr l _ (ELet isrec defns expr) = if l /= Top then iParen e else e
   where
     keyword | not isrec = "let"
             | isrec     = "letrec"
@@ -537,13 +545,11 @@ pprExpr l _ (ELet isrec defns expr)
                 , iStr "  ", iIndent (pprDefns defns), iNewline
                 , iStr "in ", pprExpr Top defaultPrecAssoc expr
                 ]
-pprExpr l _ (ECase expr alts)
-  = if l /= Top then iParen e else e
+pprExpr l _ (ECase expr alts) = if l /= Top then iParen e else e
   where e = iConcat [ iStr "case ", iIndent (pprExpr Top defaultPrecAssoc expr), iStr " of", iNewline
                     , iStr "  ", iIndent (iInterleave iEOL' (map pprAlt alts))
                     ]
-pprExpr l _ (ELam args expr)
-  = if l /= Top then iParen e else e
+pprExpr l _ (ELam args expr) = if l /= Top then iParen e else e
   where e = iConcat [ iStr "\\ ", pprArgs args, iStr " -> "
                     , iIndent (pprExpr Top defaultPrecAssoc expr)
                     ]
