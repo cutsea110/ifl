@@ -177,37 +177,6 @@ pprScDefn (name, args, expr)
 pprArgs :: [String] -> Iseqrep
 pprArgs args = iInterleave iSpace $ map iStr args
 
-precAssoc :: String -> PrecAssoc
-precAssoc "*"  = PrecAssoc { weakp = \p a -> p >  5 || p == 5 && a /= InfixR, prec = 5, assoc = InfixR }
-precAssoc "/"  = PrecAssoc { weakp = \p a -> p >= 5,                          prec = 5, assoc = Infix  }
-precAssoc "+"  = PrecAssoc { weakp = \p a -> p >  4 || p == 4 && a /= InfixR, prec = 4, assoc = InfixR }
-precAssoc "-"  = PrecAssoc { weakp = \p a -> p >= 4,                          prec = 4, assoc = Infix  }
-precAssoc "==" = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-precAssoc "/=" = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-precAssoc ">"  = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-precAssoc ">=" = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-precAssoc "<"  = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-precAssoc "<=" = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-precAssoc "&&" = PrecAssoc { weakp = \p a -> p >  2,                          prec = 2, assoc = InfixR }
-precAssoc "||" = PrecAssoc { weakp = \p a -> p >  1,                          prec = 1, assoc = InfixR }
-precAssoc _    = error "Unknown infix operator"
-
-defaultPrecAssoc :: PrecAssoc
-defaultPrecAssoc = PrecAssoc { weakp = \p a -> False, prec = 0, assoc = Infix }  -- FIXME!
-functionPrecAssoc :: PrecAssoc
-functionPrecAssoc = PrecAssoc { weakp = \p a -> p > 6, prec = 6, assoc = InfixL }
-functionArgPrecAssoc :: PrecAssoc
-functionArgPrecAssoc = PrecAssoc { weakp = \p a -> p >= 6, prec = 6, assoc = InfixL }
-
-infixOperator :: String -> Bool
-infixOperator op
-  = op `elem` [ "*", "/"
-              , "+", "-"
-              , "==", "/="
-              , ">", ">=", "<", "<="
-              , "&&", "||"
-              ]
-
 {- $setup
 >>> [a, b, c, i, j, k, n, f, g, h, x, y, z, w, p, q, r, s] = map (EVar . (:[])) "abcijknfghxyzwpqrs"
 >>> [xs, ys, zs] = map EVar ["xs", "ys", "zs"]
@@ -578,6 +547,37 @@ pprExpr l _ (ELam args expr)
   where e = iConcat [ iStr "\\ ", pprArgs args, iStr " -> "
                     , iIndent (pprExpr Top defaultPrecAssoc expr)
                     ]
+
+precAssoc :: String -> PrecAssoc
+precAssoc "*"  = PrecAssoc { weakp = \p a -> p >  5 || p == 5 && a /= InfixR, prec = 5, assoc = InfixR }
+precAssoc "/"  = PrecAssoc { weakp = \p a -> p >= 5,                          prec = 5, assoc = Infix  }
+precAssoc "+"  = PrecAssoc { weakp = \p a -> p >  4 || p == 4 && a /= InfixR, prec = 4, assoc = InfixR }
+precAssoc "-"  = PrecAssoc { weakp = \p a -> p >= 4,                          prec = 4, assoc = Infix  }
+precAssoc "==" = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssoc "/=" = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssoc ">"  = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssoc ">=" = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssoc "<"  = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssoc "<=" = PrecAssoc { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssoc "&&" = PrecAssoc { weakp = \p a -> p >  2,                          prec = 2, assoc = InfixR }
+precAssoc "||" = PrecAssoc { weakp = \p a -> p >  1,                          prec = 1, assoc = InfixR }
+precAssoc _    = error "Unknown infix operator"
+
+defaultPrecAssoc :: PrecAssoc
+defaultPrecAssoc = PrecAssoc { weakp = \p a -> False, prec = 0, assoc = Infix }  -- FIXME!
+functionPrecAssoc :: PrecAssoc
+functionPrecAssoc = PrecAssoc { weakp = \p a -> p > 6, prec = 6, assoc = InfixL }
+functionArgPrecAssoc :: PrecAssoc
+functionArgPrecAssoc = PrecAssoc { weakp = \p a -> p >= 6, prec = 6, assoc = InfixL }
+
+infixOperator :: String -> Bool
+infixOperator op
+  = op `elem` [ "*", "/"
+              , "+", "-"
+              , "==", "/="
+              , ">", ">=", "<", "<="
+              , "&&", "||"
+              ]
 
 pprDefns :: [(Name, CoreExpr)] -> Iseqrep
 pprDefns defns = iInterleave iEOL (map pprDefn defns)
