@@ -638,8 +638,8 @@ type Token = (Int, String)
 >>> clex 1 "x -> y"
 [(1,"x"),(1,"->"),(1,"y")]
 
->>> clex 1 "a,b,c\n1,2,3\n4,5,6"
-[(1,"a"),(1,","),(1,"b"),(1,","),(1,"c"),(2,"1"),(2,","),(2,"2"),(2,","),(2,"3"),(3,"4"),(3,","),(3,"5"),(3,","),(3,"6")]
+>>> clex 1 "red pink\nblue green\nyellow"
+[(1,"red"),(1,"pink"),(2,"blue"),(2,"green"),(3,"yellow")]
 -}
 clex :: Int -> String -> [Token]
 clex n ('\n':cs) = clex (n+1) cs
