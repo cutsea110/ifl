@@ -1,5 +1,6 @@
 module Language where
 
+import Data.Char (isAlpha, isDigit)
 import Utils
 
 data Expr a
@@ -41,7 +42,10 @@ isAtomicExpr (EVar v) = True
 isAtomicExpr (ENum n) = True
 isAtomicExpr e        = False
 
+----------------------------------------------------------------------------------------
 -- pretty printer
+----------------------------------------------------------------------------------------
+
 pprint :: CoreProgram -> String
 pprint prog = iDisplay (pprProgram prog)
 
@@ -598,6 +602,49 @@ pprAlt (i, args, expr)
             , iStr " -> ", iIndent (pprExpr Top defaultPrecAssoc expr)
             ]
     where sep = if null args then iNil else iSpace
+
+
+----------------------------------------------------------------------------------------
+-- parser
+----------------------------------------------------------------------------------------
+
+type Token = String
+
+{- |
+>>> clex "123abc"
+["123","abc"]
+
+>>> clex "_x 42"
+["_","x","42"]
+
+>>> clex "a_1 a_2 a_3"
+["a_1","a_2","a_3"]
+-}
+clex :: String -> [Token]
+clex (c:cs)
+  | isWhiteSpace c = clex cs
+  | isDigit c      = let (numCs, restCs) = span isDigit cs
+                         numToken        = c : numCs
+                     in numToken : clex restCs
+  | isAlpha c      = let (idCs, restCs) = span isIdChar cs
+                         varToken       = c : idCs
+                     in varToken : clex restCs
+  | otherwise      = [c] : clex cs
+clex []            = []
+
+isWhiteSpace :: Char -> Bool
+isWhiteSpace c = c `elem` " \t\n"
+
+isIdChar :: Char -> Bool
+isIdChar c = isAlpha c || isDigit c || c == '_'
+
+syntax :: [Token] -> CoreProgram
+syntax = undefined
+
+parse :: String -> CoreProgram
+parse = syntax . clex
+
+
 
 ----------------------------------------------------------------------------------------
 -- sample code and prelude
