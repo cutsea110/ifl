@@ -609,6 +609,28 @@ pprAlt (i, args, expr)
 ----------------------------------------------------------------------------------------
 
 type Token = (Int, String)
+type Parser a = [Token] -> [(a, [Token])]
+
+pLit :: String -> Parser String
+pLit s ((_, tok):toks)
+  | s == tok  = [(s, toks)]
+  | otherwise = []
+pLit _ []     = []
+
+pVar :: Parser String
+pVar [] = []
+pVar ((_, tok):toks) = case tok of
+  c:_ | isAlpha c -> [(tok, toks)]
+
+pAlt :: Parser a -> Parser a -> Parser a
+pAlt p1 p2 toks = p1 toks ++ p2 toks
+
+pThen :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
+pThen combine p1 p2 toks
+  = [ (combine v1 v2, toks2)
+    | (v1, toks1) <- p1 toks
+    , (v2, toks2) <- p2 toks1
+    ]
 
 {- |
 >>> clex 1 "123abc"
