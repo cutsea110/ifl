@@ -634,10 +634,9 @@ pThen combine p1 p2 toks
 
 pThen3 :: (a -> b -> c -> d) -> Parser a -> Parser b -> Parser c -> Parser d
 pThen3 combine p1 p2 p3 toks
-  = [ (combine v1 v2 v3, toks3)
-    | (v1, toks1) <- p1 toks
-    , (v2, toks2) <- p2 toks1
-    , (v3, toks3) <- p3 toks2
+  = [ (f v3, toks2)
+    | (f, toks1) <- pThen combine p1 p2 toks
+    , (v3, toks2) <- p3 toks1
     ]
 
 pHelloOrGoodbye :: Parser String
