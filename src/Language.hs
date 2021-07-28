@@ -632,6 +632,14 @@ pThen combine p1 p2 toks
     , (v2, toks2) <- p2 toks1
     ]
 
+pThen3 :: (a -> b -> c -> d) -> Parser a -> Parser b -> Parser c -> Parser d
+pThen3 combine p1 p2 p3 toks
+  = [ (combine v1 v2 v3, toks3)
+    | (v1, toks1) <- p1 toks
+    , (v2, toks2) <- p2 toks1
+    , (v3, toks3) <- p3 toks2
+    ]
+
 pHelloOrGoodbye :: Parser String
 pHelloOrGoodbye = pLit "hello" `pAlt` pLit "goodbye"
 
@@ -640,10 +648,8 @@ pHelloOrGoodbye = pLit "hello" `pAlt` pLit "goodbye"
 [(("goodbye","James"),[])]
 -}
 pGreeting :: Parser (String, String)
-pGreeting = pThen keepFirst
-                  (pThen (,) pHelloOrGoodbye pVar)
-                  (pLit "!")
-  where keepFirst = const
+pGreeting = pThen3 mkGreeting pHelloOrGoodbye pVar (pLit "!")
+  where mkGreeting hg name _exclamation = (hg, name)
 
 {- |
 >>> clex 1 "123abc"
