@@ -637,10 +637,13 @@ pHelloOrGoodbye = pLit "hello" `pAlt` pLit "goodbye"
 
 {- |
 >>> pGreeting [(1,"goodbye"), (1,"James"), (1,"!")]
-[(("goodbye","James"),[(1,"!")])]
+[(("goodbye","James"),[])]
 -}
 pGreeting :: Parser (String, String)
-pGreeting = pThen (,) pHelloOrGoodbye pVar
+pGreeting = pThen keepFirst
+                  (pThen (,) pHelloOrGoodbye pVar)
+                  (pLit "!")
+  where keepFirst = const
 
 {- |
 >>> clex 1 "123abc"
