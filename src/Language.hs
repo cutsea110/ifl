@@ -632,6 +632,16 @@ pThen combine p1 p2 toks
     , (v2, toks2) <- p2 toks1
     ]
 
+pHelloOrGoodbye :: Parser String
+pHelloOrGoodbye = pLit "hello" `pAlt` pLit "goodbye"
+
+{- |
+>>> pGreeting [(1,"goodbye"), (1,"James"), (1,"!")]
+[(("goodbye","James"),[(1,"!")])]
+-}
+pGreeting :: Parser (String, String)
+pGreeting = pThen (,) pHelloOrGoodbye pVar
+
 {- |
 >>> clex 1 "123abc"
 [(1,"123"),(1,"abc")]
