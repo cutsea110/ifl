@@ -1,3 +1,4 @@
+{-# LANGUAGE NPlusKPatterns #-}
 module Language where
 
 import Data.Char (isAlpha, isDigit)
@@ -634,10 +635,30 @@ pThen combine p1 p2 toks
 
 pThen3 :: (a -> b -> c -> d) -> Parser a -> Parser b -> Parser c -> Parser d
 pThen3 combine p1 p2 p3 toks
-  = [ (f v3, toks2)
-    | (f, toks1) <- pThen combine p1 p2 toks
-    , (v3, toks2) <- p3 toks1
+  = [ (v2, toks2)
+    | (v1, toks1) <- p1 toks
+    , (v2, toks2) <- pThen (combine v1) p2 p3 toks1
     ]
+
+pThen4 :: (a -> b -> c -> d -> e) -> Parser a -> Parser b -> Parser c -> Parser d -> Parser e
+pThen4 combine p1 p2 p3 p4 toks
+  = [ (v2, toks2)
+    | (v1, toks1) <- p1 toks
+    , (v2, toks2) <- pThen3 (combine v1) p2 p3 p4 toks1
+    ]
+{--
+-- COMPILE ERROR
+pThenN combine [p1,p2] toks
+  = [ (combine v1 v2, toks2)
+    | (v1, toks1) <- p1 toks
+    , (v2, toks2) <- p2 toks1
+    ]
+pThenN combine (p:ps)  toks
+  = [ (v2, toks2)
+    | (v1, toks1) <- p toks
+    , (v2, toks2) <- pThenN (combine v1) ps toks1
+    ]
+--}
 
 pHelloOrGoodbye :: Parser String
 pHelloOrGoodbye = pLit "hello" `pAlt` pLit "goodbye"
