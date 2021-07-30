@@ -673,6 +673,16 @@ pOneOrMore p toks
     , (vs, toks2) <- pZeroOrMore p toks1
     ]
 
+{- |
+>>> pVar `pApply` (++"!") $ [(1, "a"), (1, "b"), (1, "c")]
+[("a!",[(1,"b"),(1,"c")])]
+
+>>> (pOneOrMore pVar) `pApply` (map (++"!")) $ [(1, "a"), (1, "b"), (1, "c")]
+[(["a!","b!","c!"],[]),(["a!","b!"],[(1,"c")]),(["a!"],[(1,"b"),(1,"c")])]
+-}
+pApply :: Parser a -> (a -> b) -> Parser b
+pApply p f toks = [(f v1, toks1) | (v1, toks1) <- p toks]
+
 pHelloOrGoodbye :: Parser String
 pHelloOrGoodbye = pLit "hello" `pAlt` pLit "goodbye"
 
