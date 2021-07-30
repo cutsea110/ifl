@@ -796,6 +796,73 @@ pOneOrMore p toks
 pApply :: Parser a -> (a -> b) -> Parser b
 pApply p f toks = [(f v1, toks1) | (v1, toks1) <- p toks]
 
+{- |
+>>> pConst (pLit "a") (pLit "b") []
+[]
+
+>>> pConst (pLit "a") (pLit "b") [(1, "a")]
+[]
+
+>>> pConst (pLit "a") (pLit "b") [(1, "b")]
+[]
+
+>>> pConst (pLit "a") (pLit "b") [(1, "a"), (1, "b")]
+[("a",[])]
+
+>>> pConst (pLit "a") (pLit "b") [(1, "a"), (1, "b"),(1, "c")]
+[("a",[(1,"c")])]
+-}
+pConst :: Parser a -> Parser b -> Parser a
+pConst = pThen const
+
+{- |
+>>> pConst2 (pLit "a") (pLit "b") []
+[]
+
+>>> pConst2 (pLit "a") (pLit "b") [(1, "a")]
+[]
+
+>>> pConst2 (pLit "a") (pLit "b") [(1, "b")]
+[]
+
+>>> pConst2 (pLit "a") (pLit "b") [(1, "a"), (1, "b")]
+[("b",[])]
+
+>>> pConst2 (pLit "a") (pLit "b") [(1, "a"), (1, "b"), (1, "c")]
+[("b",[(1,"c")])]
+-}
+pConst2 :: Parser a -> Parser b -> Parser b
+pConst2 = pThen (flip const)
+
+{- |
+>>> pOneOrMoreWithSep pVar (pLit ",") []
+[]
+
+>>> pOneOrMoreWithSep pVar (pLit ",") [(1, "a")]
+[(["a"],[])]
+
+>>> pOneOrMoreWithSep pVar (pLit ",") [(1, "a"), (1, ",")]
+[(["a"],[(1,",")])]
+
+>>> pOneOrMoreWithSep pVar (pLit ",") [(1, "a"), (1, ","), (1, "b")]
+[(["a","b"],[]),(["a"],[(1,","),(1,"b")])]
+
+>>> pOneOrMoreWithSep pVar (pLit ",") [(1, "a"), (1, ","), (1, "b"), (1, ",")]
+[(["a","b"],[(1,",")]),(["a"],[(1,","),(1,"b"),(1,",")])]
+
+>>> pOneOrMoreWithSep pVar (pLit ",") [(1, "a"), (1, ","), (1, "b"), (1, ","), (1, "c")]
+[(["a","b","c"],[]),(["a","b"],[(1,","),(1,"c")]),(["a"],[(1,","),(1,"b"),(1,","),(1,"c")])]
+
+>>> pOneOrMoreWithSep pVar (pLit ",") [(1, "a"), (1, ","), (1, "b"), (1, "c"), (1, "d")]
+[(["a","b"],[(1,"c"),(1,"d")]),(["a"],[(1,","),(1,"b"),(1,"c"),(1,"d")])]
+-}
+pOneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
+pOneOrMoreWithSep p sep toks
+  = [ (v1:vs, toks2)
+    | (v1, toks1) <- p toks
+    , (vs, toks2) <- pZeroOrMore (pConst2 sep p) toks1
+    ]
+
 pHelloOrGoodbye :: Parser String
 pHelloOrGoodbye = pLit "hello" `pAlt` pLit "goodbye"
 
