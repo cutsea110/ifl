@@ -612,6 +612,13 @@ pprAlt (i, args, expr)
 type Token = (Int, String)
 type Parser a = [Token] -> [(a, [Token])]
 
+pSat :: (String -> Bool) -> Parser String
+pSat pred ((_, tok):toks)
+  | pred tok  = [(tok, toks)]
+  | otherwise = []
+pSat _ []     = []
+
+
 {- |
 >>> pLit "a" []
 []
@@ -626,10 +633,7 @@ type Parser a = [Token] -> [(a, [Token])]
 []
 -}
 pLit :: String -> Parser String
-pLit s ((_, tok):toks)
-  | s == tok  = [(s, toks)]
-  | otherwise = []
-pLit _ []     = []
+pLit s = pSat (s==)
 
 {- |
 >>> pVar []
@@ -648,10 +652,7 @@ pLit _ []     = []
 [("a42",[])]
 -}
 pVar :: Parser String
-pVar [] = []
-pVar ((_, tok):toks) = case tok of
-  c:_ | isAlpha c -> [(tok, toks)]
-      | otherwise -> [] -- FIXME!
+pVar = pSat (isAlpha . head)
 
 {- |
 >>> pLit "Hello" `pAlt` pLit "Bye" $ []
