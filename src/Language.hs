@@ -612,20 +612,83 @@ pprAlt (i, args, expr)
 type Token = (Int, String)
 type Parser a = [Token] -> [(a, [Token])]
 
+{- |
+>>> pLit "a" []
+[]
+
+>>> pLit "a" [(1,"a")]
+[("a",[])]
+
+>>> pLit "a" [(1,"b")]
+[]
+
+>>> pLit "a" [(1,"b"),(1,"a")]
+[]
+-}
 pLit :: String -> Parser String
 pLit s ((_, tok):toks)
   | s == tok  = [(s, toks)]
   | otherwise = []
 pLit _ []     = []
 
+{- |
+>>> pVar []
+[]
+
+>>> pVar [(1, "a")]
+[("a",[])]
+
+>>> pVar [(1, "a"), (1, "b")]
+[("a",[(1,"b")])]
+
+>>> pVar [(1, "42")]
+[]
+
+>>> pVar [(1, "a42")]
+[("a42",[])]
+-}
 pVar :: Parser String
 pVar [] = []
 pVar ((_, tok):toks) = case tok of
   c:_ | isAlpha c -> [(tok, toks)]
+      | otherwise -> [] -- FIXME!
 
+{- |
+>>> pLit "Hello" `pAlt` pLit "Bye" $ []
+[]
+
+>>> pLit "Hello" `pAlt` pLit "Bye" $ [(1,"a")]
+[]
+
+>>> pLit "Hello" `pAlt` pLit "Bye" $ [(1,"Hello")]
+[("Hello",[])]
+
+>>> pLit "Hello" `pAlt` pLit "Bye" $ [(1,"Bye")]
+[("Bye",[])]
+
+>>> pLit "Hello" `pAlt` pLit "Bye" $ [(1,"Hellow")]
+[]
+
+>>> pLit "Hello" `pAlt` pLit "Bye" $ [(1,"Hellow"),(1,"Bye")]
+[]
+
+>>> pLit "Hello" `pAlt` pLit "Bye" $ [(1,"Bye"),(1,"Hello")]
+[("Bye",[(1,"Hello")])]
+
+-}
 pAlt :: Parser a -> Parser a -> Parser a
 pAlt p1 p2 toks = p1 toks ++ p2 toks
 
+{- |
+>>> pThen (++) (pLit "Hello") (pLit "World") []
+[]
+
+>>> pThen (++) (pLit "Hello") (pLit "World") [(1, "World")]
+[]
+
+>>> pThen (++) (pLit "Hello") (pLit "World") [(1, "Hello"), (1, "World")]
+[("HelloWorld",[])]
+-}
 pThen :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
 pThen combine p1 p2 toks
   = [ (combine v1 v2, toks2)
@@ -633,6 +696,16 @@ pThen combine p1 p2 toks
     , (v2, toks2) <- p2 toks1
     ]
 
+{- |
+>>> pThen3 (\x y z -> x ++ y ++ z) (pLit "Hello ") pVar (pLit " san") []
+[]
+
+>>> pThen3 (\x y z -> x ++ y ++ z) (pLit "Hello ") pVar (pLit " san") [(1, "Hello "), (1, "cutsea"), (1, " san")]
+[("Hello cutsea san",[])]
+
+>>> pThen3 (\x y z -> x ++ y ++ z) (pLit "Hello ") pVar (pLit " san") [(1, "Hello "), (1, "cutsea"), (1, " kun")]
+[]
+-}
 pThen3 :: (a -> b -> c -> d) -> Parser a -> Parser b -> Parser c -> Parser d
 pThen3 combine p1 p2 p3 toks
   = [ (v2, toks2)
@@ -640,6 +713,22 @@ pThen3 combine p1 p2 p3 toks
     , (v2, toks2) <- pThen (combine v1) p2 p3 toks1
     ]
 
+{- |
+>>> pThen4 (,,,) pVar pVar pVar pVar []
+[]
+
+>>> pThen4 (,,,) pVar pVar pVar pVar [(1, "a"), (1, "b")]
+[]
+
+>>> pThen4 (,,,) pVar pVar pVar pVar [(1, "a"), (1, "b"), (1, "c")]
+[]
+
+>>> pThen4 (,,,) pVar pVar pVar pVar [(1, "a"), (1, "b"), (1, "c"), (1, "d")]
+[(("a","b","c","d"),[])]
+
+>>> pThen4 (,,,) pVar pVar pVar pVar [(1, "a"), (1, "b"), (1, "c"), (1, "d"), (1, "e")]
+[(("a","b","c","d"),[(1,"e")])]
+-}
 pThen4 :: (a -> b -> c -> d -> e) -> Parser a -> Parser b -> Parser c -> Parser d -> Parser e
 pThen4 combine p1 p2 p3 p4 toks
   = [ (v2, toks2)
