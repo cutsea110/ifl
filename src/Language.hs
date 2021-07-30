@@ -678,6 +678,23 @@ keywords :: [String]
 keywords = ["let", "letrec", "in", "case", "of", "Pack"]
 
 {- |
+>>> pNum []
+[]
+
+>>> pNum [(1, "a")]
+[]
+
+>>> pNum [(1, "42")]
+[(42,[])]
+
+>>> pNum [(1, "4a")]
+[]
+-}
+pNum :: Parser Int
+pNum = pSat (all isDigit) `pApply` read
+
+
+{- |
 >>> pLit "Hello" `pAlt` pLit "Bye" $ []
 []
 
