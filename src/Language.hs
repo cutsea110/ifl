@@ -974,7 +974,23 @@ twoCharOps :: [String]
 twoCharOps = [ "==", "/=", ">=", "<=", "->" ]
 
 syntax :: [Token] -> CoreProgram
-syntax = undefined
+syntax = takeFirstParse . pProgram
+  where
+    takeFirstParse ((prog, []) : others) = prog
+    takeFirstParse (parse      : others) = takeFirstParse others
+    takeFirstParse other                 = error "syntax error"
+
+pProgram :: Parser CoreProgram
+pProgram = pOneOrMoreWithSep pSc (pLit ";")
+
+pSc :: Parser CoreScDefn
+pSc = pThen4 mkSc pVar (pZeroOrMore pVar) (pLit "=") pExpr
+
+mkSc :: Name -> [Name] -> p -> CoreExpr -> CoreScDefn
+mkSc name args _ expr = (name, args, expr)
+
+pExpr :: Parser CoreExpr
+pExpr = undefined
 
 parse :: String -> CoreProgram
 parse = syntax . clex 1
