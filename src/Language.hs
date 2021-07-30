@@ -660,12 +660,36 @@ pThenN combine (p:ps)  toks
     ]
 --}
 
+{- |
+>>> pZeroOrMore (pLit "Hello") [(1, "Hello"), (1, "Bye")]
+[(["Hello"],[(1,"Bye")]),([],[(1,"Hello"),(1,"Bye")])]
+
+>>> pZeroOrMore (pLit "Hello") [(1, "Hellow"), (1, "Bye~")]
+[([],[(1,"Hellow"),(1,"Bye~")])]
+-}
 pZeroOrMore :: Parser a -> Parser [a]
 pZeroOrMore p = pOneOrMore p `pAlt` pEmpty []
 
+{- |
+>>> pEmpty [] $ []
+[([],[])]
+
+>>> pEmpty 1 $ []
+[(1,[])]
+
+>>> pEmpty "hello" $ [(1, "a")]
+[("hello",[(1,"a")])]
+-}
 pEmpty :: a -> Parser a
 pEmpty x toks = [(x, toks)]
 
+{- |
+>>> pOneOrMore (pLit "Hello") [(1, "Hello"), (1, "Bye")]
+[(["Hello"],[(1,"Bye")])]
+
+>>> pOneOrMore (pLit "Hello") [(1, "Hellow"), (1, "Bye~")]
+[]
+-}
 pOneOrMore :: Parser a -> Parser [a]
 pOneOrMore p toks
   = [ (v1:vs, toks2)
