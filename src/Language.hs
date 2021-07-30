@@ -962,7 +962,7 @@ clex n (c:cs)
                          varToken       = c : idCs
                      in (n, varToken) : clex n restCs
   | otherwise      = (n, [c]) : clex n cs
-clex n []            = []
+clex n []          = []
 
 isWhiteSpace :: Char -> Bool
 isWhiteSpace c = c `elem` " \t\n"
