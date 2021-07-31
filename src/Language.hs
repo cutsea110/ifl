@@ -609,7 +609,8 @@ pprAlt (i, args, expr)
 -- parser
 ----------------------------------------------------------------------------------------
 
-type Token = (Int, String)
+type Location = Int
+type Token = (Location, String)
 type Parser a = [Token] -> [(a, [Token])]
 
 pSat :: (String -> Bool) -> Parser String
@@ -989,8 +990,22 @@ pSc = pThen4 mkSc pVar (pZeroOrMore pVar) (pLit "=") pExpr
 mkSc :: Name -> [Name] -> p -> CoreExpr -> CoreScDefn
 mkSc name args _ expr = (name, args, expr)
 
+{- |
+>>> pConstr $ clex 1 "Pack{1,2}"
+[(EConstr 1 2,[])]
+-}
+pConstr :: Parser (Int, Int)
+pConstr = pThen3 (\_ x _ -> x) pre body post
+  where pre  = pThen (,) (pLit "Pack") (pLit "{")
+        body = pThen3 (\t _ a -> (t, a)) pNum (pLit ",") pNum
+        post = pLit "}"
+
 pExpr :: Parser CoreExpr
-pExpr = undefined
+pExpr = pNum' `pAlt` pVar' `pAlt` pConstr'
+  where
+    pNum' = pNum `pApply` ENum
+    pVar' = pVar `pApply` EVar
+    pConstr' = pConstr `pApply` uncurry EConstr
 
 parse :: String -> CoreProgram
 parse = syntax . clex 1
