@@ -992,14 +992,23 @@ mkSc name args _ expr = (name, args, expr)
 
 {- |
 >>> pConstr $ clex 1 "Pack{1,2}"
-[(EConstr 1 2,[])]
+[((1,2),[])]
 -}
 pConstr :: Parser (Int, Int)
 pConstr = pThen3 (\_ x _ -> x) pre body post
   where pre  = pThen (,) (pLit "Pack") (pLit "{")
         body = pThen3 (\t _ a -> (t, a)) pNum (pLit ",") pNum
         post = pLit "}"
+{- |
+>>> pExpr [(1, "42")]
+[(ENum 42,[])]
 
+>>> pExpr [(1, "a")]
+[(EVar "a",[])]
+
+>>> pExpr $ clex 1 "Pack{1,2}"
+[(EConstr 1 2,[])]
+-}
 pExpr :: Parser CoreExpr
 pExpr = pNum' `pAlt` pVar' `pAlt` pConstr'
   where
