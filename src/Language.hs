@@ -984,6 +984,13 @@ syntax = takeFirstParse . pProgram
 pProgram :: Parser CoreProgram
 pProgram = pOneOrMoreWithSep pSc (pLit ";")
 
+{- |
+>>> pSc $ clex 1 "x = 42"
+[(("x",[],ENum 42),[])]
+
+>>> pSc $ clex 1 "f x = x"
+[(("f",["x"],EVar "x"),[])]
+-}
 pSc :: Parser CoreScDefn
 pSc = pThen4 mkSc pVar (pZeroOrMore pVar) (pLit "=") pExpr
 
@@ -1023,6 +1030,13 @@ parse = syntax . clex 1
 ----------------------------------------------------------------------------------------
 -- sample code and prelude
 ----------------------------------------------------------------------------------------
+testProgram :: String
+testProgram = unlines [ "f = 3 ;"
+                      , "g x y = let z = y in z ;"
+                      , "h x = case (let y = x in y) of"
+                      , "        <1> -> 2"
+                      , "        <2> -> 5"
+                      ]
 
 sampleProgram :: CoreProgram
 sampleProgram
