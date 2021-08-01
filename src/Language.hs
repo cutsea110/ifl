@@ -1007,9 +1007,11 @@ pConstr = pThen3 (\_ x _ -> x) pre body post
         body = pThen3 (\t _ a -> (t, a)) pNum (pLit ",") pNum
         post = pLit "}"
 
+pBinding :: Parser (Name, CoreExpr)
+pBinding = pThen3 (\v _ e -> (v, e)) pVar (pLit "=") pExpr
+
 pBindings :: Parser [(Name, CoreExpr)]
 pBindings = pOneOrMoreWithSep pBinding (pLit ";")
-  where pBinding = pThen3 (\v _ e -> (v, e)) pVar (pLit "=") pExpr
 
 pLet :: Parser CoreExpr
 pLet = pThen4 f (pLet `pAlt` pLetrec) pBindings (pLit "in") pExpr
