@@ -1100,11 +1100,12 @@ pCase = pThen4 f (pLit "case") pExpr (pLit "of") pArms
 [(EConstr 1 2,[])]
 -}
 pExpr :: Parser CoreExpr
-pExpr = pNum' `pAlt` pVar' `pAlt` pConstr' `pAlt` pLet `pAlt` pCase
+pExpr = pNum' `pAlt` pVar' `pAlt` pConstr' `pAlt` pLet `pAlt` pCase `pAlt` pParenExpr
   where
     pNum' = pNum `pApply` ENum
     pVar' = pVar `pApply` EVar
     pConstr' = pConstr `pApply` uncurry EConstr
+    pParenExpr = pThen3 (\_ e _ -> e) (pLit "(") pExpr (pLit ")")
 
 parse :: String -> CoreProgram
 parse = syntax . clex 1
@@ -1117,7 +1118,7 @@ testProgram :: String
 testProgram = unlines [ "f = 3 ;"
                       , "g x y = let z = y in z ;"
                       , "h x = case (let y = x in y) of"
-                      , "        <1> -> 2"
+                      , "        <1> -> 2;"
                       , "        <2> -> 5"
                       ]
 
