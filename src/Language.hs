@@ -1006,6 +1006,17 @@ pConstr = pThen3 (\_ x _ -> x) pre body post
   where pre  = pThen (,) (pLit "Pack") (pLit "{")
         body = pThen3 (\t _ a -> (t, a)) pNum (pLit ",") pNum
         post = pLit "}"
+
+pBindings :: Parser [(Name, CoreExpr)]
+pBindings = pOneOrMoreWithSep pBinding (pLit ";")
+  where pBinding = pThen3 (\v _ e -> (v, e)) pVar (pLit "=") pExpr
+
+pLet :: Parser CoreExpr
+pLet = pThen4 f pLetOrLetrec pBindings (pLit "in") pExpr
+  where
+    f isRec bs _ e = ELet isRec bs e
+    pLetOrLetrec = (pLit "let" `pApply` const False) `pAlt` (pLit "letrec" `pApply` const True)
+        
 {- |
 >>> pExpr [(1, "42")]
 [(ENum 42,[])]
@@ -1017,7 +1028,7 @@ pConstr = pThen3 (\_ x _ -> x) pre body post
 [(EConstr 1 2,[])]
 -}
 pExpr :: Parser CoreExpr
-pExpr = pNum' `pAlt` pVar' `pAlt` pConstr'
+pExpr = pNum' `pAlt` pVar' `pAlt` pConstr' `pAlt` pLet
   where
     pNum' = pNum `pApply` ENum
     pVar' = pVar `pApply` EVar
