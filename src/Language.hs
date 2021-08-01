@@ -1043,17 +1043,48 @@ pLet = pThen4 f (pLet `pAlt` pLetrec) pBindings (pLit "in") pExpr
         pLet = pLit "let" `pApply` const False
         pLetrec = pLit "letrec" `pApply` const True
 
+{- |
+>>> pArgs $ clex 1 ""
+[([],[])]
+
+>>> pArgs $ clex 1 "x"
+[(["x"],[]),([],[(1,"x")])]
+
+>>> pArgs $ clex 1 "x y"
+[(["x","y"],[]),(["x"],[(1,"y")]),([],[(1,"x"),(1,"y")])]
+
+>>> pArgs $ clex 1 "x y z"
+[(["x","y","z"],[]),(["x","y"],[(1,"z")]),(["x"],[(1,"y"),(1,"z")]),([],[(1,"x"),(1,"y"),(1,"z")])]
+-}
 pArgs :: Parser [Name]
 pArgs = pZeroOrMore pVar
 
+{- |
+>>> pArm $ clex 1 "<1> -> 42"
+[((1,[],ENum 42),[])]
+
+>>> pArm $ clex 1 "<1> -> x"
+[((1,[],EVar "x"),[])]
+-}
 pArm :: Parser (Alter Name)
 pArm = pThen4 f pTag pArgs (pLit "->") pExpr
   where f tag args _ expr = (tag, args, expr)
         pTag  = pThen3 (\_ tag _ -> tag) (pLit "<") pNum (pLit ">")
 
+{- |
+>>> pArms $ clex 1 "<1> -> x"
+[([(1,[],EVar "x")],[])]
+
+>>> pArms $ clex 1 "<1> -> x; <2> -> y"
+[([(1,[],EVar "x"),(2,[],EVar "y")],[]),([(1,[],EVar "x")],[(1,";"),(1,"<"),(1,"2"),(1,">"),(1,"->"),(1,"y")])]
+-}
 pArms :: Parser [Alter Name]
 pArms = pOneOrMoreWithSep pArm (pLit ";")
 
+{- |
+>>> pCase $ clex 1 "case x of <1> -> 42; <2> -> x"
+[(ECase (EVar "x") [(1,[],ENum 42),(2,[],EVar "x")],[]),(ECase (EVar "x") [(1,[],ENum 42)],[(1,";"),(1,"<"),(1,"2"),(1,">"),(1,"->"),(1,"x")])]
+-}
 pCase :: Parser CoreExpr
 pCase = pThen4 f (pLit "case") pExpr (pLit "of") pArms
   where f _ expr _ alters = ECase expr alters
