@@ -1007,12 +1007,36 @@ pConstr = pThen3 (\_ x _ -> x) pre body post
         body = pThen3 (\t _ a -> (t, a)) pNum (pLit ",") pNum
         post = pLit "}"
 
+{- |
+>>> pBinding $ clex 1 "x = 3"
+[(("x",ENum 3),[])]
+
+>>> pBinding $ clex 1 "x = y"
+[(("x",EVar "y"),[])]
+-}
 pBinding :: Parser (Name, CoreExpr)
 pBinding = pThen3 (\v _ e -> (v, e)) pVar (pLit "=") pExpr
 
+{- |
+>>> pBindings $ clex 1 "y = x; z = y"
+[([("y",EVar "x"),("z",EVar "y")],[]),([("y",EVar "x")],[(1,";"),(1,"z"),(1,"="),(1,"y")])]
+-}
 pBindings :: Parser [(Name, CoreExpr)]
 pBindings = pOneOrMoreWithSep pBinding (pLit ";")
 
+{- |
+>>> pLet $ clex 1 "let x = 3 in x"
+[(ELet False [("x",ENum 3)] (EVar "x"),[])]
+
+>>> pLet $ clex 1 "let y = x;z = y in z"
+[(ELet False [("y",EVar "x"),("z",EVar "y")] (EVar "z"),[])]
+
+>>> pLet $ clex 1 "letrec x = x in x"
+[(ELet True [("x",EVar "x")] (EVar "x"),[])]
+
+>>> pLet $ clex 1 "letrec y = x;x = y in x"
+[(ELet True [("y",EVar "x"),("x",EVar "y")] (EVar "x"),[])]
+-}
 pLet :: Parser CoreExpr
 pLet = pThen4 f (pLet `pAlt` pLetrec) pBindings (pLit "in") pExpr
   where f isRec bindings _ expr = ELet isRec bindings expr
