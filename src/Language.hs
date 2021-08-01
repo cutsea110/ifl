@@ -1012,10 +1012,25 @@ pBindings = pOneOrMoreWithSep pBinding (pLit ";")
   where pBinding = pThen3 (\v _ e -> (v, e)) pVar (pLit "=") pExpr
 
 pLet :: Parser CoreExpr
-pLet = pThen4 f pLetOrLetrec pBindings (pLit "in") pExpr
-  where
-    f isRec bs _ e = ELet isRec bs e
-    pLetOrLetrec = (pLit "let" `pApply` const False) `pAlt` (pLit "letrec" `pApply` const True)
+pLet = pThen4 f (pLet `pAlt` pLetrec) pBindings (pLit "in") pExpr
+  where f isRec bindings _ expr = ELet isRec bindings expr
+        pLet = pLit "let" `pApply` const False
+        pLetrec = pLit "letrec" `pApply` const True
+
+pArgs :: Parser [Name]
+pArgs = pZeroOrMore pVar
+
+pArm :: Parser (Alter Name)
+pArm = pThen4 f pTag pArgs (pLit "->") pExpr
+  where f tag args _ expr = (tag, args, expr)
+        pTag  = pThen3 (\_ tag _ -> tag) (pLit "<") pNum (pLit ">")
+
+pArms :: Parser [Alter Name]
+pArms = pOneOrMoreWithSep pArm (pLit ";")
+
+pCase :: Parser CoreExpr
+pCase = pThen4 f (pLit "case") pExpr (pLit "of") pArms
+  where f _ expr _ alters = ECase expr alters
         
 {- |
 >>> pExpr [(1, "42")]
@@ -1028,7 +1043,7 @@ pLet = pThen4 f pLetOrLetrec pBindings (pLit "in") pExpr
 [(EConstr 1 2,[])]
 -}
 pExpr :: Parser CoreExpr
-pExpr = pNum' `pAlt` pVar' `pAlt` pConstr' `pAlt` pLet
+pExpr = pNum' `pAlt` pVar' `pAlt` pConstr' `pAlt` pLet `pAlt` pCase
   where
     pNum' = pNum `pApply` ENum
     pVar' = pVar `pApply` EVar
