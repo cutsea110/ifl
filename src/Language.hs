@@ -1108,25 +1108,6 @@ pAexpr = pVar' `pAlt` pNum' `pAlt` pConstr' `pAlt` pParenExpr
     pParenExpr = pThen3 (\_ e _ -> e) (pLit "(") pExpr (pLit ")")
 
 {- |
->>> pAp $ clex 1 "42"
-[(ENum 42,[])]
-
->>> pAp $ clex 1 "x"
-[(EVar "x",[])]
-
->>> pAp $ clex 1 "f x"
-[(EAp (EVar "f") (EVar "x"),[]),(EVar "f",[(1,"x")])]
-
->>> pAp $ clex 1 "f x y"
-[(EAp (EAp (EVar "f") (EVar "x")) (EVar "y"),[]),(EAp (EVar "f") (EVar "x"),[(1,"y")]),(EVar "f",[(1,"x"),(1,"y")])]
--}
-pAp :: Parser CoreExpr
-pAp = pOneOrMore pAexpr `pApply` mkApChain
-
-mkApChain :: [CoreExpr] -> CoreExpr
-mkApChain = foldl1 EAp
-
-{- |
 >>> pLam $ clex 1 "\\ -> x"
 [(ELam [] (EVar "x"),[])]
 
@@ -1144,30 +1125,55 @@ pExpr :: Parser CoreExpr
 pExpr = pLet `pAlt` pCase `pAlt` pLam `pAlt` pExpr1
 
 pExpr1 :: Parser CoreExpr
-pExpr1 = pThen3 f pExpr2 (pLit "||" `pApply` EVar) pExpr1 `pAlt` pExpr2
+pExpr1 = pThen3 f pExpr2 (pLit "||" `pApply` EVar) pExpr1 `pAlt`
+         pExpr2
   where f e1 op e2 = EAp (EAp op e1) e2
 
 pExpr2 :: Parser CoreExpr
-pExpr2 = pThen3 f pExpr3 (pLit "&&" `pApply` EVar) pExpr2 `pAlt` pExpr3
+pExpr2 = pThen3 f pExpr3 (pLit "&&" `pApply` EVar) pExpr2 `pAlt`
+         pExpr3
   where f e1 op e2 = EAp (EAp op e1) e2
 
 pExpr3 :: Parser CoreExpr
-pExpr3 = pThen3 f pExpr4 (pRelop `pApply` EVar) pExpr4 `pAlt` pExpr4
+pExpr3 = pThen3 f pExpr4 (pRelop `pApply` EVar) pExpr4 `pAlt`
+         pExpr4
   where f e1 op e2 = EAp (EAp op e1) e2
 
 pRelop :: Parser String
-pRelop = pLit "==" `pAlt` pLit "/=" `pAlt` pLit "<" `pAlt` pLit "<=" `pAlt` pLit ">" `pAlt` pLit ">="
+pRelop = pLit "==" `pAlt` pLit "/=" `pAlt`
+         pLit "<"  `pAlt` pLit "<=" `pAlt`
+         pLit ">"  `pAlt` pLit ">="
 
 pExpr4 :: Parser CoreExpr
-pExpr4 = pThen3 f pExpr5 (pLit "+") pExpr4 `pAlt` pThen3 f pExpr5 (pLit "-") pExpr5 `pAlt` pExpr5
-  where f e1 op e2 = EAp (EAp (EVar op) e1) e2
+pExpr4 = pThen3 f pExpr5 (pLit "+" `pApply` EVar) pExpr4 `pAlt`
+         pThen3 f pExpr5 (pLit "-" `pApply` EVar) pExpr5 `pAlt`
+         pExpr5
+  where f e1 op e2 = EAp (EAp op e1) e2
 
 pExpr5 :: Parser CoreExpr
-pExpr5 = pThen3 f pExpr6 (pLit "*") pExpr5 `pAlt` pThen3 f pExpr6 (pLit "/") pExpr6 `pAlt` pExpr6
-  where f e1 op e2 = EAp (EAp (EVar op) e1) e2
+pExpr5 = pThen3 f pExpr6 (pLit "*" `pApply` EVar) pExpr5 `pAlt`
+         pThen3 f pExpr6 (pLit "/" `pApply` EVar) pExpr6 `pAlt`
+         pExpr6
+  where f e1 op e2 = EAp (EAp op e1) e2
 
+{- |
+>>> pExpr6 $ clex 1 "42"
+[(ENum 42,[])]
+
+>>> pExpr6 $ clex 1 "x"
+[(EVar "x",[])]
+
+>>> pExpr6 $ clex 1 "f x"
+[(EAp (EVar "f") (EVar "x"),[]),(EVar "f",[(1,"x")])]
+
+>>> pExpr6 $ clex 1 "f x y"
+[(EAp (EAp (EVar "f") (EVar "x")) (EVar "y"),[]),(EAp (EVar "f") (EVar "x"),[(1,"y")]),(EVar "f",[(1,"x"),(1,"y")])]
+-}
 pExpr6 :: Parser CoreExpr
-pExpr6 = pAp
+pExpr6 = pOneOrMore pAexpr `pApply` mkApChain
+
+mkApChain :: [CoreExpr] -> CoreExpr
+mkApChain = foldl1 EAp
 
 parse :: String -> CoreProgram
 parse = syntax . clex 1
