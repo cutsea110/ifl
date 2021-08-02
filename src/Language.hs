@@ -1122,6 +1122,14 @@ testProgram = unlines [ "f = 3 ;"
                       , "        <2> -> 5"
                       ]
 
+-- これは区別ができない
+hangEleProblem :: String
+hangEleProblem = unlines [ "f x y = case x of"
+                         , "          <1> -> case y of"
+                         , "                   <1> -> 1;"
+                         , "          <2> -> 2"
+                         ]
+
 sampleProgram :: CoreProgram
 sampleProgram
   = [ ("main", [], ap double _42)
