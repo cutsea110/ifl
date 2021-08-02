@@ -1097,6 +1097,19 @@ pAexpr = pVar' `pAlt` pNum' `pAlt` pConstr' `pAlt` pParenExpr
     pConstr' = pConstr `pApply` uncurry EConstr
     pParenExpr = pThen3 (\_ e _ -> e) (pLit "(") pExpr (pLit ")")
 
+{- |
+>>> pAp $ clex 1 "42"
+[(ENum 42,[])]
+
+>>> pAp $ clex 1 "x"
+[(EVar "x",[])]
+
+>>> pAp $ clex 1 "f x"
+[(EAp (EVar "f") (EVar "x"),[]),(EVar "f",[(1,"x")])]
+
+>>> pAp $ clex 1 "f x y"
+[(EAp (EAp (EVar "f") (EVar "x")) (EVar "y"),[]),(EAp (EVar "f") (EVar "x"),[(1,"y")]),(EVar "f",[(1,"x"),(1,"y")])]
+-}
 pAp :: Parser CoreExpr
 pAp = pOneOrMore pAexpr `pApply` mkApChain
 
