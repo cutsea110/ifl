@@ -1088,6 +1088,20 @@ pArms = pOneOrMoreWithSep pArm (pLit ";")
 pCase :: Parser CoreExpr
 pCase = pThen4 f (pLit "case") pExpr (pLit "of") pArms
   where f _ expr _ alters = ECase expr alters
+
+pAexpr :: Parser CoreExpr
+pAexpr = pVar' `pAlt` pNum' `pAlt` pConstr' `pAlt` pParenExpr
+  where
+    pNum' = pNum `pApply` ENum
+    pVar' = pVar `pApply` EVar
+    pConstr' = pConstr `pApply` uncurry EConstr
+    pParenExpr = pThen3 (\_ e _ -> e) (pLit "(") pExpr (pLit ")")
+
+pAp :: Parser CoreExpr
+pAp = pOneOrMore pAexpr `pApply` mkApChain
+
+mkApChain :: [CoreExpr] -> CoreExpr
+mkApChain = foldl1 EAp
         
 {- |
 >>> pExpr [(1, "42")]
@@ -1100,12 +1114,7 @@ pCase = pThen4 f (pLit "case") pExpr (pLit "of") pArms
 [(EConstr 1 2,[])]
 -}
 pExpr :: Parser CoreExpr
-pExpr = pNum' `pAlt` pVar' `pAlt` pConstr' `pAlt` pLet `pAlt` pCase `pAlt` pParenExpr
-  where
-    pNum' = pNum `pApply` ENum
-    pVar' = pVar `pApply` EVar
-    pConstr' = pConstr `pApply` uncurry EConstr
-    pParenExpr = pThen3 (\_ e _ -> e) (pLit "(") pExpr (pLit ")")
+pExpr = pAp `pAlt` pLet `pAlt` pCase
 
 parse :: String -> CoreProgram
 parse = syntax . clex 1
