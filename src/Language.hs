@@ -972,7 +972,7 @@ isIdChar :: Char -> Bool
 isIdChar c = isAlpha c || isDigit c || c == '_'
 
 twoCharOps :: [String]
-twoCharOps = [ "==", "/=", ">=", "<=", "->" ]
+twoCharOps = [ "==", "/=", ">=", "<=", "->", "&&", "||" ]
 
 syntax :: [Token] -> CoreProgram
 syntax = takeFirstParse . pProgram
@@ -1144,16 +1144,16 @@ pExpr :: Parser CoreExpr
 pExpr = pLet `pAlt` pCase `pAlt` pLam `pAlt` pExpr1
 
 pExpr1 :: Parser CoreExpr
-pExpr1 = pThen3 f pExpr2 (pLit "||") pExpr1 `pAlt` pExpr2
-  where f e1 _ e2 = EAp (EAp (EVar "||") e1) e2
+pExpr1 = pThen3 f pExpr2 (pLit "||" `pApply` EVar) pExpr1 `pAlt` pExpr2
+  where f e1 op e2 = EAp (EAp op e1) e2
 
 pExpr2 :: Parser CoreExpr
-pExpr2 = pThen3 f pExpr3 (pLit "&&") pExpr2 `pAlt` pExpr3
-  where f e1 _ e2 = EAp (EAp (EVar "&&") e1) e2
+pExpr2 = pThen3 f pExpr3 (pLit "&&" `pApply` EVar) pExpr2 `pAlt` pExpr3
+  where f e1 op e2 = EAp (EAp op e1) e2
 
 pExpr3 :: Parser CoreExpr
-pExpr3 = pThen3 f pExpr4 pRelop pExpr4 `pAlt` pExpr4
-  where f e1 op e2 = EAp (EAp (EVar op) e1) e2
+pExpr3 = pThen3 f pExpr4 (pRelop `pApply` EVar) pExpr4 `pAlt` pExpr4
+  where f e1 op e2 = EAp (EAp op e1) e2
 
 pRelop :: Parser String
 pRelop = pLit "==" `pAlt` pLit "/=" `pAlt` pLit "<" `pAlt` pLit "<=" `pAlt` pLit ">" `pAlt` pLit ">="
