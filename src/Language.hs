@@ -1141,7 +1141,33 @@ pLam = pThen4 f (pLit "\\") pArgs (pLit "->") pExpr
   where f _ args _ expr = ELam args expr
 
 pExpr :: Parser CoreExpr
-pExpr = pAp `pAlt` pLet `pAlt` pCase `pAlt` pLam
+pExpr = pLet `pAlt` pCase `pAlt` pLam `pAlt` pExpr1
+
+pExpr1 :: Parser CoreExpr
+pExpr1 = pThen3 f pExpr2 (pLit "||") pExpr1 `pAlt` pExpr2
+  where f e1 _ e2 = EAp (EAp (EVar "||") e1) e2
+
+pExpr2 :: Parser CoreExpr
+pExpr2 = pThen3 f pExpr3 (pLit "&&") pExpr2 `pAlt` pExpr3
+  where f e1 _ e2 = EAp (EAp (EVar "&&") e1) e2
+
+pExpr3 :: Parser CoreExpr
+pExpr3 = pThen3 f pExpr4 pRelop pExpr4 `pAlt` pExpr4
+  where f e1 op e2 = EAp (EAp (EVar op) e1) e2
+
+pRelop :: Parser String
+pRelop = pLit "==" `pAlt` pLit "/=" `pAlt` pLit "<" `pAlt` pLit "<=" `pAlt` pLit ">" `pAlt` pLit ">="
+
+pExpr4 :: Parser CoreExpr
+pExpr4 = pThen3 f pExpr5 (pLit "+") pExpr4 `pAlt` pThen3 f pExpr5 (pLit "-") pExpr5 `pAlt` pExpr5
+  where f e1 op e2 = EAp (EAp (EVar op) e1) e2
+
+pExpr5 :: Parser CoreExpr
+pExpr5 = pThen3 f pExpr6 (pLit "*") pExpr5 `pAlt` pThen3 f pExpr6 (pLit "/") pExpr6 `pAlt` pExpr6
+  where f e1 op e2 = EAp (EAp (EVar op) e1) e2
+
+pExpr6 :: Parser CoreExpr
+pExpr6 = pAp
 
 parse :: String -> CoreProgram
 parse = syntax . clex 1
