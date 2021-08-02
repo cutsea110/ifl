@@ -1125,9 +1125,23 @@ pAp = pOneOrMore pAexpr `pApply` mkApChain
 
 mkApChain :: [CoreExpr] -> CoreExpr
 mkApChain = foldl1 EAp
-        
+
+{- |
+>>> pLam $ clex 1 "\\ -> x"
+[(ELam [] (EVar "x"),[])]
+
+>>> pLam $ clex 1 "\\ x -> x"
+[(ELam ["x"] (EVar "x"),[])]
+
+>>> pLam $ clex 1 "\\ m x -> x x"
+[(ELam ["m","x"] (EAp (EVar "x") (EVar "x")),[]),(ELam ["m","x"] (EVar "x"),[(1,"x")])]
+-}
+pLam :: Parser CoreExpr
+pLam = pThen4 f (pLit "\\") pArgs (pLit "->") pExpr
+  where f _ args _ expr = ELam args expr
+
 pExpr :: Parser CoreExpr
-pExpr = pAp `pAlt` pLet `pAlt` pCase
+pExpr = pAp `pAlt` pLet `pAlt` pCase `pAlt` pLam
 
 parse :: String -> CoreProgram
 parse = syntax . clex 1
