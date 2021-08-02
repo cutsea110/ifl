@@ -1089,6 +1089,16 @@ pCase :: Parser CoreExpr
 pCase = pThen4 f (pLit "case") pExpr (pLit "of") pArms
   where f _ expr _ alters = ECase expr alters
 
+{- |
+>>> pAexpr [(1, "42")]
+[(ENum 42,[])]
+
+>>> pAexpr [(1, "a")]
+[(EVar "a",[])]
+
+>>> pAexpr $ clex 1 "Pack{1,2}"
+[(EConstr 1 2,[])]
+-}
 pAexpr :: Parser CoreExpr
 pAexpr = pVar' `pAlt` pNum' `pAlt` pConstr' `pAlt` pParenExpr
   where
@@ -1116,16 +1126,6 @@ pAp = pOneOrMore pAexpr `pApply` mkApChain
 mkApChain :: [CoreExpr] -> CoreExpr
 mkApChain = foldl1 EAp
         
-{- |
->>> pExpr [(1, "42")]
-[(ENum 42,[])]
-
->>> pExpr [(1, "a")]
-[(EVar "a",[])]
-
->>> pExpr $ clex 1 "Pack{1,2}"
-[(EConstr 1 2,[])]
--}
 pExpr :: Parser CoreExpr
 pExpr = pAp `pAlt` pLet `pAlt` pCase
 
