@@ -1134,6 +1134,25 @@ pExpr2 = pThen3 f pExpr3 (pLit "&&" `pApply` EVar) pExpr2 `pAlt`
          pExpr3
   where f e1 op e2 = EAp (EAp op e1) e2
 
+{- |
+>>> pExpr3 $ clex 1 "x == y"
+[(EAp (EAp (EVar "==") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"=="),(1,"y")])]
+
+>>> pExpr3 $ clex 1 "x /= y"
+[(EAp (EAp (EVar "/=") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"/="),(1,"y")])]
+
+>>> pExpr3 $ clex 1 "x < y"
+[(EAp (EAp (EVar "<") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"<"),(1,"y")])]
+
+>>> pExpr3 $ clex 1 "x > y"
+[(EAp (EAp (EVar ">") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,">"),(1,"y")])]
+
+>>> pExpr3 $ clex 1 "x <= y"
+[(EAp (EAp (EVar "<=") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"<="),(1,"y")])]
+
+>>> pExpr3 $ clex 1 "x >= y"
+[(EAp (EAp (EVar ">=") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,">="),(1,"y")])]
+-}
 pExpr3 :: Parser CoreExpr
 pExpr3 = pThen3 f pExpr4 (pRelop `pApply` EVar) pExpr4 `pAlt`
          pExpr4
