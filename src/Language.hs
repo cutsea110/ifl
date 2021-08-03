@@ -1124,11 +1124,31 @@ pLam = pThen4 f (pLit "\\") pArgs (pLit "->") pExpr
 pExpr :: Parser CoreExpr
 pExpr = pLet `pAlt` pCase `pAlt` pLam `pAlt` pExpr1
 
+{- |
+>>> pExpr1 $ clex 1 "x || y"
+[(EAp (EAp (EVar "||") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"||"),(1,"y")])]
+
+>>> pExpr1 $ clex 1 "x || y && z"
+[(EAp (EAp (EVar "||") (EVar "x")) (EAp (EAp (EVar "&&") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "||") (EVar "x")) (EVar "y"),[(1,"&&"),(1,"z")]),(EVar "x",[(1,"||"),(1,"y"),(1,"&&"),(1,"z")])]
+
+>>> pExpr1 $ clex 1 "x && y || z"
+[(EAp (EAp (EVar "||") (EAp (EAp (EVar "&&") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "&&") (EVar "x")) (EVar "y"),[(1,"||"),(1,"z")]),(EVar "x",[(1,"&&"),(1,"y"),(1,"||"),(1,"z")])]
+
+>>> pExpr1 $ clex 1 "(x || y) && z"
+[(EAp (EAp (EVar "&&") (EAp (EAp (EVar "||") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "||") (EVar "x")) (EVar "y"),[(1,"&&"),(1,"z")])]
+
+>>> pExpr1 $ clex 1 "x && (y || z)"
+[(EAp (EAp (EVar "&&") (EVar "x")) (EAp (EAp (EVar "||") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"&&"),(1,"("),(1,"y"),(1,"||"),(1,"z"),(1,")")])]
+-}
 pExpr1 :: Parser CoreExpr
 pExpr1 = pThen3 f pExpr2 (pLit "||" `pApply` EVar) pExpr1 `pAlt`
          pExpr2
   where f e1 op e2 = EAp (EAp op e1) e2
 
+{- |
+>>> pExpr2 $ clex 1 "x && y"
+[(EAp (EAp (EVar "&&") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"&&"),(1,"y")])]
+-}
 pExpr2 :: Parser CoreExpr
 pExpr2 = pThen3 f pExpr3 (pLit "&&" `pApply` EVar) pExpr2 `pAlt`
          pExpr3
@@ -1152,6 +1172,24 @@ pExpr2 = pThen3 f pExpr3 (pLit "&&" `pApply` EVar) pExpr2 `pAlt`
 
 >>> pExpr3 $ clex 1 "x >= y"
 [(EAp (EAp (EVar ">=") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,">="),(1,"y")])]
+
+>>> pExpr3 $ clex 1 "x == y + z"
+[(EAp (EAp (EVar "==") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "==") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,"=="),(1,"y"),(1,"+"),(1,"z")])]
+
+>>> pExpr3 $ clex 1 "x /= y + z"
+[(EAp (EAp (EVar "/=") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "/=") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,"/="),(1,"y"),(1,"+"),(1,"z")])]
+
+>>> pExpr3 $ clex 1 "x < y + z"
+[(EAp (EAp (EVar "<") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "<") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,"<"),(1,"y"),(1,"+"),(1,"z")])]
+
+>>> pExpr3 $ clex 1 "x > y + z"
+[(EAp (EAp (EVar ">") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar ">") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,">"),(1,"y"),(1,"+"),(1,"z")])]
+
+>>> pExpr3 $ clex 1 "x <= y + z"
+[(EAp (EAp (EVar "<=") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "<=") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,"<="),(1,"y"),(1,"+"),(1,"z")])]
+
+>>> pExpr3 $ clex 1 "x >= y + z"
+[(EAp (EAp (EVar ">=") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar ">=") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,">="),(1,"y"),(1,"+"),(1,"z")])]
 -}
 pExpr3 :: Parser CoreExpr
 pExpr3 = pThen3 f pExpr4 (pRelop `pApply` EVar) pExpr4 `pAlt`
