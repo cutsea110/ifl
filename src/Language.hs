@@ -1121,6 +1121,11 @@ pLam :: Parser CoreExpr
 pLam = pThen4 f (pLit "\\") pArgs (pLit "->") pExpr
   where f _ args _ expr = ELam args expr
 
+data PartialExpr = NoOp | FoundOp Name CoreExpr
+
+pExpr1c :: Parser PartialExpr
+pExpr1c = pThen FoundOp (pLit "||") pExpr1 `pAlt` pEmpty NoOp
+
 pExpr :: Parser CoreExpr
 pExpr = pLet `pAlt` pCase `pAlt` pLam `pAlt` pExpr1
 
@@ -1141,9 +1146,17 @@ pExpr = pLet `pAlt` pCase `pAlt` pLam `pAlt` pExpr1
 [(EAp (EAp (EVar "&&") (EVar "x")) (EAp (EAp (EVar "||") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"&&"),(1,"("),(1,"y"),(1,"||"),(1,"z"),(1,")")])]
 -}
 pExpr1 :: Parser CoreExpr
+pExpr1 = pThen assembleOp pExpr2 pExpr1c
+
+assembleOp :: CoreExpr -> PartialExpr -> CoreExpr
+assembleOp e1 NoOp = e1
+assembleOp e1 (FoundOp op e2) = EAp (EAp (EVar op) e1) e2
+{-
+pExpr1 :: Parser CoreExpr
 pExpr1 = pThen3 f pExpr2 (pLit "||" `pApply` EVar) pExpr1 `pAlt`
          pExpr2
   where f e1 op e2 = EAp (EAp op e1) e2
+-}
 
 {- |
 >>> pExpr2 $ clex 1 "x && y"
