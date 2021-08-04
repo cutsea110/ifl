@@ -1158,14 +1158,21 @@ pExpr1 = pThen3 f pExpr2 (pLit "||" `pApply` EVar) pExpr1 `pAlt`
   where f e1 op e2 = EAp (EAp op e1) e2
 -}
 
+pExpr2c :: Parser PartialExpr
+pExpr2c = pThen FoundOp (pLit "&&") pExpr2 `pAlt` pEmpty NoOp
+
 {- |
 >>> pExpr2 $ clex 1 "x && y"
 [(EAp (EAp (EVar "&&") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"&&"),(1,"y")])]
 -}
 pExpr2 :: Parser CoreExpr
+pExpr2 = pThen assembleOp pExpr3 pExpr2c
+{-
+pExpr2 :: Parser CoreExpr
 pExpr2 = pThen3 f pExpr3 (pLit "&&" `pApply` EVar) pExpr2 `pAlt`
          pExpr3
   where f e1 op e2 = EAp (EAp op e1) e2
+-}
 
 {- |
 >>> pExpr3 $ clex 1 "x == y"
