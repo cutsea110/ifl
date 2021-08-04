@@ -1212,9 +1212,16 @@ pExpr2c = pThen FoundOp (pLit "&&") pExpr2 `pAlt` pEmpty NoOp
 [(EAp (EAp (EVar ">=") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar ">=") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,">="),(1,"y"),(1,"+"),(1,"z")])]
 -}
 pExpr3 :: Parser CoreExpr
+pExpr3 = pThen assembleOp pExpr4 pExpr3c
+
+pExpr3c :: Parser PartialExpr
+pExpr3c = pThen FoundOp pRelop pExpr3 `pAlt` pEmpty NoOp
+{-
+pExpr3 :: Parser CoreExpr
 pExpr3 = pThen3 f pExpr4 (pRelop `pApply` EVar) pExpr4 `pAlt`
          pExpr4
   where f e1 op e2 = EAp (EAp op e1) e2
+-}
 
 pRelop :: Parser String
 pRelop = pLit "==" `pAlt` pLit "/=" `pAlt`
