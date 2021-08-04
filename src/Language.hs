@@ -1345,10 +1345,19 @@ pExpr3 = pThen3 f pExpr4 (pRelop `pApply` EVar) pExpr4 `pAlt`
 [(EAp (EAp (EVar "-") (EAp (EAp (EVar "/") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[(1,"-"),(1,"z")])]
 -}
 pExpr4 :: Parser CoreExpr
+pExpr4 = pThen assembleOp pExpr5 pExpr4c
+
+pExpr4c :: Parser PartialExpr
+pExpr4c = pThen FoundOp (pLit "+") pExpr4 `pAlt`
+          pThen FoundOp (pLit "-") pExpr5 `pAlt` pEmpty NoOp
+
+{-
+pExpr4 :: Parser CoreExpr
 pExpr4 = pThen3 f pExpr5 (pLit "+" `pApply` EVar) pExpr4 `pAlt`
          pThen3 f pExpr5 (pLit "-" `pApply` EVar) pExpr5 `pAlt`
          pExpr5
   where f e1 op e2 = EAp (EAp op e1) e2
+-}
 
 {- |
 >>> pExpr5 $ clex 1 "x * y"
