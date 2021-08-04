@@ -1216,17 +1216,18 @@ pExpr3 = pThen assembleOp pExpr4 pExpr3c
 
 pExpr3c :: Parser PartialExpr
 pExpr3c = pThen FoundOp pRelop pExpr3 `pAlt` pEmpty NoOp
+
+pRelop :: Parser String
+pRelop = pLit "==" `pAlt` pLit "/=" `pAlt`
+         pLit "<"  `pAlt` pLit "<=" `pAlt`
+         pLit ">"  `pAlt` pLit ">="
+
 {-
 pExpr3 :: Parser CoreExpr
 pExpr3 = pThen3 f pExpr4 (pRelop `pApply` EVar) pExpr4 `pAlt`
          pExpr4
   where f e1 op e2 = EAp (EAp op e1) e2
 -}
-
-pRelop :: Parser String
-pRelop = pLit "==" `pAlt` pLit "/=" `pAlt`
-         pLit "<"  `pAlt` pLit "<=" `pAlt`
-         pLit ">"  `pAlt` pLit ">="
 
 {- |
 >>> pExpr4 $ clex 1 "x + y"
