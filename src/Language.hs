@@ -1403,10 +1403,19 @@ pExpr4 = pThen3 f pExpr5 (pLit "+" `pApply` EVar) pExpr4 `pAlt`
 [(EAp (EAp (EVar "*") (EAp (EAp (EVar "/") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[(1,"*"),(1,"z")])]
 -}
 pExpr5 :: Parser CoreExpr
+pExpr5 = pThen assembleOp pExpr6 pExpr5c
+
+pExpr5c :: Parser PartialExpr
+pExpr5c = pThen FoundOp (pLit "*") pExpr5 `pAlt`
+          pThen FoundOp (pLit "/") pExpr6 `pAlt` pEmpty NoOp
+
+{-
+pExpr5 :: Parser CoreExpr
 pExpr5 = pThen3 f pExpr6 (pLit "*" `pApply` EVar) pExpr5 `pAlt`
          pThen3 f pExpr6 (pLit "/" `pApply` EVar) pExpr6 `pAlt`
          pExpr6
   where f e1 op e2 = EAp (EAp op e1) e2
+-}
 
 {- |
 >>> pExpr6 $ clex 1 "42"
