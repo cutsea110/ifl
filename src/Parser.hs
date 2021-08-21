@@ -281,7 +281,11 @@ pGreeting :: Parser (String, String)
 pGreeting = pThen3 mkGreeting pHelloOrGoodbye pVar (pLit "!")
   where mkGreeting hg name _exclamation = (hg, name)
 
--- for Test
+
+---------------------------------------
+-- for Test's pVar (don't export)
+---------------------------------------
+
 pVar :: Parser String
 pVar = pSat p
   where p cs@(c:_) = isAlpha c
