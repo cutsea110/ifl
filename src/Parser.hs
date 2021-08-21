@@ -6,12 +6,13 @@ module Parser
   , pLit
   , pNum
   , pAlt
+  , pAltL
   , pThen, pThen3, pThen4
   , pZeroOrMore, pOneOrMore, pOneOrMoreWithSep
   , pEmpty
   , pApply
-  , (<$$>), (<**>)
-  , (<**), (**>)
+  , (<$$>), (<$$)
+  , (<**>), (<**), (**>)
   ) where
 
 import Data.Char (isAlpha, isDigit)
@@ -83,9 +84,36 @@ pNum = pSat (all isDigit) `pApply` read
 >>> pLit "Hello" `pAlt` pLit "Bye" $ [(1,"Bye"),(1,"Hello")]
 [("Bye",[(1,"Hello")])]
 
+>>> pLit "hello" `pAlt` (pSat (all isAlpha)) $ [(1,"hello")]
+[("hello",[]),("hello",[])]
+
+>>> ("bye" <$$ pLit "hello") `pAlt` (pSat (all isAlpha)) $ [(1,"hello")]
+[("bye",[]),("hello",[])]
 -}
 pAlt :: Parser a -> Parser a -> Parser a
 pAlt p1 p2 toks = p1 toks ++ p2 toks
+
+
+{- |
+>>> pLit "hello" `pAltL` (pSat (all isAlpha)) $ []
+[]
+
+>>> pLit "hello" `pAltL` (pSat (all isAlpha)) $ [(1,"hello")]
+[("hello",[])]
+
+>>> ("bye" <$$ pLit "hello") `pAltL` (pSat (all isAlpha)) $ [(1,"hello")]
+[("bye",[])]
+-}
+pAltL :: Parser a -> Parser a -> Parser a
+pAltL p1 p2 toks = p1 toks <+ p2 toks
+
+infixr 3 `pAlt`, `pAltL`
+
+(<+) :: [a] -> [a] -> [a]
+[] <+ ys = ys
+xs <+ _  = xs
+
+infixr 5 <+
 
 {- |
 >>> pThen (++) (pLit "Hello") (pLit "World") []
