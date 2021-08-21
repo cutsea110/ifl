@@ -10,7 +10,8 @@ module Parser
   , pZeroOrMore, pOneOrMore, pOneOrMoreWithSep
   , pEmpty
   , pApply
-  , pConst, pConst2
+  , (<$$>), (<**>)
+  , (<**), (**>)
   ) where
 
 import Data.Char (isAlpha, isDigit)
@@ -187,11 +188,7 @@ pEmpty x toks = [(x, toks)]
 []
 -}
 pOneOrMore :: Parser a -> Parser [a]
-pOneOrMore p toks
-  = [ (v1:vs, toks2)
-    | (v1, toks1) <- p toks
-    , (vs, toks2) <- pZeroOrMore p toks1
-    ]
+pOneOrMore p = pThen (:) p (pZeroOrMore p)
 
 {- |
 >>> pVar `pApply` (++"!") $ [(1, "a"), (1, "b"), (1, "c")]
@@ -203,43 +200,85 @@ pOneOrMore p toks
 pApply :: Parser a -> (a -> b) -> Parser b
 pApply p f toks = [(f v1, toks1) | (v1, toks1) <- p toks]
 
+infixl 4 <$$>, <$$, <**>, <**, **>
+
 {- |
->>> pConst (pLit "a") (pLit "b") []
+>>> (++"!") <$$> pLit "a" $ []
 []
 
->>> pConst (pLit "a") (pLit "b") [(1, "a")]
+>>> (++"!") <$$> pLit "a" $ [(1, "a")]
+[("a!",[])]
+
+>>> (++"!") <$$> pLit "a" $ [(1, "b")]
 []
 
->>> pConst (pLit "a") (pLit "b") [(1, "b")]
+>>> (*3) <$$> pNum $ [(1, "14")]
+[(42,[])]
+-}
+(<$$>) :: (a -> b) -> Parser a -> Parser b
+(<$$>) = flip pApply
+
+{- |
+>>> 1 <$$ pLit "True" $ [(1, "True")]
+[(1,[])]
+
+>>> 0 <$$ pLit "False" $ [(1, "False")]
+[(0,[])]
+
+>>> 0 <$$ pLit "True" $ []
 []
 
->>> pConst (pLit "a") (pLit "b") [(1, "a"), (1, "b")]
+>>> 1 <$$ pLit "True" $ [(1, "Hello")]
+[]
+-}
+(<$$) :: a -> Parser b -> Parser a
+v <$$ px =  const v <$$> px
+
+(<**>) :: Parser (a -> b) -> Parser a -> Parser b
+(<**>) = ap
+  where
+    ap pf pa toks = [ (f v, toks2)
+                    | (f, toks1) <- pf toks
+                    , (v, toks2) <- pa toks1
+                    ]
+
+{- |
+>>> (pLit "a") <** (pLit "b") $ []
+[]
+
+>>> (pLit "a") <** (pLit "b") $ [(1, "a")]
+[]
+
+>>> (pLit "a") <** (pLit "b") $ [(1, "b")]
+[]
+
+>>> (pLit "a") <** (pLit "b") $ [(1, "a"), (1, "b")]
 [("a",[])]
 
->>> pConst (pLit "a") (pLit "b") [(1, "a"), (1, "b"),(1, "c")]
+>>> (pLit "a") <** (pLit "b") $ [(1, "a"), (1, "b"),(1, "c")]
 [("a",[(1,"c")])]
 -}
-pConst :: Parser a -> Parser b -> Parser a
-pConst = pThen const
+(<**) :: Parser a -> Parser b -> Parser a
+(<**) = pThen const
 
 {- |
->>> pConst2 (pLit "a") (pLit "b") []
+>>> (pLit "a") **> (pLit "b") $ []
 []
 
->>> pConst2 (pLit "a") (pLit "b") [(1, "a")]
+>>> (pLit "a") **> (pLit "b") $ [(1, "a")]
 []
 
->>> pConst2 (pLit "a") (pLit "b") [(1, "b")]
+>>> (pLit "a") **> (pLit "b") $ [(1, "b")]
 []
 
->>> pConst2 (pLit "a") (pLit "b") [(1, "a"), (1, "b")]
+>>> (pLit "a") **> (pLit "b") $ [(1, "a"), (1, "b")]
 [("b",[])]
 
->>> pConst2 (pLit "a") (pLit "b") [(1, "a"), (1, "b"), (1, "c")]
+>>> (pLit "a") **> (pLit "b") $ [(1, "a"), (1, "b"), (1, "c")]
 [("b",[(1,"c")])]
 -}
-pConst2 :: Parser a -> Parser b -> Parser b
-pConst2 = pThen (flip const)
+(**>) :: Parser a -> Parser b -> Parser b
+(**>) = pThen (flip const)
 
 {- |
 >>> pOneOrMoreWithSep pVar (pLit ",") []
@@ -264,11 +303,7 @@ pConst2 = pThen (flip const)
 [(["a","b"],[(1,"c"),(1,"d")]),(["a"],[(1,","),(1,"b"),(1,"c"),(1,"d")])]
 -}
 pOneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
-pOneOrMoreWithSep p sep toks
-  = [ (v1:vs, toks2)
-    | (v1, toks1) <- p toks
-    , (vs, toks2) <- pZeroOrMore (pConst2 sep p) toks1
-    ]
+pOneOrMoreWithSep p sep = (:) <$$> p <**> pZeroOrMore (sep **> p)
 
 ---------------------------------------
 -- for Test's pVar (don't export)
