@@ -370,10 +370,30 @@ pMunch1 p = pThen (:) p (pMunch p)
 -- for Test's pVar (don't export)
 ---------------------------------------
 
+{- |
+>>> pVar [(1, "a")]
+[("a",[])]
+
+>>> pVar [(1, "42")]
+[]
+
+>>> pVar [(1, "a13")]
+[("a13",[])]
+-}
 pVar :: Parser String
 pVar = pSat p
   where p cs@(c:_) = isAlpha c
 
+{- |
+>>> pHelloOrGoodbye [(1, "howdy")]
+[]
+
+>>> pHelloOrGoodbye [(1, "hello")]
+[("hello",[])]
+
+>>> pHelloOrGoodbye [(1, "goodbye")]
+[("goodbye",[])]
+-}
 pHelloOrGoodbye :: Parser String
 pHelloOrGoodbye = pLit "hello" `pAlt` pLit "goodbye"
 
