@@ -4,7 +4,6 @@ module Parser
   , Parser
   , pSat
   , pLit
-  , pVar
   , pNum
   , pAlt
   , pThen, pThen3, pThen4
@@ -43,48 +42,6 @@ pSat _ []     = []
 -}
 pLit :: String -> Parser String
 pLit s = pSat (s==)
-
-{- |
->>> pVar []
-[]
-
->>> pVar [(1, "a")]
-[("a",[])]
-
->>> pVar [(1, "a"), (1, "b")]
-[("a",[(1,"b")])]
-
->>> pVar [(1, "42")]
-[]
-
->>> pVar [(1, "a42")]
-[("a42",[])]
-
->>> pVar [(1, "let")]
-[]
-
->>> pVar [(1, "letrec")]
-[]
-
->>> pVar [(1, "in")]
-[]
-
->>> pVar [(1, "case")]
-[]
-
->>> pVar [(1, "of")]
-[]
-
->>> pVar [(1, "Pack")]
-[]
-
--}
-pVar :: Parser String
-pVar = pSat p
-  where p cs@(c:_) = cs `notElem` keywords && isAlpha c
-
-keywords :: [String]
-keywords = ["let", "letrec", "in", "case", "of", "Pack"]
 
 {- |
 >>> pNum []
@@ -323,3 +280,8 @@ pHelloOrGoodbye = pLit "hello" `pAlt` pLit "goodbye"
 pGreeting :: Parser (String, String)
 pGreeting = pThen3 mkGreeting pHelloOrGoodbye pVar (pLit "!")
   where mkGreeting hg name _exclamation = (hg, name)
+
+-- for Test
+pVar :: Parser String
+pVar = pSat p
+  where p cs@(c:_) = isAlpha c
