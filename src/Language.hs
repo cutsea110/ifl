@@ -1112,6 +1112,18 @@ parse = syntax . clex 1
 ----------------------------------------------------------------------------------------
 -- sample code and prelude
 ----------------------------------------------------------------------------------------
+{- |
+>>> putStrLn . pprint . parse $ testProgram
+f = 3 ;
+g x y = let
+          z = y
+        in z ;
+h x = case let
+             y = x
+           in y of
+        <1> -> 2 ;
+        <2> -> 5
+-}
 testProgram :: String
 testProgram = unlines [ "f = 3 ;"
                       , "g x y = let z = y in z ;"
@@ -1121,6 +1133,13 @@ testProgram = unlines [ "f = 3 ;"
                       ]
 
 -- これは区別ができない
+{- |
+>>> putStrLn . pprint . parse $ hangEleProblem
+f x y = case x of
+          <1> -> case y of
+                   <1> -> 1 ;
+                   <2> -> 2
+-}
 hangEleProblem :: String
 hangEleProblem = unlines [ "f x y = case x of"
                          , "          <1> -> case y of"
@@ -1128,6 +1147,16 @@ hangEleProblem = unlines [ "f x y = case x of"
                          , "          <2> -> 2"
                          ]
 
+{- |
+>>> putStrLn . pprint $ sampleProgram
+main = double 42 ;
+double x = x + x ;
+f x = letrec
+        y = x + 1;
+        z = y + 2
+      in z ;
+g = x + y > p * length xs
+-}
 sampleProgram :: CoreProgram
 sampleProgram
   = [ ("main", [], ap double _42)
