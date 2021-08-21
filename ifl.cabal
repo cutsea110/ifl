@@ -19,6 +19,7 @@ extra-source-files:  CHANGELOG.md
 library
   exposed-modules:     MyLib
                        Language
+                       Parser
                        Utils
   -- other-modules:
   -- other-extensions:
