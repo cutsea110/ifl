@@ -98,13 +98,15 @@ flatten col ((IIndent seq, indent) : seqs)
 iNum :: Iseq iseq => Int -> iseq
 iNum n = iStr (show n)
 
+-- | Fix Width number
 iFWNum :: Iseq iseq => Int -> Int -> iseq
 iFWNum width n = iStr (space (width - length digits) ++ digits)
   where digits = show n
 
+-- | Layout numbers
 iLayn :: Iseq iseq => [iseq] -> iseq
-iLayn seqs = iConcat (zipWith lay_item [1..] seqs)
-  where lay_item n seq = iConcat [iFWNum 4 n, iStr ") ", iIndent seq, iNewline]
+iLayn seqs = iConcat (zipWith layItem [1..] seqs)
+  where layItem n seq = iConcat [iFWNum 4 n, iStr ") ", iIndent seq, iNewline]
 
 iParen :: Iseq iseq => iseq -> iseq
 iParen seq = iStr "(" `iAppend` seq `iAppend` iStr ")"
@@ -947,7 +949,10 @@ pGreeting = pThen3 mkGreeting pHelloOrGoodbye pVar (pLit "!")
 >>> clex 1 "red pink\nblue green\nyellow"
 [(1,"red"),(1,"pink"),(2,"blue"),(2,"green"),(3,"yellow")]
 -}
-clex :: Int -> String -> [Token]
+
+type Loc = Int
+
+clex :: Loc -> String -> [Token]
 clex n ('\n':cs) = clex (n+1) cs
 clex n ('-':'-':cs) = case dropWhile (/='\n') cs of
   [] -> []
