@@ -1177,6 +1177,15 @@ sampleProgram
     gt x y = EAp (EAp (EVar ">") x) y
     ap f x = EAp f x
 
+{- |
+>>> putStrLn . pprint . parse $ preludeCode
+I x = x ;
+K x y = x ;
+K1 x y = y ;
+S f g x = f x (g x) ;
+compose f g x = f (g x) ;
+twice f = compose f f
+-}
 preludeCode :: String
 preludeCode
   = unlines [ "I x = x ;"
@@ -1186,7 +1195,15 @@ preludeCode
             , "compose f g x = f (g x) ;"
             , "twice f = compose f f"
             ]
-
+{- |
+>>> putStrLn . pprint $ preludeDefs
+I x = x ;
+K x y = x ;
+K1 x y = y ;
+S f g x = f x (g x) ;
+compose f g x = f (g x) ;
+twice f = compose f f
+-}
 preludeDefs :: CoreProgram
 preludeDefs
   = [ ("I", ["x"], EVar "x")
