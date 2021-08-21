@@ -247,7 +247,7 @@ pEmpty x toks = [(x, toks)]
 [(["x","x","x"],[]),(["x","x"],[(2,"x")]),(["x"],[(1,"x"),(2,"x")])]
 -}
 pOneOrMore :: Parser a -> Parser [a]
-pOneOrMore p = pThen (:) p (pZeroOrMore p)
+pOneOrMore p = (:) <$$> p <**> pZeroOrMore p
 
 {- |
 >>> pVar `pApply` (++"!") $ [(1, "a"), (1, "b"), (1, "c")]
@@ -388,7 +388,7 @@ pMunch p = pMunch1 p `pAltL` pEmpty []
 [(["x","x","x"],[])]
 -}
 pMunch1 :: Parser a -> Parser [a]
-pMunch1 p = pThen (:) p (pMunch p)
+pMunch1 p = (:) <$$> p <**> pMunch p
 
 ---------------------------------------
 -- for Test's pVar (don't export)
