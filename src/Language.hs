@@ -660,10 +660,10 @@ pProgram = pOneOrMoreWithSep pSc (pLit ";")
 [(("f",["x"],EVar "x"),[])]
 -}
 pSc :: Parser CoreScDefn
-pSc = pThen4 mkSc pVar (pZeroOrMore pVar) (pLit "=") pExpr
+pSc = mkSc <$$> pVar <**> pZeroOrMore pVar <** pLit "=" <**> pExpr
 
-mkSc :: Name -> [Name] -> p -> CoreExpr -> CoreScDefn
-mkSc name args _ expr = (name, args, expr)
+mkSc :: Name -> [Name] -> CoreExpr -> CoreScDefn
+mkSc = (,,)
 
 {- |
 >>> pConstr $ clex 1 "Pack{1,2}"
