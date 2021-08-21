@@ -22,7 +22,31 @@ type Location = Int
 type Token = (Location, String)
 type Parser a = [Token] -> [(a, [Token])]
 
+{- |
+>>> pSat (=="a") []
+[]
 
+>>> pSat (=="a") [(1, "b")]
+[]
+
+>>> pSat (=="a") [(1, "a")]
+[("a",[])]
+
+>>> pSat (all isAlpha) [(1, "42")]
+[]
+
+>>> pSat (all isAlpha) [(1, "a1")]
+[]
+
+>>> pSat (all isAlpha) [(1, "abc")]
+[("abc",[])]
+
+>>> pSat (all isAlpha) [(1, "HELLO")]
+[("HELLO",[])]
+
+>>> pSat (all isAlpha) [(1, "abc42xyz")]
+[]
+-}
 pSat :: (String -> Bool) -> Parser String
 pSat pred ((_, tok):toks)
   | pred tok  = [(tok, toks)]
