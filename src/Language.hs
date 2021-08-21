@@ -27,6 +27,9 @@ type CoreExpr = Expr Name
 type Name = String
 type IsRec = Bool
 
+type Tag = Int
+type Arity = Int
+
 type Alter a = (Int, [a], Expr a)
 type CoreAlter = Alter Name
 
@@ -663,11 +666,15 @@ mkSc name args _ expr = (name, args, expr)
 >>> pConstr $ clex 1 "Pack{1,2}"
 [((1,2),[])]
 -}
-pConstr :: Parser (Int, Int)
-pConstr = pThen3 (\_ x _ -> x) pre body post
-  where pre  = pThen (,) (pLit "Pack") (pLit "{")
-        body = pThen3 (\t _ a -> (t, a)) pNum (pLit ",") pNum
-        post = pLit "}"
+pConstr :: Parser (Tag, Arity)
+pConstr = pLit "Pack" **> pLit "{" **> pTagArity <** pLit "}"
+
+{- |
+>>> pTagArity $ clex 1 "1,2"
+[((1,2),[])]
+-}
+pTagArity :: Parser (Tag, Arity)
+pTagArity = (,) <$$> pNum <** pLit "," <**> pNum
 
 {- |
 >>> pBinding $ clex 1 "x = 3"
@@ -762,12 +769,14 @@ pCase = pThen4 f (pLit "case") pExpr (pLit "of") pArms
 [(EConstr 1 2,[])]
 -}
 pAexpr :: Parser CoreExpr
-pAexpr = pVar' `pAlt` pNum' `pAlt` pConstr' `pAlt` pParenExpr
-  where
-    pNum' = pNum `pApply` ENum
-    pVar' = pVar `pApply` EVar
-    pConstr' = pConstr `pApply` uncurry EConstr
-    pParenExpr = pThen3 (\_ e _ -> e) (pLit "(") pExpr (pLit ")")
+pAexpr =
+  ENum <$$> pNum
+  `pAlt`
+  EVar <$$> pVar
+  `pAlt`
+  uncurry EConstr <$$> pConstr
+  `pAlt`
+  pLit "(" **> pExpr <** pLit ")"
 
 {- |
 >>> pLam $ clex 1 "\\ -> x"
