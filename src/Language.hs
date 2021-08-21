@@ -143,9 +143,6 @@ data PrecFixity = PrecFixity { weakp  :: Precedence -> Fixity -> Bool
 -- | 右辺値の最上位の式か下位の式か
 data Level = Top | Sub deriving (Eq, Show)
 
-space :: Int -> String
-space n = replicate n ' '
-
 {- |
 >>> double = EVar "double"
 >>> _42 = ENum 42
