@@ -707,10 +707,9 @@ pBindings = pOneOrMoreWithSep pBinding (pLit ";")
 [(ELet True [("y",EVar "x"),("x",EVar "y")] (EVar "x"),[])]
 -}
 pLet :: Parser CoreExpr
-pLet = pThen4 f (pLet `pAlt` pLetrec) pBindings (pLit "in") pExpr
-  where f isRec bindings _ expr = ELet isRec bindings expr
-        pLet = pLit "let" `pApply` const False
-        pLetrec = pLit "letrec" `pApply` const True
+pLet = ELet <$$> (pLetrec `pAlt` pLet) <**> pBindings <** pLit "in" <**> pExpr
+  where pLetrec = True  <$$ pLit "letrec"
+        pLet    = False <$$ pLit "let"
 
 {- |
 >>> pArgs $ clex 1 ""
