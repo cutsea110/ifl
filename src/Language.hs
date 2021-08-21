@@ -684,7 +684,7 @@ pTagArity = (,) <$$> pNum <** pLit "," <**> pNum
 [(("x",EVar "y"),[])]
 -}
 pBinding :: Parser (Name, CoreExpr)
-pBinding = pThen3 (\v _ e -> (v, e)) pVar (pLit "=") pExpr
+pBinding = (,) <$$> pVar <** pLit "=" <**> pExpr
 
 {- |
 >>> pBindings $ clex 1 "y = x; z = y"
@@ -735,9 +735,8 @@ pArgs = pZeroOrMore pVar
 [((1,[],EVar "x"),[])]
 -}
 pArm :: Parser (Alter Name)
-pArm = pThen4 f pTag pArgs (pLit "->") pExpr
-  where f tag args _ expr = (tag, args, expr)
-        pTag  = pThen3 (\_ tag _ -> tag) (pLit "<") pNum (pLit ">")
+pArm = (,,) <$$> pTag <**> pArgs <** pLit "->" <**> pExpr
+  where pTag = pLit "<" **> pNum <** pLit ">"
 
 {- |
 >>> pArms $ clex 1 "<1> -> x"
@@ -754,8 +753,7 @@ pArms = pOneOrMoreWithSep pArm (pLit ";")
 [(ECase (EVar "x") [(1,[],ENum 42),(2,[],EVar "x")],[])]
 -}
 pCase :: Parser CoreExpr
-pCase = pThen4 f (pLit "case") pExpr (pLit "of") pArms
-  where f _ expr _ alters = ECase expr alters
+pCase = ECase <$$> (pLit "case" **> pExpr <** pLit "of") <**> pArms
 
 {- |
 >>> pAexpr [(1, "42")]
