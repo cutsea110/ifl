@@ -811,7 +811,7 @@ pExpr = pLet `pAlt` pCase `pAlt` pLam `pAlt` pExpr1
 [(EAp (EAp (EVar "&&") (EVar "x")) (EAp (EAp (EVar "||") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"&&"),(1,"("),(1,"y"),(1,"||"),(1,"z"),(1,")")])]
 -}
 pExpr1 :: Parser CoreExpr
-pExpr1 = pThen assembleOp pExpr2 pExpr1c
+pExpr1 = assembleOp <$$> pExpr2 <**> pExpr1c
 {-
 pExpr1 :: Parser CoreExpr
 pExpr1 = pThen3 f pExpr2 (pLit "||" `pApply` EVar) pExpr1 `pAlt`
@@ -828,7 +828,7 @@ pExpr1c = FoundOp <$$> pLit "||" <**> pExpr1 `pAlt`
 [(EAp (EAp (EVar "&&") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"&&"),(1,"y")])]
 -}
 pExpr2 :: Parser CoreExpr
-pExpr2 = pThen assembleOp pExpr3 pExpr2c
+pExpr2 = assembleOp <$$> pExpr3 <**> pExpr2c
 {-
 pExpr2 :: Parser CoreExpr
 pExpr2 = pThen3 f pExpr3 (pLit "&&" `pApply` EVar) pExpr2 `pAlt`
@@ -878,7 +878,7 @@ pExpr2c = FoundOp <$$> pLit "&&" <**> pExpr2 `pAlt`
 [(EAp (EAp (EVar ">=") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar ">=") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,">="),(1,"y"),(1,"+"),(1,"z")])]
 -}
 pExpr3 :: Parser CoreExpr
-pExpr3 = pThen assembleOp pExpr4 pExpr3c
+pExpr3 = assembleOp <$$> pExpr4 <**> pExpr3c
 
 pExpr3c :: Parser PartialExpr
 pExpr3c = FoundOp <$$> pRelop <**> pExpr3 `pAlt`
@@ -1012,7 +1012,7 @@ pExpr3 = pThen3 f pExpr4 (pRelop `pApply` EVar) pExpr4 `pAlt`
 [(EAp (EAp (EVar "-") (EAp (EAp (EVar "/") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[(1,"-"),(1,"z")])]
 -}
 pExpr4 :: Parser CoreExpr
-pExpr4 = pThen assembleOp pExpr5 pExpr4c
+pExpr4 = assembleOp <$$> pExpr5 <**> pExpr4c
 
 pExpr4c :: Parser PartialExpr
 pExpr4c = FoundOp <$$> pLit "+" <**> pExpr4 `pAlt`
@@ -1071,7 +1071,7 @@ pExpr4 = pThen3 f pExpr5 (pLit "+" `pApply` EVar) pExpr4 `pAlt`
 [(EAp (EAp (EVar "*") (EAp (EAp (EVar "/") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[(1,"*"),(1,"z")])]
 -}
 pExpr5 :: Parser CoreExpr
-pExpr5 = pThen assembleOp pExpr6 pExpr5c
+pExpr5 = assembleOp <$$> pExpr6 <**> pExpr5c
 
 pExpr5c :: Parser PartialExpr
 pExpr5c = FoundOp <$$> pLit "*" <**> pExpr5 `pAlt`
