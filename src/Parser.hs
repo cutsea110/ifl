@@ -326,19 +326,19 @@ v <$$ px =  const v <$$> px
 [(["a"],[(1,",")])]
 
 >>> pOneOrMoreWithSep pVar (pLit ",") [(1, "a"), (1, ","), (1, "b")]
-[(["a","b"],[]),(["a"],[(1,","),(1,"b")])]
+[(["a","b"],[])]
 
 >>> pOneOrMoreWithSep pVar (pLit ",") [(1, "a"), (1, ","), (1, "b"), (1, ",")]
-[(["a","b"],[(1,",")]),(["a"],[(1,","),(1,"b"),(1,",")])]
+[(["a","b"],[(1,",")])]
 
 >>> pOneOrMoreWithSep pVar (pLit ",") [(1, "a"), (1, ","), (1, "b"), (1, ","), (1, "c")]
-[(["a","b","c"],[]),(["a","b"],[(1,","),(1,"c")]),(["a"],[(1,","),(1,"b"),(1,","),(1,"c")])]
+[(["a","b","c"],[])]
 
 >>> pOneOrMoreWithSep pVar (pLit ",") [(1, "a"), (1, ","), (1, "b"), (1, "c"), (1, "d")]
-[(["a","b"],[(1,"c"),(1,"d")]),(["a"],[(1,","),(1,"b"),(1,"c"),(1,"d")])]
+[(["a","b"],[(1,"c"),(1,"d")])]
 -}
 pOneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
-pOneOrMoreWithSep p sep = (:) <$$> p <**> pZeroOrMore (sep **> p)
+pOneOrMoreWithSep p sep = (:) <$$> p <**> pMunch (sep **> p)
 
 {- |
 >>> pMunch (pLit "Hello") [(1, "Hello"), (1, "Bye")]

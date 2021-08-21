@@ -681,7 +681,7 @@ pBinding = pThen3 (\v _ e -> (v, e)) pVar (pLit "=") pExpr
 
 {- |
 >>> pBindings $ clex 1 "y = x; z = y"
-[([("y",EVar "x"),("z",EVar "y")],[]),([("y",EVar "x")],[(1,";"),(1,"z"),(1,"="),(1,"y")])]
+[([("y",EVar "x"),("z",EVar "y")],[])]
 -}
 pBindings :: Parser [(Name, CoreExpr)]
 pBindings = pOneOrMoreWithSep pBinding (pLit ";")
@@ -738,14 +738,14 @@ pArm = pThen4 f pTag pArgs (pLit "->") pExpr
 [([(1,[],EVar "x")],[])]
 
 >>> pArms $ clex 1 "<1> -> x; <2> -> y"
-[([(1,[],EVar "x"),(2,[],EVar "y")],[]),([(1,[],EVar "x")],[(1,";"),(1,"<"),(1,"2"),(1,">"),(1,"->"),(1,"y")])]
+[([(1,[],EVar "x"),(2,[],EVar "y")],[])]
 -}
 pArms :: Parser [Alter Name]
 pArms = pOneOrMoreWithSep pArm (pLit ";")
 
 {- |
 >>> pCase $ clex 1 "case x of <1> -> 42; <2> -> x"
-[(ECase (EVar "x") [(1,[],ENum 42),(2,[],EVar "x")],[]),(ECase (EVar "x") [(1,[],ENum 42)],[(1,";"),(1,"<"),(1,"2"),(1,">"),(1,"->"),(1,"x")])]
+[(ECase (EVar "x") [(1,[],ENum 42),(2,[],EVar "x")],[])]
 -}
 pCase :: Parser CoreExpr
 pCase = pThen4 f (pLit "case") pExpr (pLit "of") pArms
