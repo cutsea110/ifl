@@ -9,6 +9,7 @@ module Parser
   , pAltL
   , pThen, pThen3, pThen4
   , pZeroOrMore, pOneOrMore, pOneOrMoreWithSep
+  , pMunch, pMunch1
   , pEmpty
   , pApply
   , (<$$>), (<$$)
@@ -191,6 +192,9 @@ pThenN combine (p:ps)  toks
 
 >>> pZeroOrMore (pLit "Hello") [(1, "Hellow"), (1, "Bye~")]
 [([],[(1,"Hellow"),(1,"Bye~")])]
+
+>>> pZeroOrMore (pLit "x") [(1, "x"), (1, "x"), (2, "x")]
+[(["x","x","x"],[]),(["x","x"],[(2,"x")]),(["x"],[(1,"x"),(2,"x")]),([],[(1,"x"),(1,"x"),(2,"x")])]
 -}
 pZeroOrMore :: Parser a -> Parser [a]
 pZeroOrMore p = pOneOrMore p `pAlt` pEmpty []
@@ -214,6 +218,9 @@ pEmpty x toks = [(x, toks)]
 
 >>> pOneOrMore (pLit "Hello") [(1, "Hellow"), (1, "Bye~")]
 []
+
+>>> pOneOrMore (pLit "x") [(1, "x"), (1, "x"), (2, "x")]
+[(["x","x","x"],[]),(["x","x"],[(2,"x")]),(["x"],[(1,"x"),(2,"x")])]
 -}
 pOneOrMore :: Parser a -> Parser [a]
 pOneOrMore p = pThen (:) p (pZeroOrMore p)
@@ -332,6 +339,32 @@ v <$$ px =  const v <$$> px
 -}
 pOneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
 pOneOrMoreWithSep p sep = (:) <$$> p <**> pZeroOrMore (sep **> p)
+
+{- |
+>>> pMunch (pLit "Hello") [(1, "Hello"), (1, "Bye")]
+[(["Hello"],[(1,"Bye")])]
+
+>>> pMunch (pLit "Hello") [(1, "Hellow"), (1, "Bye~")]
+[([],[(1,"Hellow"),(1,"Bye~")])]
+
+>>> pMunch (pLit "x") [(1, "x"), (1, "x"), (2, "x")]
+[(["x","x","x"],[])]
+-}
+pMunch :: Parser a -> Parser [a]
+pMunch p = pMunch1 p `pAltL` pEmpty []
+
+{- |
+>>> pMunch1 (pLit "Hello") [(1, "Hello"), (1, "Bye")]
+[(["Hello"],[(1,"Bye")])]
+
+>>> pMunch1 (pLit "Hello") [(1, "Hellow"), (1, "Bye~")]
+[]
+
+>>> pMunch1 (pLit "x") [(1, "x"), (1, "x"), (2, "x")]
+[(["x","x","x"],[])]
+-}
+pMunch1 :: Parser a -> Parser [a]
+pMunch1 p = pThen (:) p (pMunch p)
 
 ---------------------------------------
 -- for Test's pVar (don't export)
