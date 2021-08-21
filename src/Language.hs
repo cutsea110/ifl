@@ -888,9 +888,7 @@ pExpr3c = FoundOp <$$> pRelop <**> pExpr3 `pAlt`
           pEmpty NoOp
 
 pRelop :: Parser String
-pRelop = pLit "==" `pAlt` pLit "/=" `pAlt`
-         pLit "<"  `pAlt` pLit "<=" `pAlt`
-         pLit ">"  `pAlt` pLit ">="
+pRelop = foldr1 pAlt $ map pLit [ "==", "/=", "<", "<=", ">", ">=" ]
 
 {-
 pExpr3 :: Parser CoreExpr
