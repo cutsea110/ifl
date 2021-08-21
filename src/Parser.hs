@@ -237,9 +237,9 @@ v <$$ px =  const v <$$> px
 (<**>) :: Parser (a -> b) -> Parser a -> Parser b
 (<**>) = ap
   where
-    ap pf pa toks = [ (f v, toks2)
+    ap pf px toks = [ (f v, toks2)
                     | (f, toks1) <- pf toks
-                    , (v, toks2) <- pa toks1
+                    , (v, toks2) <- px toks1
                     ]
 
 {- |
