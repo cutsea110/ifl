@@ -1,7 +1,7 @@
 {-# LANGUAGE NPlusKPatterns #-}
 module Language where
 
-import Data.Char (isAlpha, isDigit)
+import Data.Char (isAlpha, isDigit, isSpace)
 import Utils
 
 data Expr a
@@ -960,18 +960,15 @@ clex n ('-':'-':cs) = case dropWhile (/='\n') cs of
 clex n (c1:c2:cs)
   | [c1,c2] `elem` twoCharOps = (n, [c1,c2]) : clex n cs
 clex n (c:cs)
-  | isWhiteSpace c = clex n cs
-  | isDigit c      = let (numCs, restCs) = span isDigit cs
-                         numToken        = c : numCs
-                     in (n, numToken) : clex n restCs
-  | isAlpha c      = let (idCs, restCs) = span isIdChar cs
-                         varToken       = c : idCs
-                     in (n, varToken) : clex n restCs
-  | otherwise      = (n, [c]) : clex n cs
-clex n []          = []
-
-isWhiteSpace :: Char -> Bool
-isWhiteSpace c = c `elem` " \t\n"
+  | isSpace c = clex n cs
+  | isDigit c = let (numCs, restCs) = span isDigit cs
+                    numToken        = c : numCs
+                in (n, numToken) : clex n restCs
+  | isAlpha c = let (idCs, restCs) = span isIdChar cs
+                    varToken       = c : idCs
+                in (n, varToken) : clex n restCs
+  | otherwise = (n, [c]) : clex n cs
+clex n []     = []
 
 isIdChar :: Char -> Bool
 isIdChar c = isAlpha c || isDigit c || c == '_'
