@@ -422,6 +422,9 @@ pHelloOrGoodbye :: Parser String
 pHelloOrGoodbye = pLit "hello" `pAlt` pLit "goodbye"
 
 {- |
+>>> pGreeting [(1,"Yes"), (1,"James"), (1,"!")]
+[]
+
 >>> pGreeting [(1,"goodbye"), (1,"James"), (1,"!")]
 [(("goodbye","James"),[])]
 -}

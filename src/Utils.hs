@@ -6,6 +6,9 @@ module Utils
 >>> space 0
 ""
 
+>>> space 1
+" "
+
 >>> space 4
 "    "
 -}
