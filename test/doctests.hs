@@ -1,11 +1,9 @@
 module Main where
 
 import Test.DocTest
+import System.Directory
 
 main :: IO ()
-main = doctest [ "-isrc"
-               , "src/Iseq.hs"
-               , "src/Parser.hs"
-               , "src/Language.hs"
-               , "src/Utils.hs"
-               ]
+main = do
+  fs <- listDirectory "src"
+  doctest $ "-isrc" : map ("src/"++) fs
