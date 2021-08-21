@@ -767,12 +767,9 @@ pCase = ECase <$$> (pLit "case" **> pExpr <** pLit "of") <**> pArms
 -}
 pAexpr :: Parser CoreExpr
 pAexpr =
-  ENum <$$> pNum
-  `pAlt`
-  EVar <$$> pVar
-  `pAlt`
-  uncurry EConstr <$$> pConstr
-  `pAlt`
+  ENum <$$> pNum `pAlt`
+  EVar <$$> pVar `pAlt`
+  uncurry EConstr <$$> pConstr `pAlt`
   pLit "(" **> pExpr <** pLit ")"
 
 {- |
@@ -786,8 +783,7 @@ pAexpr =
 [(ELam ["m","x"] (EAp (EVar "x") (EVar "x")),[]),(ELam ["m","x"] (EVar "x"),[(1,"x")])]
 -}
 pLam :: Parser CoreExpr
-pLam = pThen4 f (pLit "\\") pArgs (pLit "->") pExpr
-  where f _ args _ expr = ELam args expr
+pLam = ELam <$$> (pLit "\\" **> pArgs) <**> (pLit "->" **> pExpr)
 
 data PartialExpr = NoOp | FoundOp Name CoreExpr
 
@@ -824,7 +820,8 @@ pExpr1 = pThen3 f pExpr2 (pLit "||" `pApply` EVar) pExpr1 `pAlt`
 -}
 
 pExpr1c :: Parser PartialExpr
-pExpr1c = pThen FoundOp (pLit "||") pExpr1 `pAlt` pEmpty NoOp
+pExpr1c = FoundOp <$$> pLit "||" <**> pExpr1 `pAlt`
+          pEmpty NoOp
 
 {- |
 >>> pExpr2 $ clex 1 "x && y"
@@ -840,7 +837,8 @@ pExpr2 = pThen3 f pExpr3 (pLit "&&" `pApply` EVar) pExpr2 `pAlt`
 -}
 
 pExpr2c :: Parser PartialExpr
-pExpr2c = pThen FoundOp (pLit "&&") pExpr2 `pAlt` pEmpty NoOp
+pExpr2c = FoundOp <$$> pLit "&&" <**> pExpr2 `pAlt`
+          pEmpty NoOp
 
 {- |
 >>> pExpr3 $ clex 1 "x == y"
@@ -883,7 +881,8 @@ pExpr3 :: Parser CoreExpr
 pExpr3 = pThen assembleOp pExpr4 pExpr3c
 
 pExpr3c :: Parser PartialExpr
-pExpr3c = pThen FoundOp pRelop pExpr3 `pAlt` pEmpty NoOp
+pExpr3c = FoundOp <$$> pRelop <**> pExpr3 `pAlt`
+          pEmpty NoOp
 
 pRelop :: Parser String
 pRelop = pLit "==" `pAlt` pLit "/=" `pAlt`
@@ -1016,8 +1015,9 @@ pExpr4 :: Parser CoreExpr
 pExpr4 = pThen assembleOp pExpr5 pExpr4c
 
 pExpr4c :: Parser PartialExpr
-pExpr4c = pThen FoundOp (pLit "+") pExpr4 `pAlt`
-          pThen FoundOp (pLit "-") pExpr5 `pAlt` pEmpty NoOp
+pExpr4c = FoundOp <$$> pLit "+" <**> pExpr4 `pAlt`
+          FoundOp <$$> pLit "-" <**> pExpr5 `pAlt`
+          pEmpty NoOp
 
 {-
 pExpr4 :: Parser CoreExpr
@@ -1074,8 +1074,9 @@ pExpr5 :: Parser CoreExpr
 pExpr5 = pThen assembleOp pExpr6 pExpr5c
 
 pExpr5c :: Parser PartialExpr
-pExpr5c = pThen FoundOp (pLit "*") pExpr5 `pAlt`
-          pThen FoundOp (pLit "/") pExpr6 `pAlt` pEmpty NoOp
+pExpr5c = FoundOp <$$> pLit "*" <**> pExpr5 `pAlt`
+          FoundOp <$$> pLit "/" <**> pExpr6 `pAlt`
+          pEmpty NoOp
 
 {-
 pExpr5 :: Parser CoreExpr
@@ -1099,7 +1100,7 @@ pExpr5 = pThen3 f pExpr6 (pLit "*" `pApply` EVar) pExpr5 `pAlt`
 [(EAp (EAp (EVar "f") (EVar "x")) (EVar "y"),[]),(EAp (EVar "f") (EVar "x"),[(1,"y")]),(EVar "f",[(1,"x"),(1,"y")])]
 -}
 pExpr6 :: Parser CoreExpr
-pExpr6 = pOneOrMore pAexpr `pApply` mkApChain
+pExpr6 = mkApChain <$$> pOneOrMore pAexpr
 
 mkApChain :: [CoreExpr] -> CoreExpr
 mkApChain = foldl1 EAp
