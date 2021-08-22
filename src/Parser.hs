@@ -14,6 +14,7 @@ module Parser
   , pApply
   ) where
 
+import Control.Applicative
 import Data.Char (isAlpha, isDigit)
 
 type Location = Int
@@ -157,11 +158,14 @@ infixr 5 <+
 [("HelloWorld",[])]
 -}
 pThen :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
+pThen = liftA2
+{-
 pThen combine p1 p2
   = Parser (\toks -> [ (combine v1 v2, toks2)
                      | (v1, toks1) <- runParser p1 toks
                      , (v2, toks2) <- runParser p2 toks1
                      ])
+-}
 
 {- |
 >>> runParser (pThen3 (\x y z -> x ++ y ++ z) (pLit "Hello ") pVar (pLit " san")) []
@@ -174,11 +178,14 @@ pThen combine p1 p2
 []
 -}
 pThen3 :: (a -> b -> c -> d) -> Parser a -> Parser b -> Parser c -> Parser d
+pThen3 = liftA3
+{-
 pThen3 combine p1 p2 p3
   = Parser (\toks -> [ (v2, toks2)
                      | (v1, toks1) <- runParser p1 toks
                      , (v2, toks2) <- runParser (pThen (combine v1) p2 p3) toks1
                      ])
+-}
 
 {- |
 >>> runParser (pThen4 (,,,) pVar pVar pVar pVar) []
