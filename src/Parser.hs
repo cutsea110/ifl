@@ -12,8 +12,6 @@ module Parser
   , pMunch, pMunch1
   , pEmpty
   , pApply
-  , (<$$>), (<$$)
-  , (<**>), (<**), (**>)
   ) where
 
 import Data.Char (isAlpha, isDigit)
@@ -21,6 +19,13 @@ import Data.Char (isAlpha, isDigit)
 type Location = Int
 type Token = (Location, String)
 newtype Parser a = Parser { runParser :: [Token] -> [(a, [Token])] }
+
+instance Functor Parser where
+  fmap = flip pApply
+
+instance Applicative Parser where
+  pure = pEmpty
+  (<*>) = pAp
 
 {- |
 >>> runParser (pSat (=="a")) []
@@ -113,7 +118,7 @@ pNum = pSat (all isDigit) `pApply` read
 >>> runParser (pLit "hello" `pAlt` (pSat (all isAlpha))) [(1,"hello")]
 [("hello",[]),("hello",[])]
 
->>> runParser (("bye" <$$ pLit "hello") `pAlt` (pSat (all isAlpha))) [(1,"hello")]
+>>> runParser (("bye" <$ pLit "hello") `pAlt` (pSat (all isAlpha))) [(1,"hello")]
 [("bye",[]),("hello",[])]
 -}
 pAlt :: Parser a -> Parser a -> Parser a
@@ -127,7 +132,7 @@ pAlt p1 p2 = Parser (\toks -> runParser p1 toks ++ runParser p2 toks)
 >>> runParser (pLit "hello" `pAltL` (pSat (all isAlpha))) [(1,"hello")]
 [("hello",[])]
 
->>> runParser (("bye" <$$ pLit "hello") `pAltL` (pSat (all isAlpha))) [(1,"hello")]
+>>> runParser (("bye" <$ pLit "hello") `pAltL` (pSat (all isAlpha))) [(1,"hello")]
 [("bye",[])]
 -}
 pAltL :: Parser a -> Parser a -> Parser a
@@ -248,7 +253,7 @@ pEmpty x = Parser (\toks -> [(x, toks)])
 [(["x","x","x"],[]),(["x","x"],[(2,"x")]),(["x"],[(1,"x"),(2,"x")])]
 -}
 pOneOrMore :: Parser a -> Parser [a]
-pOneOrMore p = (:) <$$> p <**> pZeroOrMore p
+pOneOrMore p = (:) <$> p <*> pZeroOrMore p
 
 {- |
 >>> runParser (pVar `pApply` (++"!")) [(1, "a"), (1, "b"), (1, "c")]
@@ -260,85 +265,74 @@ pOneOrMore p = (:) <$$> p <**> pZeroOrMore p
 pApply :: Parser a -> (a -> b) -> Parser b
 pApply p f = Parser (\toks -> [(f v1, toks1) | (v1, toks1) <- runParser p toks])
 
-infixl 4 <$$>, <$$, <**>, <**, **>
-
 {- |
->>> runParser ((++"!") <$$> pLit "a") []
+>>> runParser ((++"!") <$> pLit "a") []
 []
 
->>> runParser ((++"!") <$$> pLit "a") [(1, "a")]
+>>> runParser ((++"!") <$> pLit "a") [(1, "a")]
 [("a!",[])]
 
->>> runParser ((++"!") <$$> pLit "a") [(1, "b")]
+>>> runParser ((++"!") <$> pLit "a") [(1, "b")]
 []
 
->>> runParser ((*3) <$$> pNum) [(1, "14")]
+>>> runParser ((*3) <$> pNum) [(1, "14")]
 [(42,[])]
 -}
-(<$$>) :: (a -> b) -> Parser a -> Parser b
-(<$$>) = flip pApply
 
 {- |
->>> runParser (1 <$$ pLit "True") [(1, "True")]
+>>> runParser (1 <$ pLit "True") [(1, "True")]
 [(1,[])]
 
->>> runParser (0 <$$ pLit "False") [(1, "False")]
+>>> runParser (0 <$ pLit "False") [(1, "False")]
 [(0,[])]
 
->>> runParser (0 <$$ pLit "True") []
+>>> runParser (0 <$ pLit "True") []
 []
 
->>> runParser (1 <$$ pLit "True") [(1, "Hello")]
+>>> runParser (1 <$ pLit "True") [(1, "Hello")]
 []
 -}
-(<$$) :: a -> Parser b -> Parser a
-v <$$ px =  const v <$$> px
 
-(<**>) :: Parser (a -> b) -> Parser a -> Parser b
-(<**>) = ap
-  where
-    ap pf px = Parser (\toks -> [ (f v, toks2)
-                                | (f, toks1) <- runParser pf toks
-                                , (v, toks2) <- runParser px toks1
-                                ])
+pAp :: Parser (a -> b) -> Parser a -> Parser b
+pAp pf px = Parser (\toks ->
+                       [ (f v, toks2)
+                       | (f, toks1) <- runParser pf toks
+                       , (v, toks2) <- runParser px toks1
+                       ])
 
 {- |
->>> runParser ((pLit "a") <** (pLit "b")) []
+>>> runParser ((pLit "a") <* (pLit "b")) []
 []
 
->>> runParser ((pLit "a") <** (pLit "b")) [(1, "a")]
+>>> runParser ((pLit "a") <* (pLit "b")) [(1, "a")]
 []
 
->>> runParser ((pLit "a") <** (pLit "b")) [(1, "b")]
+>>> runParser ((pLit "a") <* (pLit "b")) [(1, "b")]
 []
 
->>> runParser ((pLit "a") <** (pLit "b")) [(1, "a"), (1, "b")]
+>>> runParser ((pLit "a") <* (pLit "b")) [(1, "a"), (1, "b")]
 [("a",[])]
 
->>> runParser ((pLit "a") <** (pLit "b")) [(1, "a"), (1, "b"),(1, "c")]
+>>> runParser ((pLit "a") <* (pLit "b")) [(1, "a"), (1, "b"),(1, "c")]
 [("a",[(1,"c")])]
 -}
-(<**) :: Parser a -> Parser b -> Parser a
-(<**) = pThen const
 
 {- |
->>> runParser ((pLit "a") **> (pLit "b")) []
+>>> runParser ((pLit "a") *> (pLit "b")) []
 []
 
->>> runParser ((pLit "a") **> (pLit "b")) [(1, "a")]
+>>> runParser ((pLit "a") *> (pLit "b")) [(1, "a")]
 []
 
->>> runParser ((pLit "a") **> (pLit "b")) [(1, "b")]
+>>> runParser ((pLit "a") *> (pLit "b")) [(1, "b")]
 []
 
->>> runParser ((pLit "a") **> (pLit "b")) [(1, "a"), (1, "b")]
+>>> runParser ((pLit "a") *> (pLit "b")) [(1, "a"), (1, "b")]
 [("b",[])]
 
->>> runParser ((pLit "a") **> (pLit "b")) [(1, "a"), (1, "b"), (1, "c")]
+>>> runParser ((pLit "a") *> (pLit "b")) [(1, "a"), (1, "b"), (1, "c")]
 [("b",[(1,"c")])]
 -}
-(**>) :: Parser a -> Parser b -> Parser b
-(**>) = pThen (flip const)
 
 {- |
 >>> runParser (pOneOrMoreWithSep pVar (pLit ",")) []
@@ -363,7 +357,7 @@ v <$$ px =  const v <$$> px
 [(["a","b"],[(1,"c"),(1,"d")])]
 -}
 pOneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
-pOneOrMoreWithSep p sep = (:) <$$> p <**> pMunch (sep **> p)
+pOneOrMoreWithSep p sep = (:) <$> p <*> pMunch (sep *> p)
 
 {- |
 >>> runParser (pMunch (pLit "Hello")) [(1, "Hello"), (1, "Bye")]
@@ -389,7 +383,7 @@ pMunch p = pMunch1 p `pAltL` pEmpty []
 [(["x","x","x"],[])]
 -}
 pMunch1 :: Parser a -> Parser [a]
-pMunch1 p = (:) <$$> p <**> pMunch p
+pMunch1 p = (:) <$> p <*> pMunch p
 
 ---------------------------------------
 -- for Test's pVar (don't export)
