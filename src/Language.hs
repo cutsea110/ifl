@@ -31,7 +31,7 @@ type Tag = Int
 type Arity = Int
 
 type Alter a = (Int, [a], Expr a)
-type CoreAlter = Alter Name
+type CoreAlt = Alter Name
 
 recursive :: IsRec
 recursive = True
@@ -530,7 +530,7 @@ pprDefn :: (Name, CoreExpr) -> Iseqrep
 pprDefn (name, expr)
   = iConcat [ iStr name, iStr " = ", iIndent (pprExpr Top defaultPrecFixity expr) ]
 
-pprAlt :: CoreAlter -> Iseqrep
+pprAlt :: CoreAlt -> Iseqrep
 pprAlt (i, args, expr)
   = iConcat [ iStr "<", iStr (show i), iStr ">", sep, pprArgs args
             , iStr " -> ", iIndent (pprExpr Top defaultPrecFixity expr)
