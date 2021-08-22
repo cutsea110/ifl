@@ -598,40 +598,40 @@ twoCharOps :: [String]
 twoCharOps = [ "==", "/=", ">=", "<=", "->", "&&", "||" ]
 
 {- |
->>> pVar []
+>>> runParser pVar []
 []
 
->>> pVar [(1, "a")]
+>>> runParser pVar [(1, "a")]
 [("a",[])]
 
->>> pVar [(1, "a"), (1, "b")]
+>>> runParser pVar [(1, "a"), (1, "b")]
 [("a",[(1,"b")])]
 
->>> pVar [(1, "a1"), (1, "b1")]
+>>> runParser pVar [(1, "a1"), (1, "b1")]
 [("a1",[(1,"b1")])]
 
->>> pVar [(1, "42")]
+>>> runParser pVar [(1, "42")]
 []
 
->>> pVar [(1, "a42")]
+>>> runParser pVar [(1, "a42")]
 [("a42",[])]
 
->>> pVar [(1, "let")]
+>>> runParser pVar [(1, "let")]
 []
 
->>> pVar [(1, "letrec")]
+>>> runParser pVar [(1, "letrec")]
 []
 
->>> pVar [(1, "in")]
+>>> runParser pVar [(1, "in")]
 []
 
->>> pVar [(1, "case")]
+>>> runParser pVar [(1, "case")]
 []
 
->>> pVar [(1, "of")]
+>>> runParser pVar [(1, "of")]
 []
 
->>> pVar [(1, "Pack")]
+>>> runParser pVar [(1, "Pack")]
 []
 
 -}
@@ -643,7 +643,7 @@ keywords :: [String]
 keywords = ["let", "letrec", "in", "case", "of", "Pack"]
 
 syntax :: [Token] -> CoreProgram
-syntax = takeFirstParse . pProgram
+syntax = takeFirstParse . runParser pProgram
   where
     takeFirstParse ((prog, []) : others) = prog
     takeFirstParse (parse      : others) = takeFirstParse others
@@ -653,10 +653,10 @@ pProgram :: Parser CoreProgram
 pProgram = pOneOrMoreWithSep pSc (pLit ";")
 
 {- |
->>> pSc $ clex 1 "x = 42"
+>>> runParser pSc $ clex 1 "x = 42"
 [(("x",[],ENum 42),[])]
 
->>> pSc $ clex 1 "f x = x"
+>>> runParser pSc $ clex 1 "f x = x"
 [(("f",["x"],EVar "x"),[])]
 -}
 pSc :: Parser CoreScDefn
@@ -666,47 +666,47 @@ mkSc :: Name -> [Name] -> CoreExpr -> CoreScDefn
 mkSc = (,,)
 
 {- |
->>> pConstr $ clex 1 "Pack{1,2}"
+>>> runParser pConstr $ clex 1 "Pack{1,2}"
 [((1,2),[])]
 -}
 pConstr :: Parser (Tag, Arity)
 pConstr = pLit "Pack" **> pLit "{" **> pTagArity <** pLit "}"
 
 {- |
->>> pTagArity $ clex 1 "1,2"
+>>> runParser pTagArity $ clex 1 "1,2"
 [((1,2),[])]
 -}
 pTagArity :: Parser (Tag, Arity)
 pTagArity = (,) <$$> pNum <** pLit "," <**> pNum
 
 {- |
->>> pBinding $ clex 1 "x = 3"
+>>> runParser pBinding $ clex 1 "x = 3"
 [(("x",ENum 3),[])]
 
->>> pBinding $ clex 1 "x = y"
+>>> runParser pBinding $ clex 1 "x = y"
 [(("x",EVar "y"),[])]
 -}
 pBinding :: Parser (Name, CoreExpr)
 pBinding = (,) <$$> pVar <** pLit "=" <**> pExpr
 
 {- |
->>> pBindings $ clex 1 "y = x; z = y"
+>>> runParser pBindings $ clex 1 "y = x; z = y"
 [([("y",EVar "x"),("z",EVar "y")],[])]
 -}
 pBindings :: Parser [(Name, CoreExpr)]
 pBindings = pOneOrMoreWithSep pBinding (pLit ";")
 
 {- |
->>> pLet $ clex 1 "let x = 3 in x"
+>>> runParser pLet $ clex 1 "let x = 3 in x"
 [(ELet False [("x",ENum 3)] (EVar "x"),[])]
 
->>> pLet $ clex 1 "let y = x;z = y in z"
+>>> runParser pLet $ clex 1 "let y = x;z = y in z"
 [(ELet False [("y",EVar "x"),("z",EVar "y")] (EVar "z"),[])]
 
->>> pLet $ clex 1 "letrec x = x in x"
+>>> runParser pLet $ clex 1 "letrec x = x in x"
 [(ELet True [("x",EVar "x")] (EVar "x"),[])]
 
->>> pLet $ clex 1 "letrec y = x;x = y in x"
+>>> runParser pLet $ clex 1 "letrec y = x;x = y in x"
 [(ELet True [("y",EVar "x"),("x",EVar "y")] (EVar "x"),[])]
 -}
 pLet :: Parser CoreExpr
@@ -715,26 +715,26 @@ pLet = ELet <$$> (pLetrec `pAlt` pLet) <**> pBindings <** pLit "in" <**> pExpr
         pLet    = False <$$ pLit "let"
 
 {- |
->>> pArgs $ clex 1 ""
+>>> runParser pArgs $ clex 1 ""
 [([],[])]
 
->>> pArgs $ clex 1 "x"
+>>> runParser pArgs $ clex 1 "x"
 [(["x"],[]),([],[(1,"x")])]
 
->>> pArgs $ clex 1 "x y"
+>>> runParser pArgs $ clex 1 "x y"
 [(["x","y"],[]),(["x"],[(1,"y")]),([],[(1,"x"),(1,"y")])]
 
->>> pArgs $ clex 1 "x y z"
+>>> runParser pArgs $ clex 1 "x y z"
 [(["x","y","z"],[]),(["x","y"],[(1,"z")]),(["x"],[(1,"y"),(1,"z")]),([],[(1,"x"),(1,"y"),(1,"z")])]
 -}
 pArgs :: Parser [Name]
 pArgs = pZeroOrMore pVar
 
 {- |
->>> pArm $ clex 1 "<1> -> 42"
+>>> runParser pArm $ clex 1 "<1> -> 42"
 [((1,[],ENum 42),[])]
 
->>> pArm $ clex 1 "<1> -> x"
+>>> runParser pArm $ clex 1 "<1> -> x"
 [((1,[],EVar "x"),[])]
 -}
 pArm :: Parser (Alter Name)
@@ -742,30 +742,30 @@ pArm = (,,) <$$> pTag <**> pArgs <** pLit "->" <**> pExpr
   where pTag = pLit "<" **> pNum <** pLit ">"
 
 {- |
->>> pArms $ clex 1 "<1> -> x"
+>>> runParser pArms $ clex 1 "<1> -> x"
 [([(1,[],EVar "x")],[])]
 
->>> pArms $ clex 1 "<1> -> x; <2> -> y"
+>>> runParser pArms $ clex 1 "<1> -> x; <2> -> y"
 [([(1,[],EVar "x"),(2,[],EVar "y")],[])]
 -}
 pArms :: Parser [Alter Name]
 pArms = pOneOrMoreWithSep pArm (pLit ";")
 
 {- |
->>> pCase $ clex 1 "case x of <1> -> 42; <2> -> x"
+>>> runParser pCase $ clex 1 "case x of <1> -> 42; <2> -> x"
 [(ECase (EVar "x") [(1,[],ENum 42),(2,[],EVar "x")],[])]
 -}
 pCase :: Parser CoreExpr
 pCase = ECase <$$> (pLit "case" **> pExpr <** pLit "of") <**> pArms
 
 {- |
->>> pAexpr [(1, "42")]
+>>> runParser pAexpr [(1, "42")]
 [(ENum 42,[])]
 
->>> pAexpr [(1, "a")]
+>>> runParser pAexpr [(1, "a")]
 [(EVar "a",[])]
 
->>> pAexpr $ clex 1 "Pack{1,2}"
+>>> runParser pAexpr $ clex 1 "Pack{1,2}"
 [(EConstr 1 2,[])]
 -}
 pAexpr :: Parser CoreExpr
@@ -776,13 +776,13 @@ pAexpr =
   pLit "(" **> pExpr <** pLit ")"
 
 {- |
->>> pLam $ clex 1 "\\ -> x"
+>>> runParser pLam $ clex 1 "\\ -> x"
 [(ELam [] (EVar "x"),[])]
 
->>> pLam $ clex 1 "\\ x -> x"
+>>> runParser pLam $ clex 1 "\\ x -> x"
 [(ELam ["x"] (EVar "x"),[])]
 
->>> pLam $ clex 1 "\\ m x -> x x"
+>>> runParser pLam $ clex 1 "\\ m x -> x x"
 [(ELam ["m","x"] (EAp (EVar "x") (EVar "x")),[]),(ELam ["m","x"] (EVar "x"),[(1,"x")])]
 -}
 pLam :: Parser CoreExpr
@@ -798,19 +798,19 @@ pExpr :: Parser CoreExpr
 pExpr = pLet `pAlt` pCase `pAlt` pLam `pAlt` pExpr1
 
 {- |
->>> pExpr1 $ clex 1 "x || y"
+>>> runParser pExpr1 $ clex 1 "x || y"
 [(EAp (EAp (EVar "||") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"||"),(1,"y")])]
 
->>> pExpr1 $ clex 1 "x || y && z"
+>>> runParser pExpr1 $ clex 1 "x || y && z"
 [(EAp (EAp (EVar "||") (EVar "x")) (EAp (EAp (EVar "&&") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "||") (EVar "x")) (EVar "y"),[(1,"&&"),(1,"z")]),(EVar "x",[(1,"||"),(1,"y"),(1,"&&"),(1,"z")])]
 
->>> pExpr1 $ clex 1 "x && y || z"
+>>> runParser pExpr1 $ clex 1 "x && y || z"
 [(EAp (EAp (EVar "||") (EAp (EAp (EVar "&&") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "&&") (EVar "x")) (EVar "y"),[(1,"||"),(1,"z")]),(EVar "x",[(1,"&&"),(1,"y"),(1,"||"),(1,"z")])]
 
->>> pExpr1 $ clex 1 "(x || y) && z"
+>>> runParser pExpr1 $ clex 1 "(x || y) && z"
 [(EAp (EAp (EVar "&&") (EAp (EAp (EVar "||") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "||") (EVar "x")) (EVar "y"),[(1,"&&"),(1,"z")])]
 
->>> pExpr1 $ clex 1 "x && (y || z)"
+>>> runParser pExpr1 $ clex 1 "x && (y || z)"
 [(EAp (EAp (EVar "&&") (EVar "x")) (EAp (EAp (EVar "||") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"&&"),(1,"("),(1,"y"),(1,"||"),(1,"z"),(1,")")])]
 -}
 pExpr1 :: Parser CoreExpr
@@ -827,7 +827,7 @@ pExpr1c = FoundOp <$$> pLit "||" <**> pExpr1 `pAlt`
           pEmpty NoOp
 
 {- |
->>> pExpr2 $ clex 1 "x && y"
+>>> runParser pExpr2 $ clex 1 "x && y"
 [(EAp (EAp (EVar "&&") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"&&"),(1,"y")])]
 -}
 pExpr2 :: Parser CoreExpr
@@ -844,40 +844,40 @@ pExpr2c = FoundOp <$$> pLit "&&" <**> pExpr2 `pAlt`
           pEmpty NoOp
 
 {- |
->>> pExpr3 $ clex 1 "x == y"
+>>> runParser pExpr3 $ clex 1 "x == y"
 [(EAp (EAp (EVar "==") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"=="),(1,"y")])]
 
->>> pExpr3 $ clex 1 "x /= y"
+>>> runParser pExpr3 $ clex 1 "x /= y"
 [(EAp (EAp (EVar "/=") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"/="),(1,"y")])]
 
->>> pExpr3 $ clex 1 "x < y"
+>>> runParser pExpr3 $ clex 1 "x < y"
 [(EAp (EAp (EVar "<") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"<"),(1,"y")])]
 
->>> pExpr3 $ clex 1 "x > y"
+>>> runParser pExpr3 $ clex 1 "x > y"
 [(EAp (EAp (EVar ">") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,">"),(1,"y")])]
 
->>> pExpr3 $ clex 1 "x <= y"
+>>> runParser pExpr3 $ clex 1 "x <= y"
 [(EAp (EAp (EVar "<=") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"<="),(1,"y")])]
 
->>> pExpr3 $ clex 1 "x >= y"
+>>> runParser pExpr3 $ clex 1 "x >= y"
 [(EAp (EAp (EVar ">=") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,">="),(1,"y")])]
 
->>> pExpr3 $ clex 1 "x == y + z"
+>>> runParser pExpr3 $ clex 1 "x == y + z"
 [(EAp (EAp (EVar "==") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "==") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,"=="),(1,"y"),(1,"+"),(1,"z")])]
 
->>> pExpr3 $ clex 1 "x /= y + z"
+>>> runParser pExpr3 $ clex 1 "x /= y + z"
 [(EAp (EAp (EVar "/=") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "/=") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,"/="),(1,"y"),(1,"+"),(1,"z")])]
 
->>> pExpr3 $ clex 1 "x < y + z"
+>>> runParser pExpr3 $ clex 1 "x < y + z"
 [(EAp (EAp (EVar "<") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "<") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,"<"),(1,"y"),(1,"+"),(1,"z")])]
 
->>> pExpr3 $ clex 1 "x > y + z"
+>>> runParser pExpr3 $ clex 1 "x > y + z"
 [(EAp (EAp (EVar ">") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar ">") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,">"),(1,"y"),(1,"+"),(1,"z")])]
 
->>> pExpr3 $ clex 1 "x <= y + z"
+>>> runParser pExpr3 $ clex 1 "x <= y + z"
 [(EAp (EAp (EVar "<=") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "<=") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,"<="),(1,"y"),(1,"+"),(1,"z")])]
 
->>> pExpr3 $ clex 1 "x >= y + z"
+>>> runParser pExpr3 $ clex 1 "x >= y + z"
 [(EAp (EAp (EVar ">=") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar ">=") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,">="),(1,"y"),(1,"+"),(1,"z")])]
 -}
 pExpr3 :: Parser CoreExpr
@@ -898,118 +898,118 @@ pExpr3 = pThen3 f pExpr4 (pRelop `pApply` EVar) pExpr4 `pAlt`
 -}
 
 {- |
->>> pExpr4 $ clex 1 "x + y"
+>>> runParser pExpr4 $ clex 1 "x + y"
 [(EAp (EAp (EVar "+") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"+"),(1,"y")])]
 
->>> pExpr4 $ clex 1 "x - y"
+>>> runParser pExpr4 $ clex 1 "x - y"
 [(EAp (EAp (EVar "-") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"-"),(1,"y")])]
 
->>> pExpr4 $ clex 1 "x + y + z"
+>>> runParser pExpr4 $ clex 1 "x + y + z"
 [(EAp (EAp (EVar "+") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "+") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,"+"),(1,"y"),(1,"+"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x + (y + z)"
+>>> runParser pExpr4 $ clex 1 "x + (y + z)"
 [(EAp (EAp (EVar "+") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"+"),(1,"("),(1,"y"),(1,"+"),(1,"z"),(1,")")])]
 
->>> pExpr4 $ clex 1 "(x + y) + z"
+>>> runParser pExpr4 $ clex 1 "(x + y) + z"
 [(EAp (EAp (EVar "+") (EAp (EAp (EVar "+") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "+") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x - y - z"
+>>> runParser pExpr4 $ clex 1 "x - y - z"
 [(EAp (EAp (EVar "-") (EVar "x")) (EVar "y"),[(1,"-"),(1,"z")]),(EVar "x",[(1,"-"),(1,"y"),(1,"-"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x - (y - z)"
+>>> runParser pExpr4 $ clex 1 "x - (y - z)"
 [(EAp (EAp (EVar "-") (EVar "x")) (EAp (EAp (EVar "-") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"-"),(1,"("),(1,"y"),(1,"-"),(1,"z"),(1,")")])]
 
->>> pExpr4 $ clex 1 "(x - y) - z"
+>>> runParser pExpr4 $ clex 1 "(x - y) - z"
 [(EAp (EAp (EVar "-") (EAp (EAp (EVar "-") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "-") (EVar "x")) (EVar "y"),[(1,"-"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x + y - z"
+>>> runParser pExpr4 $ clex 1 "x + y - z"
 [(EAp (EAp (EVar "+") (EVar "x")) (EAp (EAp (EVar "-") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "+") (EVar "x")) (EVar "y"),[(1,"-"),(1,"z")]),(EVar "x",[(1,"+"),(1,"y"),(1,"-"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x + (y - z)"
+>>> runParser pExpr4 $ clex 1 "x + (y - z)"
 [(EAp (EAp (EVar "+") (EVar "x")) (EAp (EAp (EVar "-") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"+"),(1,"("),(1,"y"),(1,"-"),(1,"z"),(1,")")])]
 
->>> pExpr4 $ clex 1 "(x + y) - z"
+>>> runParser pExpr4 $ clex 1 "(x + y) - z"
 [(EAp (EAp (EVar "-") (EAp (EAp (EVar "+") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "+") (EVar "x")) (EVar "y"),[(1,"-"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x - y + z"
+>>> runParser pExpr4 $ clex 1 "x - y + z"
 [(EAp (EAp (EVar "-") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,"-"),(1,"y"),(1,"+"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x - (y + z)"
+>>> runParser pExpr4 $ clex 1 "x - (y + z)"
 [(EAp (EAp (EVar "-") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"-"),(1,"("),(1,"y"),(1,"+"),(1,"z"),(1,")")])]
 
->>> pExpr4 $ clex 1 "(x - y) + z"
+>>> runParser pExpr4 $ clex 1 "(x - y) + z"
 [(EAp (EAp (EVar "+") (EAp (EAp (EVar "-") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "-") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x + y * z"
+>>> runParser pExpr4 $ clex 1 "x + y * z"
 [(EAp (EAp (EVar "+") (EVar "x")) (EAp (EAp (EVar "*") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "+") (EVar "x")) (EVar "y"),[(1,"*"),(1,"z")]),(EVar "x",[(1,"+"),(1,"y"),(1,"*"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x + (y * z)"
+>>> runParser pExpr4 $ clex 1 "x + (y * z)"
 [(EAp (EAp (EVar "+") (EVar "x")) (EAp (EAp (EVar "*") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"+"),(1,"("),(1,"y"),(1,"*"),(1,"z"),(1,")")])]
 
->>> pExpr4 $ clex 1 "(x + y) * z"
+>>> runParser pExpr4 $ clex 1 "(x + y) * z"
 [(EAp (EAp (EVar "*") (EAp (EAp (EVar "+") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "+") (EVar "x")) (EVar "y"),[(1,"*"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x + y / z"
+>>> runParser pExpr4 $ clex 1 "x + y / z"
 [(EAp (EAp (EVar "+") (EVar "x")) (EAp (EAp (EVar "/") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "+") (EVar "x")) (EVar "y"),[(1,"/"),(1,"z")]),(EVar "x",[(1,"+"),(1,"y"),(1,"/"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x + (y / z)"
+>>> runParser pExpr4 $ clex 1 "x + (y / z)"
 [(EAp (EAp (EVar "+") (EVar "x")) (EAp (EAp (EVar "/") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"+"),(1,"("),(1,"y"),(1,"/"),(1,"z"),(1,")")])]
 
->>> pExpr4 $ clex 1 "(x + y) / z"
+>>> runParser pExpr4 $ clex 1 "(x + y) / z"
 [(EAp (EAp (EVar "/") (EAp (EAp (EVar "+") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "+") (EVar "x")) (EVar "y"),[(1,"/"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x * y + z"
+>>> runParser pExpr4 $ clex 1 "x * y + z"
 [(EAp (EAp (EVar "+") (EAp (EAp (EVar "*") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "*") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,"*"),(1,"y"),(1,"+"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x * (y + z)"
+>>> runParser pExpr4 $ clex 1 "x * (y + z)"
 [(EAp (EAp (EVar "*") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"*"),(1,"("),(1,"y"),(1,"+"),(1,"z"),(1,")")])]
 
->>> pExpr4 $ clex 1 "(x * y) + z"
+>>> runParser pExpr4 $ clex 1 "(x * y) + z"
 [(EAp (EAp (EVar "+") (EAp (EAp (EVar "*") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "*") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x / y + z"
+>>> runParser pExpr4 $ clex 1 "x / y + z"
 [(EAp (EAp (EVar "+") (EAp (EAp (EVar "/") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")]),(EVar "x",[(1,"/"),(1,"y"),(1,"+"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x / (y + z)"
+>>> runParser pExpr4 $ clex 1 "x / (y + z)"
 [(EAp (EAp (EVar "/") (EVar "x")) (EAp (EAp (EVar "+") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"/"),(1,"("),(1,"y"),(1,"+"),(1,"z"),(1,")")])]
 
->>> pExpr4 $ clex 1 "(x / y) + z"
+>>> runParser pExpr4 $ clex 1 "(x / y) + z"
 [(EAp (EAp (EVar "+") (EAp (EAp (EVar "/") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[(1,"+"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x - y * z"
+>>> runParser pExpr4 $ clex 1 "x - y * z"
 [(EAp (EAp (EVar "-") (EVar "x")) (EAp (EAp (EVar "*") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "-") (EVar "x")) (EVar "y"),[(1,"*"),(1,"z")]),(EVar "x",[(1,"-"),(1,"y"),(1,"*"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x - (y * z)"
+>>> runParser pExpr4 $ clex 1 "x - (y * z)"
 [(EAp (EAp (EVar "-") (EVar "x")) (EAp (EAp (EVar "*") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"-"),(1,"("),(1,"y"),(1,"*"),(1,"z"),(1,")")])]
 
->>> pExpr4 $ clex 1 "(x - y) * z"
+>>> runParser pExpr4 $ clex 1 "(x - y) * z"
 [(EAp (EAp (EVar "*") (EAp (EAp (EVar "-") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "-") (EVar "x")) (EVar "y"),[(1,"*"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x - y / z"
+>>> runParser pExpr4 $ clex 1 "x - y / z"
 [(EAp (EAp (EVar "-") (EVar "x")) (EAp (EAp (EVar "/") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "-") (EVar "x")) (EVar "y"),[(1,"/"),(1,"z")]),(EVar "x",[(1,"-"),(1,"y"),(1,"/"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x - (y / z)"
+>>> runParser pExpr4 $ clex 1 "x - (y / z)"
 [(EAp (EAp (EVar "-") (EVar "x")) (EAp (EAp (EVar "/") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"-"),(1,"("),(1,"y"),(1,"/"),(1,"z"),(1,")")])]
 
->>> pExpr4 $ clex 1 "(x - y) / z"
+>>> runParser pExpr4 $ clex 1 "(x - y) / z"
 [(EAp (EAp (EVar "/") (EAp (EAp (EVar "-") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "-") (EVar "x")) (EVar "y"),[(1,"/"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x * y - z"
+>>> runParser pExpr4 $ clex 1 "x * y - z"
 [(EAp (EAp (EVar "-") (EAp (EAp (EVar "*") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "*") (EVar "x")) (EVar "y"),[(1,"-"),(1,"z")]),(EVar "x",[(1,"*"),(1,"y"),(1,"-"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x * (y - z)"
+>>> runParser pExpr4 $ clex 1 "x * (y - z)"
 [(EAp (EAp (EVar "*") (EVar "x")) (EAp (EAp (EVar "-") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"*"),(1,"("),(1,"y"),(1,"-"),(1,"z"),(1,")")])]
 
->>> pExpr4 $ clex 1 "(x * y) - z"
+>>> runParser pExpr4 $ clex 1 "(x * y) - z"
 [(EAp (EAp (EVar "-") (EAp (EAp (EVar "*") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "*") (EVar "x")) (EVar "y"),[(1,"-"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x / y - z"
+>>> runParser pExpr4 $ clex 1 "x / y - z"
 [(EAp (EAp (EVar "-") (EAp (EAp (EVar "/") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[(1,"-"),(1,"z")]),(EVar "x",[(1,"/"),(1,"y"),(1,"-"),(1,"z")])]
 
->>> pExpr4 $ clex 1 "x / (y - z)"
+>>> runParser pExpr4 $ clex 1 "x / (y - z)"
 [(EAp (EAp (EVar "/") (EVar "x")) (EAp (EAp (EVar "-") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"/"),(1,"("),(1,"y"),(1,"-"),(1,"z"),(1,")")])]
 
->>> pExpr4 $ clex 1 "(x / y) - z"
+>>> runParser pExpr4 $ clex 1 "(x / y) - z"
 [(EAp (EAp (EVar "-") (EAp (EAp (EVar "/") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[(1,"-"),(1,"z")])]
 -}
 pExpr4 :: Parser CoreExpr
@@ -1029,46 +1029,46 @@ pExpr4 = pThen3 f pExpr5 (pLit "+" `pApply` EVar) pExpr4 `pAlt`
 -}
 
 {- |
->>> pExpr5 $ clex 1 "x * y"
+>>> runParser pExpr5 $ clex 1 "x * y"
 [(EAp (EAp (EVar "*") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"*"),(1,"y")])]
 
->>> pExpr5 $ clex 1 "x / y"
+>>> runParser pExpr5 $ clex 1 "x / y"
 [(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[]),(EVar "x",[(1,"/"),(1,"y")])]
 
->>> pExpr5 $ clex 1 "x * y * z"
+>>> runParser pExpr5 $ clex 1 "x * y * z"
 [(EAp (EAp (EVar "*") (EVar "x")) (EAp (EAp (EVar "*") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "*") (EVar "x")) (EVar "y"),[(1,"*"),(1,"z")]),(EVar "x",[(1,"*"),(1,"y"),(1,"*"),(1,"z")])]
 
->>> pExpr5 $ clex 1 "x * (y * z)"
+>>> runParser pExpr5 $ clex 1 "x * (y * z)"
 [(EAp (EAp (EVar "*") (EVar "x")) (EAp (EAp (EVar "*") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"*"),(1,"("),(1,"y"),(1,"*"),(1,"z"),(1,")")])]
 
->>> pExpr5 $ clex 1 "(x * y) * z"
+>>> runParser pExpr5 $ clex 1 "(x * y) * z"
 [(EAp (EAp (EVar "*") (EAp (EAp (EVar "*") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "*") (EVar "x")) (EVar "y"),[(1,"*"),(1,"z")])]
 
->>> pExpr5 $ clex 1 "x / y / z"
+>>> runParser pExpr5 $ clex 1 "x / y / z"
 [(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[(1,"/"),(1,"z")]),(EVar "x",[(1,"/"),(1,"y"),(1,"/"),(1,"z")])]
 
->>> pExpr5 $ clex 1 "x / (y / z)"
+>>> runParser pExpr5 $ clex 1 "x / (y / z)"
 [(EAp (EAp (EVar "/") (EVar "x")) (EAp (EAp (EVar "/") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"/"),(1,"("),(1,"y"),(1,"/"),(1,"z"),(1,")")])]
 
->>> pExpr5 $ clex 1 "(x / y) / z"
+>>> runParser pExpr5 $ clex 1 "(x / y) / z"
 [(EAp (EAp (EVar "/") (EAp (EAp (EVar "/") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[(1,"/"),(1,"z")])]
 
->>> pExpr5 $ clex 1 "x * y / z"
+>>> runParser pExpr5 $ clex 1 "x * y / z"
 [(EAp (EAp (EVar "*") (EVar "x")) (EAp (EAp (EVar "/") (EVar "y")) (EVar "z")),[]),(EAp (EAp (EVar "*") (EVar "x")) (EVar "y"),[(1,"/"),(1,"z")]),(EVar "x",[(1,"*"),(1,"y"),(1,"/"),(1,"z")])]
 
->>> pExpr5 $ clex 1 "x * (y / z)"
+>>> runParser pExpr5 $ clex 1 "x * (y / z)"
 [(EAp (EAp (EVar "*") (EVar "x")) (EAp (EAp (EVar "/") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"*"),(1,"("),(1,"y"),(1,"/"),(1,"z"),(1,")")])]
 
->>> pExpr5 $ clex 1 "(x * y) / z"
+>>> runParser pExpr5 $ clex 1 "(x * y) / z"
 [(EAp (EAp (EVar "/") (EAp (EAp (EVar "*") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "*") (EVar "x")) (EVar "y"),[(1,"/"),(1,"z")])]
 
->>> pExpr5 $ clex 1 "x / y * z"
+>>> runParser pExpr5 $ clex 1 "x / y * z"
 [(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[(1,"*"),(1,"z")]),(EVar "x",[(1,"/"),(1,"y"),(1,"*"),(1,"z")])]
 
->>> pExpr5 $ clex 1 "x / (y * z)"
+>>> runParser pExpr5 $ clex 1 "x / (y * z)"
 [(EAp (EAp (EVar "/") (EVar "x")) (EAp (EAp (EVar "*") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"/"),(1,"("),(1,"y"),(1,"*"),(1,"z"),(1,")")])]
 
->>> pExpr5 $ clex 1 "(x / y) * z"
+>>> runParser pExpr5 $ clex 1 "(x / y) * z"
 [(EAp (EAp (EVar "*") (EAp (EAp (EVar "/") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "/") (EVar "x")) (EVar "y"),[(1,"*"),(1,"z")])]
 -}
 pExpr5 :: Parser CoreExpr
@@ -1088,16 +1088,16 @@ pExpr5 = pThen3 f pExpr6 (pLit "*" `pApply` EVar) pExpr5 `pAlt`
 -}
 
 {- |
->>> pExpr6 $ clex 1 "42"
+>>> runParser pExpr6 $ clex 1 "42"
 [(ENum 42,[])]
 
->>> pExpr6 $ clex 1 "x"
+>>> runParser pExpr6 $ clex 1 "x"
 [(EVar "x",[])]
 
->>> pExpr6 $ clex 1 "f x"
+>>> runParser pExpr6 $ clex 1 "f x"
 [(EAp (EVar "f") (EVar "x"),[]),(EVar "f",[(1,"x")])]
 
->>> pExpr6 $ clex 1 "f x y"
+>>> runParser pExpr6 $ clex 1 "f x y"
 [(EAp (EAp (EVar "f") (EVar "x")) (EVar "y"),[]),(EAp (EVar "f") (EVar "x"),[(1,"y")]),(EVar "f",[(1,"x"),(1,"y")])]
 -}
 pExpr6 :: Parser CoreExpr
