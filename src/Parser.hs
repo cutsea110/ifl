@@ -292,6 +292,9 @@ pApply p f = Parser (\toks -> [(f v1, toks1) | (v1, toks1) <- runParser p toks])
 >>> runParser (1 <$ pLit "True") [(1, "Hello")]
 []
 -}
+-- Functor
+-- (<$) :: a -> Parser b -> Parser a
+-- v <$ px = const v <$> px
 
 pAp :: Parser (a -> b) -> Parser a -> Parser b
 pAp pf px = Parser (\toks ->
@@ -316,6 +319,9 @@ pAp pf px = Parser (\toks ->
 >>> runParser ((pLit "a") <* (pLit "b")) [(1, "a"), (1, "b"),(1, "c")]
 [("a",[(1,"c")])]
 -}
+-- Applicative
+-- (<*) :: Parser a -> Parser b -> Parser a
+-- (<*) = pThen const
 
 {- |
 >>> runParser ((pLit "a") *> (pLit "b")) []
@@ -333,6 +339,9 @@ pAp pf px = Parser (\toks ->
 >>> runParser ((pLit "a") *> (pLit "b")) [(1, "a"), (1, "b"), (1, "c")]
 [("b",[(1,"c")])]
 -}
+-- Applicative
+-- (*>) :: Parser a -> Parser b -> Parser b
+-- (*>) = pThen (flip const)
 
 {- |
 >>> runParser (pOneOrMoreWithSep pVar (pLit ",")) []
