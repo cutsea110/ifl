@@ -63,15 +63,15 @@ iNL' :: Iseq iseq => iseq
 iNL' = iSpace `iAppend` iNL
 
 type Precedence = Int
-data Fixity = Infix | InfixL | InfixR deriving (Show, Enum, Eq)
--- | PrecFixity
+data Associativity = Infix | InfixL | InfixR deriving (Show, Enum, Eq)
+-- | Fixity
 --
 -- 下位の部分式に対して上位側からどういう優先度/結合性の中で call されているかを教える
 -- 下位の式を pprExpr するところで判断してカッコを付けるかどうかなど決める
-data PrecFixity = PrecFixity { weakp  :: Precedence -> Fixity -> Bool
-                             , prec   :: Precedence
-                             , fixity :: Fixity
-                             }
+data Fixity = Fixity { weakp :: Precedence -> Associativity -> Bool
+                     , prec  :: Precedence
+                     , assoc :: Associativity
+                     }
 
 -- | 右辺値の最上位の式か下位の式か
 data Level = Top | Sub deriving (Eq, Show)
@@ -119,7 +119,7 @@ pprScDefn :: CoreScDefn -> Iseqrep
 pprScDefn (name, args, expr)
   = iConcat [ iStr name, sep, pprArgs args
             , iStr " = "
-            , iIndent (pprExpr Top defaultPrecFixity expr)
+            , iIndent (pprExpr Top defaultFixity expr)
             ]
     where sep = if null args then iNil else iSpace
 
@@ -146,7 +146,7 @@ pprArgs args = iInterleave iSpace $ map iStr args
 >>> ap f x  = EAp f x
 >>> and p q = EAp (EAp (EVar "&&") p) q
 >>> or  p q = EAp (EAp (EVar "||") p) q
->>> printExpr = putStrLn . iDisplay . pprExpr Top defaultPrecFixity
+>>> printExpr = putStrLn . iDisplay . pprExpr Top defaultFixity
 >>> printScDefn = putStrLn . iDisplay . pprScDefn
 -}
 
@@ -459,21 +459,21 @@ letrec
   y = \ x -> x (y x)
 in y (\ f i -> bool (i * f (i - 1)) 1 (i == 1))
 -}
-pprExpr :: Level -> PrecFixity -> CoreExpr -> Iseqrep
+pprExpr :: Level -> Fixity -> CoreExpr -> Iseqrep
 pprExpr _ _ (ENum n) = iNum n
 pprExpr _ _ (EVar v) = iStr v
 pprExpr _ _ (EConstr tag arity) = iConcat $ map iStr ["Pack{", show tag, ",", show arity, "}"]
 pprExpr _ pa (EAp (EAp (EVar op) e1) e2)
-  | infixOperator op = if weakp pa' (prec pa) (fixity pa) then iParen e else e
+  | infixOperator op = if weakp pa' (prec pa) (assoc pa) then iParen e else e
   where e = iConcat [ pprExpr Sub pa' e1
                     , iSpace, iStr op, iSpace
                     , pprExpr Sub pa' e2
                     ]
-        pa' = precFixity op
-pprExpr _ pa (EAp e1 e2) = if weakp pa (prec pa) (fixity pa) then iParen e else e
-  where e = iConcat [ pprExpr Sub functionPrecFixity e1
+        pa' = precAssociativity op
+pprExpr _ pa (EAp e1 e2) = if weakp pa (prec pa) (assoc pa) then iParen e else e
+  where e = iConcat [ pprExpr Sub functionFixity e1
                     , iSpace
-                    , pprExpr Sub functionArgPrecFixity e2
+                    , pprExpr Sub functionArgFixity e2
                     ]
 pprExpr l _ (ELet isrec defns expr) = if l /= Top then iParen e else e
   where
@@ -481,38 +481,38 @@ pprExpr l _ (ELet isrec defns expr) = if l /= Top then iParen e else e
             | isrec     = "letrec"
     e = iConcat [ iStr keyword, iNewline
                 , iStr "  ", iIndent (pprDefns defns), iNewline
-                , iStr "in ", pprExpr Top defaultPrecFixity expr
+                , iStr "in ", pprExpr Top defaultFixity expr
                 ]
 pprExpr l _ (ECase expr alts) = if l /= Top then iParen e else e
-  where e = iConcat [ iStr "case ", iIndent (pprExpr Top defaultPrecFixity expr), iStr " of", iNewline
+  where e = iConcat [ iStr "case ", iIndent (pprExpr Top defaultFixity expr), iStr " of", iNewline
                     , iStr "  ", iIndent (iInterleave iNL' (map pprAlt alts))
                     ]
 pprExpr l _ (ELam args expr) = if l /= Top then iParen e else e
   where e = iConcat [ iStr "\\ ", pprArgs args, iStr " -> "
-                    , iIndent (pprExpr Top defaultPrecFixity expr)
+                    , iIndent (pprExpr Top defaultFixity expr)
                     ]
 
-precFixity :: String -> PrecFixity
-precFixity "*"  = PrecFixity { weakp = \p a -> p >  5 || p == 5 && a /= InfixR, prec = 5, fixity = InfixR }
-precFixity "/"  = PrecFixity { weakp = \p a -> p >= 5,                          prec = 5, fixity = Infix  }
-precFixity "+"  = PrecFixity { weakp = \p a -> p >  4 || p == 4 && a /= InfixR, prec = 4, fixity = InfixR }
-precFixity "-"  = PrecFixity { weakp = \p a -> p >= 4,                          prec = 4, fixity = Infix  }
-precFixity "==" = PrecFixity { weakp = \p a -> p >  3,                          prec = 3, fixity = Infix  }
-precFixity "/=" = PrecFixity { weakp = \p a -> p >  3,                          prec = 3, fixity = Infix  }
-precFixity ">"  = PrecFixity { weakp = \p a -> p >  3,                          prec = 3, fixity = Infix  }
-precFixity ">=" = PrecFixity { weakp = \p a -> p >  3,                          prec = 3, fixity = Infix  }
-precFixity "<"  = PrecFixity { weakp = \p a -> p >  3,                          prec = 3, fixity = Infix  }
-precFixity "<=" = PrecFixity { weakp = \p a -> p >  3,                          prec = 3, fixity = Infix  }
-precFixity "&&" = PrecFixity { weakp = \p a -> p >  2,                          prec = 2, fixity = InfixR }
-precFixity "||" = PrecFixity { weakp = \p a -> p >  1,                          prec = 1, fixity = InfixR }
-precFixity _    = error "Unknown infix operator"
+precAssociativity :: String -> Fixity
+precAssociativity "*"  = Fixity { weakp = \p a -> p >  5 || p == 5 && a /= InfixR, prec = 5, assoc = InfixR }
+precAssociativity "/"  = Fixity { weakp = \p a -> p >= 5,                          prec = 5, assoc = Infix  }
+precAssociativity "+"  = Fixity { weakp = \p a -> p >  4 || p == 4 && a /= InfixR, prec = 4, assoc = InfixR }
+precAssociativity "-"  = Fixity { weakp = \p a -> p >= 4,                          prec = 4, assoc = Infix  }
+precAssociativity "==" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssociativity "/=" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssociativity ">"  = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssociativity ">=" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssociativity "<"  = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssociativity "<=" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+precAssociativity "&&" = Fixity { weakp = \p a -> p >  2,                          prec = 2, assoc = InfixR }
+precAssociativity "||" = Fixity { weakp = \p a -> p >  1,                          prec = 1, assoc = InfixR }
+precAssociativity _    = error "Unknown infix operator"
 
-defaultPrecFixity :: PrecFixity
-defaultPrecFixity = PrecFixity { weakp = \p a -> False, prec = 0, fixity = Infix }  -- FIXME!
-functionPrecFixity :: PrecFixity
-functionPrecFixity = PrecFixity { weakp = \p a -> p > 6, prec = 6, fixity = InfixL }
-functionArgPrecFixity :: PrecFixity
-functionArgPrecFixity = PrecFixity { weakp = \p a -> p >= 6, prec = 6, fixity = InfixL }
+defaultFixity :: Fixity
+defaultFixity = Fixity { weakp = \p a -> False, prec = 0, assoc = Infix }  -- FIXME!
+functionFixity :: Fixity
+functionFixity = Fixity { weakp = \p a -> p > 6, prec = 6, assoc = InfixL }
+functionArgFixity :: Fixity
+functionArgFixity = Fixity { weakp = \p a -> p >= 6, prec = 6, assoc = InfixL }
 
 infixOperator :: String -> Bool
 infixOperator op
@@ -528,12 +528,12 @@ pprDefns defns = iInterleave iNL (map pprDefn defns)
 
 pprDefn :: (Name, CoreExpr) -> Iseqrep
 pprDefn (name, expr)
-  = iConcat [ iStr name, iStr " = ", iIndent (pprExpr Top defaultPrecFixity expr) ]
+  = iConcat [ iStr name, iStr " = ", iIndent (pprExpr Top defaultFixity expr) ]
 
 pprAlt :: CoreAlt -> Iseqrep
 pprAlt (i, args, expr)
   = iConcat [ iStr "<", iStr (show i), iStr ">", sep, pprArgs args
-            , iStr " -> ", iIndent (pprExpr Top defaultPrecFixity expr)
+            , iStr " -> ", iIndent (pprExpr Top defaultFixity expr)
             ]
     where sep = if null args then iNil else iSpace
 
