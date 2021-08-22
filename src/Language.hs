@@ -503,8 +503,8 @@ fixity ">"  = Fixity { weakp = \p a -> p >  3,                          prec = 3
 fixity ">=" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
 fixity "<"  = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
 fixity "<=" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-fixity "&&" = Fixity { weakp = \p a -> p >  2,                          prec = 2, assoc = InfixR }
-fixity "||" = Fixity { weakp = \p a -> p >  1,                          prec = 1, assoc = InfixR }
+fixity "&&" = Fixity { weakp = \p a -> p >  2 || p == 2 && a /= InfixR, prec = 2, assoc = InfixR }
+fixity "||" = Fixity { weakp = \p a -> p >  1 || p == 1 && a /= InfixR, prec = 1, assoc = InfixR }
 fixity _    = error "Unknown infix operator"
 
 defaultFixity :: Fixity
@@ -812,6 +812,18 @@ pExpr = pLet `pAlt` pCase `pAlt` pLam `pAlt` pExpr1
 
 >>> runParser pExpr1 $ clex 1 "x && (y || z)"
 [(EAp (EAp (EVar "&&") (EVar "x")) (EAp (EAp (EVar "||") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"&&"),(1,"("),(1,"y"),(1,"||"),(1,"z"),(1,")")])]
+
+>>> runParser pExpr1 $ clex 1 "x && (y && z)"
+[(EAp (EAp (EVar "&&") (EVar "x")) (EAp (EAp (EVar "&&") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"&&"),(1,"("),(1,"y"),(1,"&&"),(1,"z"),(1,")")])]
+
+>>> runParser pExpr1 $ clex 1 "(x && y) && z"
+[(EAp (EAp (EVar "&&") (EAp (EAp (EVar "&&") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "&&") (EVar "x")) (EVar "y"),[(1,"&&"),(1,"z")])]
+
+>>> runParser pExpr1 $ clex 1 "x || (y || z)"
+[(EAp (EAp (EVar "||") (EVar "x")) (EAp (EAp (EVar "||") (EVar "y")) (EVar "z")),[]),(EVar "x",[(1,"||"),(1,"("),(1,"y"),(1,"||"),(1,"z"),(1,")")])]
+
+>>> runParser pExpr1 $ clex 1 "(x || y) || z"
+[(EAp (EAp (EVar "||") (EAp (EAp (EVar "||") (EVar "x")) (EVar "y"))) (EVar "z"),[]),(EAp (EAp (EVar "||") (EVar "x")) (EVar "y"),[(1,"||"),(1,"z")])]
 -}
 pExpr1 :: Parser CoreExpr
 pExpr1 = assembleOp <$> pExpr2 <*> pExpr1c
