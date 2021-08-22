@@ -278,6 +278,9 @@ pApply p f = Parser (\toks -> [(f v1, toks1) | (v1, toks1) <- runParser p toks])
 >>> runParser ((*3) <$> pNum) [(1, "14")]
 [(42,[])]
 -}
+-- Functor
+-- (<$>) :: (a -> b) -> Parser a -> Parser b
+-- (<$>) = fmap
 
 {- |
 >>> runParser (1 <$ pLit "True") [(1, "True")]
