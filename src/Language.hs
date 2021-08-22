@@ -469,7 +469,7 @@ pprExpr _ pa (EAp (EAp (EVar op) e1) e2)
                     , iSpace, iStr op, iSpace
                     , pprExpr Sub pa' e2
                     ]
-        pa' = precAssociativity op
+        pa' = fixity op
 pprExpr _ pa (EAp e1 e2) = if weakp pa (prec pa) (assoc pa) then iParen e else e
   where e = iConcat [ pprExpr Sub functionFixity e1
                     , iSpace
@@ -492,20 +492,20 @@ pprExpr l _ (ELam args expr) = if l /= Top then iParen e else e
                     , iIndent (pprExpr Top defaultFixity expr)
                     ]
 
-precAssociativity :: String -> Fixity
-precAssociativity "*"  = Fixity { weakp = \p a -> p >  5 || p == 5 && a /= InfixR, prec = 5, assoc = InfixR }
-precAssociativity "/"  = Fixity { weakp = \p a -> p >= 5,                          prec = 5, assoc = Infix  }
-precAssociativity "+"  = Fixity { weakp = \p a -> p >  4 || p == 4 && a /= InfixR, prec = 4, assoc = InfixR }
-precAssociativity "-"  = Fixity { weakp = \p a -> p >= 4,                          prec = 4, assoc = Infix  }
-precAssociativity "==" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-precAssociativity "/=" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-precAssociativity ">"  = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-precAssociativity ">=" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-precAssociativity "<"  = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-precAssociativity "<=" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
-precAssociativity "&&" = Fixity { weakp = \p a -> p >  2,                          prec = 2, assoc = InfixR }
-precAssociativity "||" = Fixity { weakp = \p a -> p >  1,                          prec = 1, assoc = InfixR }
-precAssociativity _    = error "Unknown infix operator"
+fixity :: String -> Fixity
+fixity "*"  = Fixity { weakp = \p a -> p >  5 || p == 5 && a /= InfixR, prec = 5, assoc = InfixR }
+fixity "/"  = Fixity { weakp = \p a -> p >= 5,                          prec = 5, assoc = Infix  }
+fixity "+"  = Fixity { weakp = \p a -> p >  4 || p == 4 && a /= InfixR, prec = 4, assoc = InfixR }
+fixity "-"  = Fixity { weakp = \p a -> p >= 4,                          prec = 4, assoc = Infix  }
+fixity "==" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+fixity "/=" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+fixity ">"  = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+fixity ">=" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+fixity "<"  = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+fixity "<=" = Fixity { weakp = \p a -> p >  3,                          prec = 3, assoc = Infix  }
+fixity "&&" = Fixity { weakp = \p a -> p >  2,                          prec = 2, assoc = InfixR }
+fixity "||" = Fixity { weakp = \p a -> p >  1,                          prec = 1, assoc = InfixR }
+fixity _    = error "Unknown infix operator"
 
 defaultFixity :: Fixity
 defaultFixity = Fixity { weakp = \p a -> False, prec = 0, assoc = Infix }  -- FIXME!
