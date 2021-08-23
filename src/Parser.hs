@@ -341,6 +341,16 @@ pAp pf px = Parser (\toks ->
                        , (v, toks2) <- runParser px toks1
                        ])
 
+{- |
+>>> runParser (pNum `pBind` (\x -> pure (x+3))) []
+[]
+
+>>> runParser (pNum `pBind` (\x -> pure (x+3))) [(1,"39")]
+[(42,[])]
+
+>>> runParser (pNum `pBind` (\x -> pure (2*x)) `pBind` (\x -> pure (x+3))) [(1,"7")]
+[(17,[])]
+-}
 pBind :: Parser a -> (a -> Parser b) -> Parser b
 pBind px f = Parser (\toks ->
                        [ (v2, toks2)
