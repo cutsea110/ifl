@@ -28,6 +28,9 @@ instance Applicative Parser where
   pure = pEmpty
   (<*>) = pAp
 
+instance Monad Parser where
+  (>>=) = pBind
+
 {- |
 >>> runParser (pSat (=="a")) []
 []
@@ -311,6 +314,13 @@ pAp pf px = Parser (\toks ->
                        [ (f v, toks2)
                        | (f, toks1) <- runParser pf toks
                        , (v, toks2) <- runParser px toks1
+                       ])
+
+pBind :: Parser a -> (a -> Parser b) -> Parser b
+pBind px f = Parser (\toks ->
+                       [ (v2, toks2)
+                       | (v1, toks1) <- runParser px toks
+                       , (v2, toks2) <- runParser (f v1) toks1
                        ])
 
 {- |
