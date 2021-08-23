@@ -312,6 +312,28 @@ pApply p f = Parser (\toks ->
 -- (<$) :: a -> Parser b -> Parser a
 -- v <$ px = const v <$> px
 
+{- |
+>>> runParser (pure (+3) `pAp` pNum) []
+[]
+
+>>> runParser (pure (+3) `pAp` pNum) [(1,"39")]
+[(42,[])]
+
+>>> runParser (pure (\x y z -> x+y+z) `pAp` pNum `pAp` pNum `pAp` pNum) []
+[]
+
+>>> runParser (pure (\x y z -> x+y+z) `pAp` pNum `pAp` pNum `pAp` pNum) [(1,"1")]
+[]
+
+>>> runParser (pure (\x y z -> x+y+z) `pAp` pNum `pAp` pNum `pAp` pNum) [(1,"1"),(1,"2")]
+[]
+
+>>> runParser (pure (\x y z -> x+y+z) `pAp` pNum `pAp` pNum `pAp` pNum) [(1,"1"),(1,"2"),(1,"3")]
+[(6,[])]
+
+>>> runParser (pure (\x y z -> x+y+z) `pAp` pNum `pAp` pNum `pAp` pNum) [(1,"1"),(1,"2"),(1,"3"),(1,"4")]
+[(6,[(1,"4")])]
+-}
 pAp :: Parser (a -> b) -> Parser a -> Parser b
 pAp pf px = Parser (\toks ->
                        [ (f v, toks2)
