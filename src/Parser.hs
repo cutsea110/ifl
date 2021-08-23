@@ -273,7 +273,10 @@ pOneOrMore p = (:) <$> p <*> pZeroOrMore p
 [(["a!","b!","c!"],[]),(["a!","b!"],[(1,"c")]),(["a!"],[(1,"b"),(1,"c")])]
 -}
 pApply :: Parser a -> (a -> b) -> Parser b
-pApply p f = Parser (\toks -> [(f v1, toks1) | (v1, toks1) <- runParser p toks])
+pApply p f = Parser (\toks ->
+                       [ (f v1, toks1)
+                       | (v1, toks1) <- runParser p toks
+                       ])
 
 {- |
 >>> runParser ((++"!") <$> pLit "a") []
