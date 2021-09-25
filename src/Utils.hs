@@ -1,5 +1,7 @@
 module Utils
   ( space
+  , Assoc
+  , aLookup
   ) where
 
 {- |
@@ -14,3 +16,10 @@ module Utils
 -}
 space :: Int -> String
 space n = replicate n ' '
+
+type Assoc a b = [(a, b)]
+aLookup :: Eq k => Assoc k v -> k -> v -> v
+aLookup [] _ d = d
+aLookup ((k, v):kvs) k' d
+  | k == k' = v
+  | otherwise  = aLookup kvs k' d

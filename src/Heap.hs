@@ -1,5 +1,7 @@
 module Heap where
 
+import Utils
+
 type Size = Int
 type Addr = Int
 type Heap a = (Size, [Addr], [(Addr, a)])
@@ -15,6 +17,11 @@ hUpdate (size, free, cts) a n = (size, free, (a, n):remove cts a)
 
 hFree :: Heap a -> Addr -> Heap a
 hFree (size, free, cts) a = (size-1, a:free, remove cts a)
+
+hLookup (size, free, cts) a
+  = aLookup cts a (error ("can't find node " ++ showaddr a ++ " in heap"))
+
+hAddresses (size, free, cts) = [addr | (addr, node) <- cts]
 
 hSize :: Heap a -> Size
 hSize (size, _, _) = size
