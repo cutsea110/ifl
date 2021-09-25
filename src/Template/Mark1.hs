@@ -134,7 +134,22 @@ showResults states
 
 showState :: TiState -> Iseqrep
 showState (stack, dump, heap, globals, stats)
-  = iConcat [showStack heap stack, iNewline]
+  = iConcat [ showStack heap stack, iNewline
+            , showHeap heap, iNewline
+            ]
+
+showHeap :: TiHeap -> Iseqrep
+showHeap heap = case heap of
+  (_, _, cts) -> iConcat
+                 [ iStr "Heap  ["
+                 , iIndent (iInterleave iNewline (map showHeapItem cts))
+                 , iStr " ]"
+                 ]
+    where
+      showHeapItem (addr, node)
+        = iConcat [ showFWAddr addr, iStr ": "
+                  , showNode node
+                  ]
 
 showStack :: TiHeap -> TiStack -> Iseqrep
 showStack heap stack
