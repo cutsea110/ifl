@@ -146,8 +146,17 @@ instantiateLet = error "TODO"
 showResults :: [TiState] -> String
 showResults states
   = iDisplay (iConcat [ iLayn (map showState states)
-                      , showStats (last states)
+                      , showStats lastState
+                      , showAllocCount lastState
                       ])
+  where
+    lastState = last states
+
+showAllocCount :: TiState -> Iseqrep
+showAllocCount (_, _, heap, _, _) = case heap of
+  (allocs, _, _, _) -> iConcat [ iNewline, iStr "          Alloc count = "
+                               , iNum allocs
+                               ]
 
 showState :: TiState -> Iseqrep
 showState (stack, dump, heap, globals, stats)
@@ -157,11 +166,11 @@ showState (stack, dump, heap, globals, stats)
 
 showHeap :: TiHeap -> Iseqrep
 showHeap heap = case heap of
-  (_, _, cts) -> iConcat
-                 [ iStr "Heap  ["
-                 , iIndent (iInterleave iNewline (map showHeapItem cts))
-                 , iStr " ]"
-                 ]
+  (_, _, _, cts) -> iConcat
+                    [ iStr "Heap  ["
+                    , iIndent (iInterleave iNewline (map showHeapItem cts))
+                    , iStr " ]"
+                    ]
     where
       showHeapItem (addr, node)
         = iConcat [ showFWAddr addr, iStr ": "

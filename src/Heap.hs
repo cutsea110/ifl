@@ -4,27 +4,28 @@ import Utils
 
 type Size = Int
 type Addr = Int
-type Heap a = (Size, [Addr], [(Addr, a)])
+type Allocs = Int
+type Heap a = (Allocs, Size, [Addr], [(Addr, a)])
 
 hInitial :: Heap a
-hInitial = (0, [1..], [])
+hInitial = (0, 0, [1..], [])
 
 hAlloc :: Heap a -> a -> (Heap a, Addr)
-hAlloc (size, (next:free), cts) n = ((size+1, free, (next, n):cts), next)
+hAlloc (allocs, size, (next:free), cts) n = ((allocs+1, size+1, free, (next, n):cts), next)
 
 hUpdate :: Heap a -> Addr -> a -> Heap a
-hUpdate (size, free, cts) a n = (size, free, (a, n):remove cts a)
+hUpdate (allocs, size, free, cts) a n = (allocs, size, free, (a, n):remove cts a)
 
 hFree :: Heap a -> Addr -> Heap a
-hFree (size, free, cts) a = (size-1, a:free, remove cts a)
+hFree (allocs, size, free, cts) a = (allocs, size-1, a:free, remove cts a)
 
-hLookup (size, free, cts) a
+hLookup (allocs, size, free, cts) a
   = aLookup cts a (error ("can't find node " ++ showaddr a ++ " in heap"))
 
-hAddresses (size, free, cts) = [addr | (addr, node) <- cts]
+hAddresses (allocs, size, free, cts) = [addr | (addr, node) <- cts]
 
 hSize :: Heap a -> Size
-hSize (size, _, _) = size
+hSize (_, size, _, _) = size
 
 hNull :: Addr
 hNull = 0
