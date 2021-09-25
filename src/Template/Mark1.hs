@@ -20,13 +20,21 @@ initialTiDump :: TiDump
 initialTiDump = DummyTiDump
 type TiHeap = Heap Node
 type TiGlobals = Assoc Name Addr
-type TiStats = Int
+type TiStats = (Int, Int, Int)
 tiStatInitial :: TiStats
-tiStatInitial = 0
+tiStatInitial = (0, 0, 0)
 tiStatIncSteps :: TiStats -> TiStats
-tiStatIncSteps s = s + 1
+tiStatIncSteps (ttl, sc, p) = (ttl+1, sc, p)
+tiStatIncScSteps :: TiStats -> TiStats
+tiStatIncScSteps (ttl, sc, p) = (ttl, sc+1, p)
+tiStatIncPrimSteps :: TiStats -> TiStats
+tiStatIncPrimSteps (ttl, sc, p) = (ttl, sc, p+1)
 tiStatGetSteps :: TiStats -> Int
-tiStatGetSteps s = s
+tiStatGetSteps (ttl, _, _) = ttl
+tiStatGetScSteps :: TiStats -> Int
+tiStatGetScSteps (_, sc, _) = sc
+tiStatGetPrimSteps :: TiStats -> Int
+tiStatGetPrimSteps (_, _, p) = p
 applyToStats :: (TiStats -> TiStats) -> TiState -> TiState
 applyToStats f (stack, dump, heap, scDefs, stats)
   = (stack, dump, heap, scDefs, f stats)
@@ -62,6 +70,12 @@ eval state = state : restStates
 doAdmin :: TiState -> TiState
 doAdmin state = applyToStats tiStatIncSteps state
 
+doAdminSc :: TiState -> TiState
+doAdminSc state = applyToStats tiStatIncScSteps state
+
+doAdminPrim :: TiState -> TiState
+doAdminPrim state = applyToStats tiStatIncPrimSteps state
+
 tiFinal :: TiState -> Bool
 tiFinal state = case state of
   ([soleAddr], _, heap, _, _) -> isDataNode (hLookup heap soleAddr)
@@ -92,7 +106,7 @@ scStep :: TiState -> Name -> [Name] -> CoreExpr -> TiState
 scStep state scName argNames body = case state of
   (stack, dump, heap, globals, stats)
     | length stack < length argNames + 1 -> error "Too few arguments given"
-    | otherwise -> (stack', dump, heap', globals, stats)
+    | otherwise -> doAdminSc (stack', dump, heap', globals, stats)
     where
       stack' = resultAddr : drop (length argNames + 1) stack
       (heap', resultAddr) = instantiate body heap env
@@ -194,8 +208,13 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
 
 showStats :: TiState -> Iseqrep
 showStats (stack, dump, heap, globals, stats)
-  = iConcat [ iNewline, iNewline, iStr "Total number of steps = "
+  = iConcat [ iNewline
+            , iNewline, iStr "Total number of steps = "
             , iNum (tiStatGetSteps stats)
+            , iNewline, iStr "             Sc steps = "
+            , iNum (tiStatGetScSteps stats)
+            , iNewline, iStr "           Prim steps = "
+            , iNum (tiStatGetPrimSteps stats)
             ]
 
 ----
