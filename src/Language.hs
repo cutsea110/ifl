@@ -1159,6 +1159,18 @@ hangEleProblem = unlines [ "f x y = case x of"
                          , "                   <1> -> 1;"
                          , "          <2> -> 2"
                          ]
+{- |
+f x y = case x of
+         <1> -> case y of
+                  <1> -> 1 ;
+         <2> -> 2
+-}
+hangEleProblem' :: String
+hangEleProblem' = unlines [ "f x y = case x of"
+                         , "          <1> -> (case y of"
+                         , "                    <1> -> 1);"
+                         , "          <2> -> 2"
+                         ]
 
 {- |
 >>> putStrLn . pprint $ sampleProgram
