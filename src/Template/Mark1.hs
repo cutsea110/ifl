@@ -89,7 +89,9 @@ apStep state a1 a2 = case state of
 
 scStep :: TiState -> Name -> [Name] -> CoreExpr -> TiState
 scStep state scName argNames body = case state of
-  (stack, dump, heap, globals, stats) -> (stack', dump, heap', globals, stats)
+  (stack, dump, heap, globals, stats)
+    | length stack < length argNames + 1 -> error "Too few arguments given"
+    | otherwise -> (stack', dump, heap', globals, stats)
     where
       stack' = resultAddr : drop (length argNames + 1) stack
       (heap', resultAddr) = instantiate body heap env
