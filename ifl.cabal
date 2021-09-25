@@ -21,6 +21,7 @@ library
                        Language
                        Parser
                        Utils
+                       Template.MultMachine
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.13 && <4.14
