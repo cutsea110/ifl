@@ -22,6 +22,7 @@ library
                        Parser
                        Utils
                        Heap
+                       Stack
                        Template.MultMachine
                        Template.Mark1
   -- other-modules:
