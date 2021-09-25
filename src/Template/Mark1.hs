@@ -39,6 +39,7 @@ applyToStats :: (TiStats -> TiStats) -> TiState -> TiState
 applyToStats f (stack, dump, heap, scDefs, stats)
   = (stack, dump, heap, scDefs, f stats)
 
+compile :: CoreProgram -> TiState
 compile program
   = (initialStack, initialTiDump, initialHeap, globals, tiStatInitial)
   where
