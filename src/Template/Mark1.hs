@@ -5,6 +5,7 @@ import Data.List (mapAccumL)
 import Iseq
 import Language
 import Heap
+import Stack
 import Utils
 
 data Node
@@ -14,7 +15,7 @@ data Node
 
 type TiState = (TiStack, TiDump, TiHeap, TiGlobals, TiStats)
 
-type TiStack = [Addr]
+type TiStack = Stack Addr
 data TiDump = DummyTiDump
 initialTiDump :: TiDump
 initialTiDump = DummyTiDump
