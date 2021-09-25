@@ -24,6 +24,11 @@ evalMult state = if multFinal state
   then [state]
   else state:evalMult (stepMult state)
 
+evalMult' :: MultState -> MultState
+evalMult' state = case break multFinal states of
+                    (_, result:_) -> result
+  where states = state:evalMult (stepMult state)
+
 stepMult :: MultState -> MultState
 stepMult (n, m, d, t)
   | d >  0 = (n,   m, d-1, t+1) -- 規則1
