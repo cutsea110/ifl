@@ -51,6 +51,7 @@ allocateSc heap scDefn = case scDefn of
     where
       (heap', addr) = hAlloc heap (NSupercomb name args body)
 
+eval :: TiState -> [TiState]
 eval state = state : restStates
   where
     restStates
