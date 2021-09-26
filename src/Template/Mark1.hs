@@ -236,7 +236,7 @@ showStats (stack, dump, heap, globals, stats)
             , iNum (tiStatGetSteps stats)
             , iNewline, iStr "Supercombinator steps = "
             , iNum (tiStatGetScSteps stats)
-            , iNewline, iStr "     Primitives steps = "
+            , iNewline, iStr "      Primitive steps = "
             , iNum (tiStatGetPrimSteps stats)
             ]
 
