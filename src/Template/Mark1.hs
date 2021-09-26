@@ -113,7 +113,7 @@ scStep state scName argNames body = case state of
     | getDepth stack < length argNames + 1 -> error "Too few arguments given"
     | otherwise -> doAdminSc (stack', dump, heap', globals, stats)
     where
-      stack' = let (_, stk) = pop' stack (length argNames + 1) in push stk resultAddr
+      stack' = let (_, stk) = pops stack (length argNames + 1) in push stk resultAddr
       (heap', resultAddr) = instantiate body heap env
       env = argBindings ++ globals
       argBindings = zip argNames (getargs heap stack)
