@@ -153,9 +153,18 @@ showResults states
   = iDisplay (iConcat [ iLayn (map showState states)
                       , showStats lastState
                       , showAllocCount lastState
+                      , showStackMaxDepth lastState
                       ])
   where
     lastState = last states
+
+showStackMaxDepth :: TiState -> Iseqrep
+showStackMaxDepth (stack, _, _, _, _)
+  = iConcat [ iNewline, iStr "  Stack maximum depth = "
+            , iNum (getWaterMark stack)
+            ]
+  
+
 
 showAllocCount :: TiState -> Iseqrep
 showAllocCount (_, _, heap, _, _) = case heap of
