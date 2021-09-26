@@ -168,7 +168,7 @@ showStackMaxDepth (stack, _, _, _, _)
 
 showAllocCount :: TiState -> Iseqrep
 showAllocCount (_, _, heap, _, _) = case heap of
-  (allocs, _, _, _) -> iConcat [ iNewline, iStr "          Alloc count = "
+  (allocs, _, _, _) -> iConcat [ iNewline, iStr "     Allocation count = "
                                , iNum allocs
                                ]
 
@@ -234,9 +234,9 @@ showStats (stack, dump, heap, globals, stats)
   = iConcat [ iNewline
             , iNewline, iStr "Total number of steps = "
             , iNum (tiStatGetSteps stats)
-            , iNewline, iStr "             Sc steps = "
+            , iNewline, iStr "Supercombinator steps = "
             , iNum (tiStatGetScSteps stats)
-            , iNewline, iStr "           Prim steps = "
+            , iNewline, iStr "     Primitives steps = "
             , iNum (tiStatGetPrimSteps stats)
             ]
 
