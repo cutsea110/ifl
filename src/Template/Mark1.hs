@@ -46,7 +46,7 @@ compile program
   where
     scDefs = program ++ preludeDefs ++ extraPreludeDefs
     (initialHeap, globals) = buildInitialHeap scDefs
-    initialStack = [addressOfMain]
+    initialStack = fromList [addressOfMain]
     addressOfMain = aLookup globals "main" (error "main is not defined")
 
 extraPreludeDefs :: CoreProgram
@@ -80,9 +80,10 @@ doAdminPrim state = applyToStats tiStatIncPrimSteps state
 
 tiFinal :: TiState -> Bool
 tiFinal state = case state of
-  ([soleAddr], _, heap, _, _) -> isDataNode (hLookup heap soleAddr)
-  ([],         _, _,    _, _) -> error "Empty stack"
-  _                           -> False
+  (stack, _, heap, _, _) -> case getStack stack of
+    [soleAddr] -> isDataNode (hLookup heap soleAddr)
+    []         -> error "Empty stack"
+    _          -> False
 
 isDataNode :: Node -> Bool
 isDataNode node = case node of
@@ -91,8 +92,9 @@ isDataNode node = case node of
 
 step :: TiState -> TiState
 step state = case state of
-  (stack, dump, heap, globals, stats) -> dispatch (hLookup heap (head stack))
+  (stack, dump, heap, globals, stats) -> dispatch (hLookup heap item)
     where
+      (item, stack') = pop stack
       dispatch (NNum n) = numStep state n
       dispatch (NAp a1 a2) = apStep state a1 a2
       dispatch (NSupercomb sc args body) = scStep state sc args body
@@ -102,21 +104,22 @@ numStep state n = error "Number applied as a function"
 
 apStep :: TiState -> Addr -> Addr -> TiState
 apStep state a1 a2 = case state of
-  (stack, dump, heap, globals, stats) -> (a1:stack, dump, heap, globals, stats)
+  (stack, dump, heap, globals, stats) -> (stack', dump, heap, globals, stats)
+    where stack' = push stack a1
 
 scStep :: TiState -> Name -> [Name] -> CoreExpr -> TiState
 scStep state scName argNames body = case state of
   (stack, dump, heap, globals, stats)
-    | length stack < length argNames + 1 -> error "Too few arguments given"
+    | getDepth stack < length argNames + 1 -> error "Too few arguments given"
     | otherwise -> doAdminSc (stack', dump, heap', globals, stats)
     where
-      stack' = resultAddr : drop (length argNames + 1) stack
+      stack' = let (_, stk) = pop' stack (length argNames + 1) in push stk resultAddr
       (heap', resultAddr) = instantiate body heap env
       env = argBindings ++ globals
       argBindings = zip argNames (getargs heap stack)
 
 getargs :: TiHeap -> TiStack -> [Addr]
-getargs heap stack = case stack of
+getargs heap stack = case getStack stack of
   sc:stack' -> map getarg stack'
     where
       getarg addr = arg
@@ -183,7 +186,7 @@ showStack :: TiHeap -> TiStack -> Iseqrep
 showStack heap stack
   = iConcat
     [ iStr "Stack ["
-    , iIndent (iInterleave iNewline (map showStackItem stack))
+    , iIndent (iInterleave iNewline (map showStackItem (getStack stack)))
     , iStr " ]"
     ]
   where
