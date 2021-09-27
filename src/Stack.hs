@@ -33,15 +33,14 @@ getDepth :: Stack a -> Int
 getDepth = length . stack
 
 push :: Stack a -> a -> Stack a
-push s@(Stack stack waterMark) x
-  = s { stack = stack'
-      , waterMark = waterMark'
-      }
-  where stack'     = x : stack
-        waterMark' = max (length stack') waterMark
+push s x = s { stack = stack'
+             , waterMark = waterMark'
+             }
+  where stack'     = x : stack s
+        waterMark' = max (length stack') (waterMark s)
 
 pop :: Stack a -> (a, Stack a)
-pop s@(Stack stack waterMark) = case stack of
+pop s = case stack s of
   [] -> error "Empty stack"
   (x:stack') -> (x, s { stack = stack' })
 
