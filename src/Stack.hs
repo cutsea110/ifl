@@ -1,11 +1,14 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Stack
   ( Stack         -- type only
+    -- constructor
+  , initStack
+  , fromList
+    -- getter
   , getStack      -- readonly
   , getWaterMark  -- readonly
   , getDepth
-  , initStack
-  , fromList
+    -- operator
   , push
   , pop
   , pops
