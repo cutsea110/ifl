@@ -27,7 +27,7 @@ hInitial :: Heap a
 hInitial = (0, 0, [1..], [])
 
 hAlloc :: Heap a -> a -> (Heap a, Addr)
-hAlloc (allocs, size, (next:free), cts) n = ((allocs+1, size+1, free, (next, n):cts), next)
+hAlloc (allocs, size, next:free, cts) n = ((allocs+1, size+1, free, (next, n):cts), next)
 
 hUpdate :: Heap a -> Addr -> a -> Heap a
 hUpdate (allocs, size, free, cts) a n = (allocs, size, free, (a, n):remove cts a)
