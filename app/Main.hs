@@ -1,8 +1,8 @@
 module Main where
 
-import qualified MyLib (someFunc)
+import qualified Template.Mark1 as Mark1
 
 main :: IO ()
 main = do
   putStrLn "Hello, Haskell!"
-  MyLib.someFunc
+  Mark1.test Mark1.testProg2
