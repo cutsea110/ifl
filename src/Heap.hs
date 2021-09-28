@@ -1,11 +1,27 @@
-module Heap where
+module Heap
+  ( Size
+  , Addr
+  , Allocs
+  , Heap
+  , hInitial
+  , hAlloc
+  , hUpdate
+  , hFree
+  , hLookup
+  , hAddresses
+  , hSize
+  , hNull
+  , hIsnull
+  , showaddr
+  , remove
+  ) where
 
-import Utils
+import Utils (Assoc, aLookup)
 
 type Size = Int
 type Addr = Int
 type Allocs = Int
-type Heap a = (Allocs, Size, [Addr], [(Addr, a)])
+type Heap a = (Allocs, Size, [Addr], Assoc Addr a)
 
 hInitial :: Heap a
 hInitial = (0, 0, [1..], [])
