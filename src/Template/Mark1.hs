@@ -158,7 +158,7 @@ showResults states
   where
     lastState = last states
 
-showStackMaxDepth :: TiState -> Iseqrep
+showStackMaxDepth :: TiState -> IseqRep
 showStackMaxDepth (stack, _, _, _, _)
   = iConcat [ iNewline, iStr "  Stack maximum depth = "
             , iNum (getWaterMark stack)
@@ -166,19 +166,19 @@ showStackMaxDepth (stack, _, _, _, _)
   
 
 
-showAllocCount :: TiState -> Iseqrep
+showAllocCount :: TiState -> IseqRep
 showAllocCount (_, _, heap, _, _) = case heap of
   (allocs, _, _, _) -> iConcat [ iNewline, iStr "     Allocation count = "
                                , iNum allocs
                                ]
 
-showState :: TiState -> Iseqrep
+showState :: TiState -> IseqRep
 showState (stack, dump, heap, globals, stats)
   = iConcat [ showStack heap stack, iNewline
             , showHeap heap, iNewline
             ]
 
-showHeap :: TiHeap -> Iseqrep
+showHeap :: TiHeap -> IseqRep
 showHeap heap = case heap of
   (_, _, _, cts) -> iConcat
                     [ iStr "Heap  ["
@@ -191,7 +191,7 @@ showHeap heap = case heap of
                   , showNode node
                   ]
 
-showStack :: TiHeap -> TiStack -> Iseqrep
+showStack :: TiHeap -> TiStack -> IseqRep
 showStack heap stack
   = iConcat
     [ iStr "Stack ["
@@ -204,7 +204,7 @@ showStack heap stack
                 , showStkNode heap (hLookup heap addr)
                 ]
 
-showStkNode :: TiHeap -> Node -> Iseqrep
+showStkNode :: TiHeap -> Node -> IseqRep
 showStkNode heap (NAp funAddr argAddr)
   = iConcat [ iStr "NAp ", showFWAddr funAddr
             , iStr " ", showFWAddr argAddr, iStr " ("
@@ -212,7 +212,7 @@ showStkNode heap (NAp funAddr argAddr)
             ]
 showStkNode heap node = showNode node
 
-showNode :: Node -> Iseqrep
+showNode :: Node -> IseqRep
 showNode node = case node of
   NAp a1 a2 -> iConcat [ iStr "NAp ", showAddr a1
                        , iStr " ",    showAddr a2
@@ -221,15 +221,15 @@ showNode node = case node of
     -> iStr ("NSupercomb " ++ name)
   NNum n -> iStr "NNum " `iAppend` iNum n
 
-showAddr :: Addr -> Iseqrep
+showAddr :: Addr -> IseqRep
 showAddr addr = iStr (showaddr addr)
 
-showFWAddr :: Addr -> Iseqrep
+showFWAddr :: Addr -> IseqRep
 showFWAddr addr = iStr (space (4 - length str) ++ str)
   where
     str = show addr
 
-showStats :: TiState -> Iseqrep
+showStats :: TiState -> IseqRep
 showStats (stack, dump, heap, globals, stats)
   = iConcat [ iNewline
             , iNewline, iStr "Total number of steps = "

@@ -112,10 +112,10 @@ unfoldr psi xs = case psi xs of
                    <1> -> Pack{1,0} ;
                    <2> y ys -> Pack{2,2} y (unfoldr psi ys)
 -}
-pprProgram :: CoreProgram -> Iseqrep
+pprProgram :: CoreProgram -> IseqRep
 pprProgram scdefns = iInterleave iNL' $ map pprScDefn scdefns
 
-pprScDefn :: CoreScDefn -> Iseqrep
+pprScDefn :: CoreScDefn -> IseqRep
 pprScDefn (name, args, expr)
   = iConcat [ iStr name, sep, pprArgs args
             , iStr " = "
@@ -123,7 +123,7 @@ pprScDefn (name, args, expr)
             ]
     where sep = if null args then iNil else iSpace
 
-pprArgs :: [String] -> Iseqrep
+pprArgs :: [String] -> IseqRep
 pprArgs args = iInterleave iSpace $ map iStr args
 
 {- $setup
@@ -459,7 +459,7 @@ letrec
   y = \ x -> x (y x)
 in y (\ f i -> bool (i * f (i - 1)) 1 (i == 1))
 -}
-pprExpr :: Level -> Fixity -> CoreExpr -> Iseqrep
+pprExpr :: Level -> Fixity -> CoreExpr -> IseqRep
 pprExpr _ _ (ENum n) = iNum n
 pprExpr _ _ (EVar v) = iStr v
 pprExpr _ _ (EConstr tag arity) = iConcat $ map iStr ["Pack{", show tag, ",", show arity, "}"]
@@ -523,14 +523,14 @@ infixOperator op
               , "&&", "||"
               ]
 
-pprDefns :: [(Name, CoreExpr)] -> Iseqrep
+pprDefns :: [(Name, CoreExpr)] -> IseqRep
 pprDefns defns = iInterleave iNL (map pprDefn defns)
 
-pprDefn :: (Name, CoreExpr) -> Iseqrep
+pprDefn :: (Name, CoreExpr) -> IseqRep
 pprDefn (name, expr)
   = iConcat [ iStr name, iStr " = ", iIndent (pprExpr Top defaultFixity expr) ]
 
-pprAlt :: CoreAlt -> Iseqrep
+pprAlt :: CoreAlt -> IseqRep
 pprAlt (i, args, expr)
   = iConcat [ iStr "<", iStr (show i), iStr ">", sep, pprArgs args
             , iStr " -> ", iIndent (pprExpr Top defaultFixity expr)

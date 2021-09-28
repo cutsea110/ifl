@@ -1,6 +1,6 @@
 module Iseq
   ( Iseq (..)
-  , Iseqrep ()
+  , IseqRep ()
   , iConcat
   , iInterleave
   , iParen
@@ -25,14 +25,14 @@ class Iseq iseq where
 infixr 5 `iAppend`
 
 -- | Iseq 抽象データ型の具体型
-data Iseqrep = INil
+data IseqRep = INil
              | IStr String
-             | IAppend Iseqrep Iseqrep
-             | IIndent Iseqrep
+             | IAppend IseqRep IseqRep
+             | IIndent IseqRep
              | INewline
              deriving Show
 
-instance Iseq Iseqrep where
+instance Iseq IseqRep where
   iNil              = INil
   iStr []           = INil
   iStr s            = case break (=='\n') s of
@@ -45,7 +45,7 @@ instance Iseq Iseqrep where
   iIndent seq       = IIndent seq
   iDisplay seq      = flatten 0 [(seq, 0)]
 
-flatten :: Int -> [(Iseqrep, Int)] -> String
+flatten :: Int -> [(IseqRep, Int)] -> String
 flatten col [] = ""
 flatten col ((INil, indent) : seqs)
   = flatten col seqs
