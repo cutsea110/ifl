@@ -6,9 +6,9 @@ module Template.MultMachine where
 -- δ簡約: primitive 演算の実行
 
 -- redex : 簡約可能
--- Constant Applicative Form : 
--- Normal Form :
--- Weak Head Normal Form :
+-- Constant Applicative Form (CAF) : 
+-- Normal Form (NF) :
+-- Weak Head Normal Form (WHNF) :
 
 -- |
 -- n * m => n + n + n + n + ... + n
