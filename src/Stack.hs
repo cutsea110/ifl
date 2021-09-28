@@ -14,40 +14,35 @@ module Stack
   , pops
   ) where
 
-data Stack a = Stack { stack :: [a]
-                     , waterMark :: Int
-                     }
+type Stack a = ([a], Int)
 
 -- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
 getStack :: Stack a -> [a]
-getStack = stack
+getStack = fst
 
 -- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
 getWaterMark :: Stack a -> Int
-getWaterMark = waterMark
+getWaterMark = snd
 
 initStack :: Stack a
-initStack = Stack [] 0
+initStack = ([], 0)
 
 fromList :: [a] -> Stack a
-fromList = Stack <*> length
+fromList xs = (xs, length xs)
 
 getDepth :: Stack a -> Int
-getDepth = length . stack
+getDepth = length . fst
 
 push :: Stack a -> a -> Stack a
-push s x = s { stack = stack'
-             , waterMark = waterMark'
-             }
-  where stack'     = x : stack s
-        waterMark' = max (length stack') (waterMark s)
+push (xs, wm) x = (xs', wm')
+  where xs' = x:xs
+        wm' = max (length xs') wm
 
 pop :: Stack a -> (a, Stack a)
-pop s = case stack s of
-  [] -> error "Empty stack"
-  (x:stack') -> (x, s { stack = stack' })
+pop ([], _)    = error "Empty stack"
+pop (x:xs, wm) = (x, (xs, wm))
 
 pops :: Stack a -> Int -> ([a], Stack a)
-pops s n = (xs, s { stack = rest })
+pops (xs, wm) n = (xs', (rest, wm))
   where
-    (xs, rest) = splitAt n $ stack s
+    (xs', rest) = splitAt n xs
