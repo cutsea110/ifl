@@ -124,6 +124,14 @@ pop s = case stack s of
 [5,6,7,8,9,10]
 >>> waterMark s1
 10
+
+>>> let (ys, s2) = pops s1 1
+>>> ys
+[5]
+>>> stack s2
+[6,7,8,9,10]
+>>> waterMark s2
+10
 -}
 pops :: Stack a -> Int -> ([a], Stack a)
 pops s n = (xs, s { stack = rest })
