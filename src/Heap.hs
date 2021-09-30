@@ -52,6 +52,22 @@ hIsnull a = a == 0
 showaddr :: Addr -> String
 showaddr a = "#" ++ show a
 
+{- |
+>>> remove [(1, 10)] 1
+[]
+
+>>> remove [(1, 10), (2, 20)] 1
+[(2,20)]
+
+>>> remove [(1, 10), (1, 11)] 1
+[(1,11)]
+
+>>> remove [(1, 10), (2, 20)] 2
+[(1,10)]
+
+>>> remove [(1, 10), (2, 20), (3, 30)] 2
+[(1,10),(3,30)]
+-}
 remove :: [(Addr, a)] -> Addr -> [(Addr, a)]
 remove [] a = error $ "Attempt tio update or free nonexistent address: " ++ showaddr a
 remove ((a', n):cts) a | a == a' = cts
