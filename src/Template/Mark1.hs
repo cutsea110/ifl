@@ -140,9 +140,10 @@ instantiate expr heap env = case expr of
   ECase e alts         -> error "Can't instantiate case exprs"
   ELam vs e            -> error "Can't instantiate lambda abstractions"
 
-
+instantiateConstr :: Tag -> Arity -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
 instantiateConstr = error "TODO"
 
+instantiateLet :: IsRec -> [(Name, CoreExpr)] -> CoreExpr -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
 instantiateLet = error "TODO"
 
 

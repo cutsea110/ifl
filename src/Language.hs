@@ -5,6 +5,9 @@ module Language
   , CoreExpr
   , CoreScDefn
   , CoreProgram
+  , IsRec
+  , Tag
+  , Arity
   , parse
   , preludeDefs
   ) where
