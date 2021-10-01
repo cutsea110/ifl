@@ -1,5 +1,13 @@
 {-# LANGUAGE NPlusKPatterns #-}
-module Language where
+module Language
+  ( Expr (..)
+  , Name
+  , CoreExpr
+  , CoreScDefn
+  , CoreProgram
+  , parse
+  , preludeDefs
+  ) where
 
 import Data.Char (isAlpha, isDigit, isSpace)
 
