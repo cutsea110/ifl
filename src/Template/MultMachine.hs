@@ -1,15 +1,5 @@
 module Template.MultMachine where
 
--- α変換: 名前の付け替え
--- β簡約: 代入
--- η簡約: \x. P x => P
--- δ簡約: primitive 演算の実行
-
--- redex : 簡約可能
--- Constant Applicative Form (CAF) : 
--- Normal Form (NF) :
--- Weak Head Normal Form (WHNF) :
-
 -- |
 -- n * m => n + n + n + n + ... + n
 --          <---------- m -------->
@@ -19,6 +9,10 @@ module Template.MultMachine where
 -- final : m == d == 0
 type MultState = (Int, Int, Int, Int) -- (n, m, d, t)
 
+{- |
+>>> evalMult (2,3,0,0)
+[(2,3,0,0),(2,2,2,0),(2,2,1,1),(2,2,0,2),(2,1,2,2),(2,1,1,3),(2,1,0,4),(2,0,2,4),(2,0,1,5),(2,0,0,6)]
+-}
 evalMult :: MultState -> [MultState]
 evalMult state = if multFinal state
   then [state]
