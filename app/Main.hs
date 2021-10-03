@@ -1,7 +1,6 @@
 module Main where
 
-import Language (parse)
-import Template.Mark1 (compile, eval, showResults)
+import Template.Mark1 (parse, compile, eval, showResults)
 
 testProg0, testProg1, testProg2 :: String
 testProg0 = "main = S K K 3"

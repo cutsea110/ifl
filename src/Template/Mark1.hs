@@ -1,4 +1,9 @@
-module Template.Mark1 where
+module Template.Mark1
+  ( parse
+  , eval
+  , compile
+  , showResults
+  ) where
 
 import Data.List (mapAccumL)
 
