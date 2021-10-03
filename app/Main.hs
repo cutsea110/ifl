@@ -1,8 +1,19 @@
 module Main where
 
-import qualified Template.Mark1 as Mark1
+import Language (parse)
+import Template.Mark1 (compile, eval, showResults)
+
+testProg0, testProg1, testProg2 :: String
+testProg0 = "main = S K K 3"
+testProg1 = "main = S K K"
+testProg2 = unlines [ "id = S K K ;"
+                    , "main = twice twice twice id 3"
+                    ]
+
+test :: String -> IO ()
+test = putStrLn . showResults . eval . compile . parse
 
 main :: IO ()
 main = do
   putStrLn "Hello, Haskell!"
-  Mark1.test Mark1.testProg2
+  test testProg2
