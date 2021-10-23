@@ -21,11 +21,11 @@ data Stack a = Stack { stack :: [a]
 
 -- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
 getStack :: Stack a -> [a]
-getStack = stack
+getStack (Stack s _ _) = s
 
 -- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
 getWaterMark :: Stack a -> Int
-getWaterMark = highWaterMark
+getWaterMark (Stack _ _ m) = m
 
 {- |
 >>> stack initStack
@@ -65,7 +65,7 @@ fromList xs = Stack xs l l
 5
 -}
 getDepth :: Stack a -> Int
-getDepth = depth
+getDepth (Stack _ d _) = d
 
 {- |
 >>> let s0 = initStack
@@ -74,11 +74,15 @@ getDepth = depth
 ["a"]
 >>> highWaterMark s1
 1
+>>> getDepth s1
+1
 
 >>> let s2 = push s1 "b"
 >>> stack s2
 ["b","a"]
 >>> highWaterMark s2
+2
+>>> getDepth s2
 2
 -}
 push :: Stack a -> a -> Stack a
@@ -88,7 +92,7 @@ push s x = s { stack = stack'
              }
   where stack'         = x : stack s
         depth'         = depth s + 1
-        highWaterMark' = max (length stack') (highWaterMark s)
+        highWaterMark' = max depth' (highWaterMark s)
 
 {- |
 >>> let s0 = fromList [1..5]
@@ -99,6 +103,8 @@ push s x = s { stack = stack'
 [2,3,4,5]
 >>> highWaterMark s1
 5
+>>> getDepth s1
+4
 
 >>> let (y, s2) = pop s1
 >>> y
@@ -107,6 +113,8 @@ push s x = s { stack = stack'
 [3,4,5]
 >>> highWaterMark s2
 5
+>>> getDepth s2
+3
 
 >>> let (z, s3) = pop s2
 >>> z
@@ -115,6 +123,8 @@ push s x = s { stack = stack'
 [4,5]
 >>> highWaterMark s3
 5
+>>> getDepth s3
+2
 -}
 pop :: Stack a -> (a, Stack a)
 pop s = case stack s of
@@ -130,15 +140,19 @@ pop s = case stack s of
 [5,6,7,8,9,10]
 >>> highWaterMark s1
 10
+>>> getDepth s1
+6
 
 >>> let s2 = discard 1 s1
 >>> stack s2
 [6,7,8,9,10]
 >>> highWaterMark s2
 10
+>>> getDepth s2
+5
 -}
 discard :: Int -> Stack a -> Stack a
-discard n s = s { stack = stack' }
+discard n s = s { stack = stack', depth = depth' }
   where
     stack' = drop n $ stack s
     depth' = max 0 (depth s - n)
