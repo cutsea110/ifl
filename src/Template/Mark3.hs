@@ -108,10 +108,6 @@ step state = case state of
       dispatch (NSupercomb sc args body) = scStep state sc args body
       dispatch (NInd a) = indStep state a
 
-indStep :: TiState -> Addr -> TiState
-indStep state a = case state of
-  (stack, dump, heap, globals, stats) -> (push (discard 1 stack) a, dump, heap, globals, stats)
-
 numStep :: TiState -> Int -> TiState
 numStep state n = error "Number applied as a function"
 
@@ -124,14 +120,31 @@ scStep :: TiState -> Name -> [Name] -> CoreExpr -> TiState
 scStep state scName argNames body = case state of
   (stack, dump, heap, globals, stats)
     | getDepth stack < length argNames + 1 -> error "Too few arguments given"
-    | otherwise -> doAdminSc (stack', dump, heap'', globals, stats)
+    | otherwise -> doAdminSc (stack', dump, heap', globals, stats)
     where
-      heap'' = hUpdate heap' an (NInd resultAddr)
-      (an, stack1) = pop (discard (length argNames) stack)
-      stack' = push stack1 resultAddr
-      (heap', resultAddr) = instantiate body heap env
-      env = argBindings ++ globals
-      argBindings = zip argNames (getargs heap stack)
+      argsLen = length argNames
+      stack' = discard argsLen stack
+      (root, _) = pop stack'
+      heap' = instantiateAndUpdate body root heap (bindings ++ globals)
+      bindings = zip argNames (getargs heap stack)
+
+instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
+instantiateAndUpdate expr updAddr heap env = case expr of
+  ENum n -> hUpdate heap updAddr (NNum n)
+  EAp e1 e2 -> hUpdate heap'' updAddr (NAp a1 a2)
+    where (heap',  a1) = instantiate e1 heap  env
+          (heap'', a2) = instantiate e2 heap' env
+  EVar v -> hUpdate heap updAddr (NInd varAddr)
+    where varAddr = aLookup env v (error ("Undefined name " ++ show v))
+  ELet isrec defs body -> instantiateAndUpdate body updAddr heap' env'
+    where (heap', extraBindings) = mapAccumL instantiateRhs heap defs
+          env' = extraBindings ++ env
+          rhsEnv | isrec     = env'
+                 | otherwise = env
+          instantiateRhs heap (name, rhs) = (heap', (name, addr))
+            where (heap', addr) = instantiate rhs heap rhsEnv
+  EConstr tag arity -> error "TODO: implement instantiateAndUpdate"
+  _                 -> error "not yet implemented"
 
 getargs :: TiHeap -> TiStack -> [Addr]
 getargs heap stack = case getStack stack of
@@ -141,6 +154,10 @@ getargs heap stack = case getStack stack of
         where
           NAp fun arg = hLookup heap addr
   []        -> error "Empty stack"
+
+indStep :: TiState -> Addr -> TiState
+indStep state a = case state of
+  (stack, dump, heap, globals, stats) -> (push (discard 1 stack) a, dump, heap, globals, stats)
 
 instantiate :: CoreExpr -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
 instantiate expr heap env = case expr of
