@@ -11,7 +11,7 @@ module Stack
     -- operator
   , push
   , pop
-  , pops
+  , discard
   ) where
 
 data Stack a = Stack { stack :: [a]
@@ -117,23 +117,19 @@ pop s = case stack s of
 
 {- |
 >>> let s0 = fromList [1..10]
->>> let (xs, s1) = pops s0 4
->>> xs
-[1,2,3,4]
+>>> let s1 = discard 4 s0
 >>> stack s1
 [5,6,7,8,9,10]
 >>> waterMark s1
 10
 
->>> let (ys, s2) = pops s1 1
->>> ys
-[5]
+>>> let s2 = discard 1 s1
 >>> stack s2
 [6,7,8,9,10]
 >>> waterMark s2
 10
 -}
-pops :: Stack a -> Int -> ([a], Stack a)
-pops s n = (xs, s { stack = rest })
+discard :: Int -> Stack a -> Stack a
+discard n s = s { stack = stack' }
   where
-    (xs, rest) = splitAt n $ stack s
+    stack' = drop n $ stack s
