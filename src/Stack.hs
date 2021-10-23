@@ -15,7 +15,7 @@ module Stack
   ) where
 
 data Stack a = Stack { stack :: [a]
-                     , waterMark :: Int
+                     , highWaterMark :: Int
                      }
 
 -- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
@@ -24,13 +24,13 @@ getStack = stack
 
 -- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
 getWaterMark :: Stack a -> Int
-getWaterMark = waterMark
+getWaterMark = highWaterMark
 
 {- |
 >>> stack initStack
 []
 
->>> waterMark initStack
+>>> highWaterMark initStack
 0
 -}
 initStack :: Stack a
@@ -40,13 +40,13 @@ initStack = Stack [] 0
 >>> stack $ fromList []
 []
 
->>> waterMark $ fromList []
+>>> highWaterMark $ fromList []
 0
 
 >>> stack $ fromList [1..5]
 [1,2,3,4,5]
 
->>> waterMark $ fromList [1..5]
+>>> highWaterMark $ fromList [1..5]
 5
 -}
 fromList :: [a] -> Stack a
@@ -67,21 +67,21 @@ getDepth = length . stack
 >>> let s1 = push s0 "a"
 >>> stack s1
 ["a"]
->>> waterMark s1
+>>> highWaterMark s1
 1
 
 >>> let s2 = push s1 "b"
 >>> stack s2
 ["b","a"]
->>> waterMark s2
+>>> highWaterMark s2
 2
 -}
 push :: Stack a -> a -> Stack a
 push s x = s { stack = stack'
-             , waterMark = waterMark'
+             , highWaterMark = highWaterMark'
              }
   where stack'     = x : stack s
-        waterMark' = max (length stack') (waterMark s)
+        highWaterMark' = max (length stack') (highWaterMark s)
 
 {- |
 >>> let s0 = fromList [1..5]
@@ -90,7 +90,7 @@ push s x = s { stack = stack'
 1
 >>> stack s1
 [2,3,4,5]
->>> waterMark s1
+>>> highWaterMark s1
 5
 
 >>> let (y, s2) = pop s1
@@ -98,7 +98,7 @@ push s x = s { stack = stack'
 2
 >>> stack s2
 [3,4,5]
->>> waterMark s2
+>>> highWaterMark s2
 5
 
 >>> let (z, s3) = pop s2
@@ -106,7 +106,7 @@ push s x = s { stack = stack'
 3
 >>> stack s3
 [4,5]
->>> waterMark s3
+>>> highWaterMark s3
 5
 -}
 pop :: Stack a -> (a, Stack a)
@@ -120,13 +120,13 @@ pop s = case stack s of
 >>> let s1 = discard 4 s0
 >>> stack s1
 [5,6,7,8,9,10]
->>> waterMark s1
+>>> highWaterMark s1
 10
 
 >>> let s2 = discard 1 s1
 >>> stack s2
 [6,7,8,9,10]
->>> waterMark s2
+>>> highWaterMark s2
 10
 -}
 discard :: Int -> Stack a -> Stack a
