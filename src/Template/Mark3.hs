@@ -128,6 +128,10 @@ scStep state scName argNames body = case state of
       heap' = instantiateAndUpdate body root heap (bindings ++ globals)
       bindings = zip argNames (getargs heap stack)
 
+indStep :: TiState -> Addr -> TiState
+indStep state a = case state of
+  (stack, dump, heap, globals, stats) -> (push (discard 1 stack) a, dump, heap, globals, stats)
+
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateAndUpdate expr updAddr heap env = case expr of
   ENum n -> hUpdate heap updAddr (NNum n)
@@ -154,10 +158,6 @@ getargs heap stack = case getStack stack of
         where
           NAp fun arg = hLookup heap addr
   []        -> error "Empty stack"
-
-indStep :: TiState -> Addr -> TiState
-indStep state a = case state of
-  (stack, dump, heap, globals, stats) -> (push (discard 1 stack) a, dump, heap, globals, stats)
 
 instantiate :: CoreExpr -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
 instantiate expr heap env = case expr of
