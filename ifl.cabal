@@ -25,6 +25,7 @@ library
                        Stack
                        Template.MultMachine
                        Template.Mark1
+                       Template.Mark2
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.13 && <4.16

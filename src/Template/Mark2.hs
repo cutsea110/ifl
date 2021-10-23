@@ -1,4 +1,4 @@
-module Template.Mark1
+module Template.Mark2
   ( parse
   , eval
   , compile
