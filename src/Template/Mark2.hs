@@ -151,8 +151,13 @@ instantiateConstr :: Tag -> Arity -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
 instantiateConstr = error "TODO"
 
 instantiateLet :: IsRec -> [(Name, CoreExpr)] -> CoreExpr -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
-instantiateLet = error "TODO"
-
+instantiateLet isrec defs expr heap env = instantiate expr heap' env'
+  where (heap', extraBindings) = mapAccumL instantiateRhs heap defs
+        env' = extraBindings ++ env
+        rhsEnv | isrec     = env'
+               | otherwise = env
+        instantiateRhs heap (name, rhs) = (heap1, (name, addr))
+          where (heap1, addr) = instantiate rhs heap rhsEnv
 
 ------
 
