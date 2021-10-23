@@ -187,8 +187,8 @@ showAllocCount (_, _, heap, _, _) = case heap of
 
 showState :: TiState -> IseqRep
 showState (stack, dump, heap, globals, stats)
-  = iConcat [ showStack heap stack, iNewline
-            , showHeap heap, iNewline
+  = iConcat [ showHeap heap, iNewline
+            , showStack heap stack, iNewline
             ]
 
 showHeap :: TiHeap -> IseqRep
