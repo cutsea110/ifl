@@ -112,7 +112,7 @@ numStep state n = error "Number applied as a function"
 apStep :: TiState -> Addr -> Addr -> TiState
 apStep state a1 a2 = case state of
   (stack, dump, heap, globals, stats) -> (stack', dump, heap, globals, stats)
-    where stack' = push stack a1
+    where stack' = push a1 stack
 
 scStep :: TiState -> Name -> [Name] -> CoreExpr -> TiState
 scStep state scName argNames body = case state of
@@ -120,7 +120,7 @@ scStep state scName argNames body = case state of
     | getDepth stack < length argNames + 1 -> error "Too few arguments given"
     | otherwise -> doAdminSc (stack', dump, heap', globals, stats)
     where
-      stack' = let stk = discard (length argNames + 1) stack in push stk resultAddr
+      stack' = let stk = discard (length argNames + 1) stack in push resultAddr stk
       (heap', resultAddr) = instantiate body heap env
       env = argBindings ++ globals
       argBindings = zip argNames (getargs heap stack)

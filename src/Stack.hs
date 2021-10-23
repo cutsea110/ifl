@@ -69,7 +69,7 @@ getDepth (Stack _ d _) = d
 
 {- |
 >>> let s0 = initStack
->>> let s1 = push s0 "a"
+>>> let s1 = push "a" s0
 >>> stack s1
 ["a"]
 >>> highWaterMark s1
@@ -77,7 +77,7 @@ getDepth (Stack _ d _) = d
 >>> getDepth s1
 1
 
->>> let s2 = push s1 "b"
+>>> let s2 = push "b" s1
 >>> stack s2
 ["b","a"]
 >>> highWaterMark s2
@@ -85,8 +85,8 @@ getDepth (Stack _ d _) = d
 >>> getDepth s2
 2
 -}
-push :: Stack a -> a -> Stack a
-push s x = s { stack = stack'
+push :: a -> Stack a -> Stack a
+push x s = s { stack = stack'
              , depth = depth'
              , highWaterMark = highWaterMark'
              }

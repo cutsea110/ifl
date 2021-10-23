@@ -114,7 +114,7 @@ numStep state n = error "Number applied as a function"
 apStep :: TiState -> Addr -> Addr -> TiState
 apStep state a1 a2 = case state of
   (stack, dump, heap, globals, stats) -> (stack', dump, heap, globals, stats)
-    where stack' = push stack a1
+    where stack' = push a1 stack
 
 scStep :: TiState -> Name -> [Name] -> CoreExpr -> TiState
 scStep state scName argNames body = case state of
@@ -130,7 +130,7 @@ scStep state scName argNames body = case state of
 
 indStep :: TiState -> Addr -> TiState
 indStep state a = case state of
-  (stack, dump, heap, globals, stats) -> (push (discard 1 stack) a, dump, heap, globals, stats)
+  (stack, dump, heap, globals, stats) -> (push a (discard 1 stack), dump, heap, globals, stats)
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateAndUpdate expr updAddr heap env = case expr of
