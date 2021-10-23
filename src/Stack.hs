@@ -6,8 +6,8 @@ module Stack
   , fromList
     -- getter
   , getStack      -- readonly
+  , getDepth      -- readonly
   , getWaterMark  -- readonly
-  , getDepth
     -- operator
   , push
   , pop
@@ -15,6 +15,7 @@ module Stack
   ) where
 
 data Stack a = Stack { stack :: [a]
+                     , depth :: Int
                      , highWaterMark :: Int
                      }
 
@@ -34,11 +35,14 @@ getWaterMark = highWaterMark
 0
 -}
 initStack :: Stack a
-initStack = Stack [] 0
+initStack = Stack [] 0 0
 
 {- |
 >>> stack $ fromList []
 []
+
+>>> depth $ fromList []
+0
 
 >>> highWaterMark $ fromList []
 0
@@ -50,7 +54,8 @@ initStack = Stack [] 0
 5
 -}
 fromList :: [a] -> Stack a
-fromList = Stack <*> length
+fromList xs = Stack xs l l
+  where l = length xs
 
 {- |
 >>> getDepth $ fromList []
@@ -60,7 +65,7 @@ fromList = Stack <*> length
 5
 -}
 getDepth :: Stack a -> Int
-getDepth = length . stack
+getDepth = depth
 
 {- |
 >>> let s0 = initStack
@@ -78,9 +83,11 @@ getDepth = length . stack
 -}
 push :: Stack a -> a -> Stack a
 push s x = s { stack = stack'
+             , depth = depth'
              , highWaterMark = highWaterMark'
              }
-  where stack'     = x : stack s
+  where stack'         = x : stack s
+        depth'         = depth s + 1
         highWaterMark' = max (length stack') (highWaterMark s)
 
 {- |
@@ -112,7 +119,8 @@ push s x = s { stack = stack'
 pop :: Stack a -> (a, Stack a)
 pop s = case stack s of
   [] -> error "Empty stack"
-  (x:stack') -> (x, s { stack = stack' })
+  (x:stack') -> (x, s { stack = stack', depth = depth' })
+    where depth' = depth s - 1
 
 
 {- |
@@ -133,3 +141,4 @@ discard :: Int -> Stack a -> Stack a
 discard n s = s { stack = stack' }
   where
     stack' = drop n $ stack s
+    depth' = max 0 (depth s - n)
