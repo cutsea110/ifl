@@ -69,6 +69,6 @@ showaddr a = "#" ++ show a
 [(1,10),(3,30)]
 -}
 remove :: [(Addr, a)] -> Addr -> [(Addr, a)]
-remove [] a = error $ "Attempt tio update or free nonexistent address: " ++ showaddr a
+remove [] a = error $ "Attempt to update or free nonexistent address: " ++ showaddr a
 remove ((a', n):cts) a | a == a' = cts
                        | a /= a' = (a', n):remove cts a
