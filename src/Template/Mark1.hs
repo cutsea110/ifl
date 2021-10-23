@@ -148,10 +148,10 @@ instantiate expr heap env = case expr of
   ELam vs e            -> error "Can't instantiate lambda abstractions"
 
 instantiateConstr :: Tag -> Arity -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
-instantiateConstr = error "TODO"
+instantiateConstr = error "TODO: implement instantiateConstr"
 
 instantiateLet :: IsRec -> [(Name, CoreExpr)] -> CoreExpr -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
-instantiateLet = error "TODO"
+instantiateLet = error "TODO: implement instantiateLet"
 
 
 ------
