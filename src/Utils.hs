@@ -13,6 +13,9 @@ module Utils
 
 >>> space 4
 "    "
+
+>>> space (-1)
+""
 -}
 space :: Int -> String
 space n = replicate n ' '
