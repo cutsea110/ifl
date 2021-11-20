@@ -28,6 +28,13 @@ getStack (Stack s _ _) = s
 getWaterMark :: Stack a -> Int
 getWaterMark (Stack _ _ m) = m
 
+{- |
+>>> isEmptyStack initStack
+True
+
+>>> isEmptyStack $ fromList [1]
+False
+-}
 isEmptyStack :: Stack a -> Bool
 isEmptyStack (Stack s _ _) = null s
 
