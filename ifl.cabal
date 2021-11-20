@@ -27,6 +27,7 @@ library
                        Template.Mark1
                        Template.Mark2
                        Template.Mark3
+                       Template.Mark4
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.13 && <4.16
