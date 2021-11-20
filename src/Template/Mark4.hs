@@ -169,18 +169,32 @@ primStep state prim = case prim of
 primNeg :: TiState -> TiState
 primNeg state = case state of
   (stack, dump, heap, globals, stats)
-    | getDepth stack /= 2 -> error "primNeg: wrong number of args."
+    | length args /= 1 -> error "primNeg: wrong number of args."
     | isDataNode argnode -> (stack', dump, heap', globals, stats)
     | otherwise -> (push argaddr initStack, push stack dump, heap, globals, stats)
-    where (op, stack') = pop stack
-          (a, stack'') = pop stack'
-          argaddr = getargs heap stack!!0
+    where args = getargs heap stack
+          [argaddr] = args
           argnode = hLookup heap argaddr
-          heap' = hUpdate heap a (NNum (negate n))
           NNum n = argnode
+          (_, stack') = pop stack
+          (root, stack'') = pop stack'
+          heap' = hUpdate heap root (NNum (negate n)) 
 
 primArith :: TiState -> (Int -> Int -> Int) -> TiState
-primArith = undefined
+primArith state op = case state of
+  (stack, dump, heap, globals, stats)
+    | length args /= 2 -> error "primArith: wrong number of args."
+    | not (isDataNode lnode) -> (push laddr initStack, push stack' dump, heap, globals, stats)
+    | not (isDataNode rnode) -> (push raddr initStack, push stack' dump, heap, globals, stats)
+    | otherwise -> (stack', dump, heap', globals, stats)
+    where args = getargs heap stack
+          [laddr, raddr] = args
+          [lnode, rnode] = map (hLookup heap) args
+          stack' = discard 2 stack
+          (root, _) = pop stack'
+          heap' = hUpdate heap root (NNum (m `op` n))
+          NNum m = lnode
+          NNum n = rnode
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateAndUpdate expr updAddr heap env = case expr of
