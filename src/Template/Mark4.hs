@@ -119,6 +119,12 @@ isDataNode node = case node of
   NNum _ -> True
   _      -> False
 
+
+isIndNode :: Node -> Bool
+isIndNode node = case node of
+  NInd _ -> True
+  _      -> False
+
 step :: TiState -> TiState
 step state = case state of
   (stack, dump, heap, globals, stats) -> dispatch (hLookup heap item)
@@ -139,8 +145,14 @@ numStep state n = case state of
 
 apStep :: TiState -> Addr -> Addr -> TiState
 apStep state a1 a2 = case state of
-  (stack, dump, heap, globals, stats) -> (stack', dump, heap, globals, stats)
+  (stack, dump, heap, globals, stats)
+    | isIndNode a2node -> (stack,  dump, heap', globals, stats)
+    | otherwise        -> (stack', dump, heap,  globals, stats)
     where stack' = push a1 stack
+          (a0, _) = pop stack
+          a2node = hLookup heap a2
+          NInd a3 = a2node
+          heap' = hUpdate heap a0 (NAp a1 a3)
 
 scStep :: TiState -> Name -> [Name] -> CoreExpr -> TiState
 scStep state scName argNames body = case state of

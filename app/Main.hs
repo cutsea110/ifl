@@ -28,10 +28,11 @@ testProg4 = unlines [ "id x = x ;"
 testProg5 = unlines [ "main = negate (negate 7)"
                     ]
 
-testProg5_1 = unlines [ "main = twice negate 3"
-                      ]
-
 testProg6 = unlines [ "main = ((6 / 2) * 6) + (4 * (10 - 4))"
+                    ]
+
+testProg7 = unlines [ "double x = x + x ;"
+                    , "main = S K K double (double 3)"
                     ]
 
 test :: String -> IO ()
@@ -40,4 +41,4 @@ test = putStrLn . showResults . eval . compile . parse
 main :: IO ()
 main = do
   putStrLn "Hello, Haskell!"
-  test testProg6
+  test testProg7

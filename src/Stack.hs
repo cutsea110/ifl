@@ -19,6 +19,7 @@ data Stack a = Stack { stack :: [a]
                      , depth :: Int
                      , highWaterMark :: Int
                      }
+             deriving Show
 
 -- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
 getStack :: Stack a -> [a]
