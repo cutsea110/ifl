@@ -35,10 +35,14 @@ testProg7 = unlines [ "double x = x + x ;"
                     , "main = S K K double (double 3)"
                     ]
 
+testProg8 = unlines [ "double x = x + x ;"
+                    , "main = double (S K K 3)"
+                    ]
+
 test :: String -> IO ()
 test = putStrLn . showResults . eval . compile . parse
 
 main :: IO ()
 main = do
   putStrLn "Hello, Haskell!"
-  test testProg7
+  test testProg8
