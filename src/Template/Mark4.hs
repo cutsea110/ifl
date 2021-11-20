@@ -13,18 +13,33 @@ import Heap
 import Stack
 import Utils
 
+data Primitive = Neg
+               | Add
+               | Sub
+               | Mul
+               | Div
+               deriving Show
 data Node
   = NAp Addr Addr
   | NSupercomb Name [Name] CoreExpr
   | NNum Int
   | NInd Addr
+  | NPrim Name Primitive
+
+primitives :: Assoc Name Primitive
+primitives = [ ("negate", Neg)
+             , ("+", Add)
+             , ("-", Sub)
+             , ("*", Mul)
+             , ("/", Div)
+             ]
 
 type TiState = (TiStack, TiDump, TiHeap, TiGlobals, TiStats)
 
 type TiStack = Stack Addr
-data TiDump = DummyTiDump
+type TiDump = Stack TiStack
 initialTiDump :: TiDump
-initialTiDump = DummyTiDump
+initialTiDump = initStack
 type TiHeap = Heap Node
 type TiGlobals = Assoc Name Addr
 type TiStats = (Int, Int, Int)
@@ -59,13 +74,19 @@ extraPreludeDefs :: CoreProgram
 extraPreludeDefs = []
 
 buildInitialHeap :: [CoreScDefn] -> (TiHeap, TiGlobals)
-buildInitialHeap scDefs = mapAccumL allocateSc hInitial scDefs
+buildInitialHeap scDefs = (heap', env ++ env')
+  where (heap,  env ) = mapAccumL allocateSc hInitial scDefs
+        (heap', env') = mapAccumL allocatePrim heap primitives
 
 allocateSc :: TiHeap -> CoreScDefn -> (TiHeap, (Name, Addr))
 allocateSc heap scDefn = case scDefn of
   (name, args, body) -> (heap', (name, addr))
     where
       (heap', addr) = hAlloc heap (NSupercomb name args body)
+
+allocatePrim :: TiHeap -> (Name, Primitive) -> (TiHeap, (Name, Addr))
+allocatePrim heap (name, prim) = (heap', (name, addr))
+  where (heap', addr) = hAlloc heap (NPrim name prim)
 
 -- | Ex 2.9 最後に TiFinal でエラーになったときの state まで取り出せるが
 --   提案されているものでは取り出せない
@@ -88,8 +109,8 @@ doAdminPrim state = applyToStats tiStatIncPrimSteps state
 
 tiFinal :: TiState -> Bool
 tiFinal state = case state of
-  (stack, _, heap, _, _) -> case getStack stack of
-    [soleAddr] -> isDataNode (hLookup heap soleAddr)
+  (stack, dump, heap, _, _) -> case getStack stack of
+    [soleAddr] -> isDataNode (hLookup heap soleAddr) && isEmptyStack dump
     []         -> error "Empty stack"
     _          -> False
 
@@ -107,9 +128,14 @@ step state = case state of
       dispatch (NAp a1 a2) = apStep state a1 a2
       dispatch (NSupercomb sc args body) = scStep state sc args body
       dispatch (NInd a) = indStep state a
+      dispatch (NPrim name prim) = primStep state prim
 
 numStep :: TiState -> Int -> TiState
-numStep state n = error "Number applied as a function"
+numStep state n = case state of
+  (stack, dump, heap, globals, stats)
+    | isEmptyStack stack -> error "numStep: empty stack."
+    | otherwise -> case pop dump of
+        (stack', dump') -> (stack', dump', heap, globals, stats)
 
 apStep :: TiState -> Addr -> Addr -> TiState
 apStep state a1 a2 = case state of
@@ -131,6 +157,30 @@ scStep state scName argNames body = case state of
 indStep :: TiState -> Addr -> TiState
 indStep state a = case state of
   (stack, dump, heap, globals, stats) -> (push a (discard 1 stack), dump, heap, globals, stats)
+
+primStep :: TiState -> Primitive -> TiState
+primStep state prim = case prim of
+  Neg -> primNeg state
+  Add -> primArith state (+)
+  Sub -> primArith state (-)
+  Mul -> primArith state (*)
+  Div -> primArith state div
+
+primNeg :: TiState -> TiState
+primNeg state = case state of
+  (stack, dump, heap, globals, stats)
+    | getDepth stack /= 2 -> error "primNeg: wrong number of args."
+    | isDataNode argnode -> (stack', dump, heap', globals, stats)
+    | otherwise -> (push argaddr initStack, push stack dump, heap, globals, stats)
+    where (op, stack') = pop stack
+          (a, stack'') = pop stack'
+          argaddr = getargs heap stack!!0
+          argnode = hLookup heap argaddr
+          heap' = hUpdate heap a (NNum (negate n))
+          NNum n = argnode
+
+primArith :: TiState -> (Int -> Int -> Int) -> TiState
+primArith = undefined
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateAndUpdate expr updAddr heap env = case expr of
@@ -259,6 +309,7 @@ showNode node = case node of
     -> iStr ("NSupercomb " ++ name)
   NNum n -> iStr "NNum " `iAppend` iNum n
   NInd a -> iStr "NInd " `iAppend` showAddr a
+  NPrim name prim -> iStr "NPrim " `iAppend` iStr (show prim)
 
 showAddr :: Addr -> IseqRep
 showAddr addr = iStr (showaddr addr)

@@ -8,6 +8,7 @@ module Stack
   , getStack      -- readonly
   , getDepth      -- readonly
   , getWaterMark  -- readonly
+  , isEmptyStack
     -- operator
   , push
   , pop
@@ -26,6 +27,9 @@ getStack (Stack s _ _) = s
 -- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
 getWaterMark :: Stack a -> Int
 getWaterMark (Stack _ _ m) = m
+
+isEmptyStack :: Stack a -> Bool
+isEmptyStack (Stack s _ _) = null s
 
 {- |
 >>> stack initStack

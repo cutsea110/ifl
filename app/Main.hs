@@ -2,7 +2,7 @@ module Main where
 
 -- import Template.Mark1 (parse, compile, eval, showResults)
 -- import Template.Mark2 (parse, compile, eval, showResults)
-import Template.Mark3 (parse, compile, eval, showResults)
+import Template.Mark4 (parse, compile, eval, showResults)
 
 testProg0, testProg1, testProg2, testProg3, testProg4 :: String
 testProg0 = "main = S K K 3"
@@ -25,10 +25,13 @@ testProg4 = unlines [ "id x = x ;"
                     , "main = twice twice twice id 3"
                     ]
 
+testProg5 = unlines [ "main = negate (negate 7)"
+                    ]
+
 test :: String -> IO ()
 test = putStrLn . showResults . eval . compile . parse
 
 main :: IO ()
 main = do
   putStrLn "Hello, Haskell!"
-  test testProg4
+  test testProg5
