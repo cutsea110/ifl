@@ -28,6 +28,9 @@ testProg4 = unlines [ "id x = x ;"
 testProg5 = unlines [ "main = negate (negate 7)"
                     ]
 
+testProg5_1 = unlines [ "main = twice negate 3"
+                      ]
+
 testProg6 = unlines [ "main = ((6 / 2) * 6) + (4 * (10 - 4))"
                     ]
 
