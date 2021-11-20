@@ -264,6 +264,7 @@ showState :: TiState -> IseqRep
 showState (stack, dump, heap, globals, stats)
   = iConcat [ showHeap heap, iNewline
             , showStack heap stack, iNewline
+            , showDumpDepth dump, iNewline
             ]
 
 showHeap :: TiHeap -> IseqRep
@@ -291,6 +292,13 @@ showStack heap stack
       = iConcat [ showFWAddr addr, iStr ": "
                 , showStkNode heap (hLookup heap addr)
                 ]
+
+showDumpDepth :: TiDump -> IseqRep
+showDumpDepth dump
+  = iConcat
+    [ iStr "Dump Depth "
+    , iStr (show $ getDepth dump)
+    ]
 
 showStkNode :: TiHeap -> Node -> IseqRep
 showStkNode heap (NAp funAddr argAddr)
