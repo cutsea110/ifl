@@ -35,9 +35,11 @@ hUpdate (allocs, size, free, cts) a n = (allocs, size, free, (a, n):remove cts a
 hFree :: Heap a -> Addr -> Heap a
 hFree (allocs, size, free, cts) a = (allocs, size-1, a:free, remove cts a)
 
+hLookup :: Heap a -> Addr -> a
 hLookup (allocs, size, free, cts) a
   = aLookup cts a (error ("can't find node " ++ showaddr a ++ " in heap"))
 
+hAddresses :: Heap a -> [Addr]
 hAddresses (allocs, size, free, cts) = [addr | (addr, node) <- cts]
 
 hSize :: Heap a -> Size
