@@ -2,7 +2,7 @@
 module Stack
   ( Stack         -- type only
     -- constructor
-  , initStack
+  , emptyStack
   , fromList
     -- getter
   , getStack      -- readonly
@@ -30,7 +30,7 @@ getWaterMark :: Stack a -> Int
 getWaterMark (Stack _ _ m) = m
 
 {- |
->>> isEmptyStack initStack
+>>> isEmptyStack emptyStack
 True
 
 >>> isEmptyStack $ fromList [1]
@@ -40,14 +40,14 @@ isEmptyStack :: Stack a -> Bool
 isEmptyStack (Stack s _ _) = null s
 
 {- |
->>> stack initStack
+>>> stack emptyStack
 []
 
->>> highWaterMark initStack
+>>> highWaterMark emptyStack
 0
 -}
-initStack :: Stack a
-initStack = Stack [] 0 0
+emptyStack :: Stack a
+emptyStack = Stack [] 0 0
 
 {- |
 >>> stack $ fromList []
@@ -80,7 +80,7 @@ getDepth :: Stack a -> Int
 getDepth (Stack _ d _) = d
 
 {- |
->>> let s0 = initStack
+>>> let s0 = emptyStack
 >>> let s1 = push "a" s0
 >>> stack s1
 ["a"]

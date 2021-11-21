@@ -39,7 +39,7 @@ type TiState = (TiStack, TiDump, TiHeap, TiGlobals, TiStats)
 type TiStack = Stack Addr
 type TiDump = Stack TiStack
 initialTiDump :: TiDump
-initialTiDump = initStack
+initialTiDump = emptyStack
 type TiHeap = Heap Node
 type TiGlobals = Assoc Name Addr
 type TiStats = (Int, Int, Int)
@@ -183,7 +183,7 @@ primNeg state = case state of
   (stack, dump, heap, globals, stats)
     | length args /= 1 -> error "primNeg: wrong number of args."
     | isDataNode argnode -> (stack', dump, heap', globals, stats)
-    | otherwise -> (push argaddr initStack, push stack dump, heap, globals, stats)
+    | otherwise -> (push argaddr emptyStack, push stack dump, heap, globals, stats)
     where args = getargs heap stack
           [argaddr] = args
           argnode = hLookup heap argaddr
@@ -196,8 +196,8 @@ primArith :: TiState -> (Int -> Int -> Int) -> TiState
 primArith state op = case state of
   (stack, dump, heap, globals, stats)
     | length args /= 2 -> error "primArith: wrong number of args."
-    | not (isDataNode lnode) -> (push laddr initStack, push stack' dump, heap, globals, stats)
-    | not (isDataNode rnode) -> (push raddr initStack, push stack' dump, heap, globals, stats)
+    | not (isDataNode lnode) -> (push laddr emptyStack, push stack' dump, heap, globals, stats)
+    | not (isDataNode rnode) -> (push raddr emptyStack, push stack' dump, heap, globals, stats)
     | otherwise -> (stack', dump, heap', globals, stats)
     where args = getargs heap stack
           [laddr, raddr] = args
