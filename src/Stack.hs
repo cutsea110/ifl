@@ -164,10 +164,7 @@ pop s = case stack s of
 5
 -}
 discard :: Int -> Stack a -> Stack a
-discard n s = s { stack = stack', depth = depth' }
-  where
-    stack' = drop n $ stack s
-    depth' = max 0 (depth s - n)
+discard n s = snd $ discard' n s
 
 {- |
 >>> let s0 = fromList [1..10]
