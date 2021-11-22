@@ -8,7 +8,7 @@ module Stack
   , getStack      -- readonly
   , getDepth      -- readonly
   , getWaterMark  -- readonly
-  , isEmptyStack
+  , isEmpty
     -- operator
   , push
   , pop
@@ -30,14 +30,14 @@ getWaterMark :: Stack a -> Int
 getWaterMark (Stack _ _ m) = m
 
 {- |
->>> isEmptyStack emptyStack
+>>> isEmpty emptyStack
 True
 
->>> isEmptyStack $ fromList [1]
+>>> isEmpty $ fromList [1]
 False
 -}
-isEmptyStack :: Stack a -> Bool
-isEmptyStack (Stack s _ _) = null s
+isEmpty :: Stack a -> Bool
+isEmpty (Stack s _ _) = null s
 
 {- |
 >>> stack emptyStack

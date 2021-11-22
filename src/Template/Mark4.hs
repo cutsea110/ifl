@@ -110,7 +110,7 @@ doAdminPrim state = applyToStats tiStatIncPrimSteps state
 tiFinal :: TiState -> Bool
 tiFinal state = case state of
   (stack, dump, heap, _, _) -> case getStack stack of
-    [soleAddr] -> isDataNode (hLookup heap soleAddr) && isEmptyStack dump
+    [soleAddr] -> isDataNode (hLookup heap soleAddr) && isEmpty dump
     []         -> error "Empty stack"
     _          -> False
 
@@ -139,7 +139,7 @@ step state = case state of
 numStep :: TiState -> Int -> TiState
 numStep state n = case state of
   (stack, dump, heap, globals, stats)
-    | isEmptyStack stack -> error "numStep: empty stack."
+    | isEmpty stack -> error "numStep: empty stack."
     | otherwise -> case pop dump of
         (stack', dump') -> (stack', dump', heap, globals, stats)
 
