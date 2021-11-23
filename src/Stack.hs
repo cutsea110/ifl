@@ -13,7 +13,6 @@ module Stack
   , push
   , pop
   , discard
-  , discard'
   ) where
 
 data Stack a = Stack { stack :: [a]
