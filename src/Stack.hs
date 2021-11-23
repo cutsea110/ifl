@@ -168,30 +168,3 @@ discard n s = s { stack = stack', depth = depth' }
   where
     stack' = drop n $ stack s
     depth' = max 0 (depth s - n)
-
-{- |
->>> let s0 = fromList [1..10]
->>> let (xs1, s1) = discard' 4 s0
->>> xs1
-[1,2,3,4]
->>> stack s1
-[5,6,7,8,9,10]
->>> highWaterMark s1
-10
->>> getDepth s1
-6
-
->>> let (xs2, s2) = discard' 1 s1
->>> xs2
-[5]
->>> stack s2
-[6,7,8,9,10]
->>> highWaterMark s2
-10
->>> getDepth s2
-5
--}
-discard' :: Int -> Stack a -> ([a], Stack a)
-discard' n s = (as, s { stack = stack', depth = depth' })
-  where (as, stack') = splitAt n $ stack s
-        depth' = max 0 (depth s - n)
