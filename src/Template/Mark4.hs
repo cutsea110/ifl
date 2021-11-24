@@ -313,8 +313,8 @@ showDumpDepth dump
 showStkNode :: TiHeap -> Node -> IseqRep
 showStkNode heap (NAp funAddr argAddr)
   = iConcat [ iStr "NAp ", showFWAddr funAddr
-            , iStr " ", showFWAddr argAddr, iStr " ("
-            , showNode (hLookup heap argAddr), iStr ")"
+            , iStr " ", showFWAddr argAddr
+            , iStr " (", showNode (hLookup heap argAddr), iStr ")"
             ]
 showStkNode heap node = showNode node
 
