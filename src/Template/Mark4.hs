@@ -79,10 +79,9 @@ buildInitialHeap scDefs = (heap', env ++ env')
         (heap', env') = mapAccumL allocatePrim heap primitives
 
 allocateSc :: TiHeap -> CoreScDefn -> (TiHeap, (Name, Addr))
-allocateSc heap scDefn = case scDefn of
-  (name, args, body) -> (heap', (name, addr))
-    where
-      (heap', addr) = hAlloc heap (NSupercomb name args body)
+allocateSc heap (name, args, body) = (heap', (name, addr))
+  where
+    (heap', addr) = hAlloc heap (NSupercomb name args body)
 
 allocatePrim :: TiHeap -> (Name, Primitive) -> (TiHeap, (Name, Addr))
 allocatePrim heap (name, prim) = (heap', (name, addr))
@@ -108,106 +107,94 @@ doAdminPrim :: TiState -> TiState
 doAdminPrim state = applyToStats tiStatIncPrimSteps state
 
 tiFinal :: TiState -> Bool
-tiFinal state = case state of
-  (stack, dump, heap, _, _) -> case getStack stack of
-    [soleAddr] -> isDataNode (hLookup heap soleAddr) && isEmpty dump
-    []         -> error "Empty stack"
-    _          -> False
+tiFinal (stack, dump, heap, _, _) = case getStack stack of
+  [soleAddr] -> isDataNode (hLookup heap soleAddr) && isEmpty dump
+  []         -> error "Empty stack"
+  _          -> False
 
 isDataNode :: Node -> Bool
-isDataNode node = case node of
-  NNum _ -> True
-  _      -> False
-
+isDataNode (NNum _) = True
+isDataNode _        = False
 
 isIndNode :: Node -> Bool
-isIndNode node = case node of
-  NInd _ -> True
-  _      -> False
+isIndNode (NInd _) = True
+isIndNode _        = False
 
 step :: TiState -> TiState
-step state = case state of
-  (stack, dump, heap, globals, stats) -> dispatch (hLookup heap item)
-    where
-      (item, stack') = pop stack
-      dispatch (NNum n) = numStep state n
-      dispatch (NAp a1 a2) = apStep state a1 a2
-      dispatch (NSupercomb sc args body) = scStep state sc args body
-      dispatch (NInd a) = indStep state a
-      dispatch (NPrim name prim) = primStep state prim
+step state@(stack, dump, heap, globals, stats) = dispatch (hLookup heap item)
+  where
+    (item, stack') = pop stack
+    dispatch (NNum n) = numStep state n
+    dispatch (NAp a1 a2) = apStep state a1 a2
+    dispatch (NSupercomb sc args body) = scStep state sc args body
+    dispatch (NInd a) = indStep state a
+    dispatch (NPrim name prim) = primStep state prim
 
 numStep :: TiState -> Int -> TiState
-numStep state n = case state of
-  (stack, dump, heap, globals, stats)
-    | isEmpty stack -> error "numStep: empty stack."
-    | otherwise -> case pop dump of
-        (stack', dump') -> (stack', dump', heap, globals, stats)
+numStep (stack, dump, heap, globals, stats) n
+  | isEmpty stack = error "numStep: empty stack."
+  | otherwise     = (stack', dump', heap, globals, stats)
+  where (stack', dump') = pop dump
 
 apStep :: TiState -> Addr -> Addr -> TiState
-apStep state a1 a2 = case state of
-  (stack, dump, heap, globals, stats)
-    | isIndNode a2node -> (stack,  dump, heap', globals, stats)
-    | otherwise        -> (stack', dump, heap,  globals, stats)
-    where stack' = push a1 stack
-          (a0, _) = pop stack
-          a2node = hLookup heap a2
-          NInd a3 = a2node
-          heap' = hUpdate heap a0 (NAp a1 a3)
+apStep (stack, dump, heap, globals, stats) a1 a2
+  | isIndNode a2node = (stack,  dump, heap', globals, stats)
+  | otherwise        = (stack', dump, heap,  globals, stats)
+  where stack' = push a1 stack
+        (a0, _) = pop stack
+        a2node = hLookup heap a2
+        NInd a3 = a2node
+        heap' = hUpdate heap a0 (NAp a1 a3)
 
 scStep :: TiState -> Name -> [Name] -> CoreExpr -> TiState
-scStep state scName argNames body = case state of
-  (stack, dump, heap, globals, stats)
-    | getDepth stack < length argNames + 1 -> error "Too few arguments given"
-    | otherwise -> doAdminSc (stack', dump, heap', globals, stats)
-    where
-      argsLen = length argNames
-      stack' = discard argsLen stack
-      (root, _) = pop stack'
-      heap' = instantiateAndUpdate body root heap (bindings ++ globals)
-      bindings = zip argNames (getargs heap stack)
+scStep (stack, dump, heap, globals, stats) scName argNames body
+  | getDepth stack < length argNames + 1 = error "Too few arguments given"
+  | otherwise = doAdminSc (stack', dump, heap', globals, stats)
+  where
+    argsLen = length argNames
+    stack' = discard argsLen stack
+    (root, _) = pop stack'
+    heap' = instantiateAndUpdate body root heap (bindings ++ globals)
+    bindings = zip argNames (getargs heap stack)
 
 indStep :: TiState -> Addr -> TiState
-indStep state a = case state of
-  (stack, dump, heap, globals, stats) -> (push a (discard 1 stack), dump, heap, globals, stats)
+indStep (stack, dump, heap, globals, stats) a = (stack', dump, heap, globals, stats)
+  where stack' = push a (discard 1 stack)
 
 primStep :: TiState -> Primitive -> TiState
-primStep state prim = case prim of
-  Neg -> primNeg state
-  Add -> primArith state (+)
-  Sub -> primArith state (-)
-  Mul -> primArith state (*)
-  Div -> primArith state div
+primStep state Neg = primNeg state
+primStep state Add = primArith state (+)
+primStep state Sub = primArith state (-)
+primStep state Mul = primArith state (*)
+primStep state Div = primArith state div
 
 primNeg :: TiState -> TiState
-primNeg state = case state of
-  (stack, dump, heap, globals, stats)
-    | length args /= 1 -> error "primNeg: wrong number of args."
-    | isDataNode argnode -> (stack', dump, heap', globals, stats)
-    | otherwise -> (push argaddr emptyStack, push stack dump, heap, globals, stats)
-    where args = getargs heap stack
-          [argaddr] = args
-          argnode = hLookup heap argaddr
-          NNum n = argnode
-          (_, stack') = pop stack
-          (root, stack'') = pop stack'
-          heap' = hUpdate heap root (NNum (negate n)) 
+primNeg (stack, dump, heap, globals, stats)
+  | length args /= 1 = error "primNeg: wrong number of args."
+  | isDataNode argnode = (stack', dump, heap', globals, stats)
+  | otherwise = (push argaddr emptyStack, push stack dump, heap, globals, stats)
+  where args = getargs heap stack
+        [argaddr] = args
+        argnode = hLookup heap argaddr
+        NNum n = argnode
+        (_, stack') = pop stack
+        (root, stack'') = pop stack'
+        heap' = hUpdate heap root (NNum (negate n))
 
 primArith :: TiState -> (Int -> Int -> Int) -> TiState
-primArith state op = case state of
-  (stack, dump, heap, globals, stats)
-    | length args /= 2 -> error "primArith: wrong number of args."
-    | not (isDataNode lnode) -> (push laddr emptyStack, dump', heap, globals, stats)
-    | not (isDataNode rnode) -> (push raddr emptyStack, dump', heap, globals, stats)
-    | otherwise -> (stack', dump, heap', globals, stats)
-    where args = getargs heap stack
-          [laddr, raddr] = args
-          [lnode, rnode] = map (hLookup heap) args
-          stack' = discard 2 stack
-          dump' = push stack' dump
-          (root, _) = pop stack'
-          heap' = hUpdate heap root (NNum (m `op` n))
-          NNum m = lnode
-          NNum n = rnode
+primArith (stack, dump, heap, globals, stats) op
+  | length args /= 2 = error "primArith: wrong number of args."
+  | not (isDataNode lnode) = (push laddr emptyStack, dump', heap, globals, stats)
+  | not (isDataNode rnode) = (push raddr emptyStack, dump', heap, globals, stats)
+  | otherwise = (stack', dump, heap', globals, stats)
+  where args = getargs heap stack
+        [laddr, raddr] = args
+        [lnode, rnode] = map (hLookup heap) args
+        (NNum m, NNum n) = (lnode, rnode)
+        stack' = discard 2 stack
+        dump' = push stack' dump
+        (root, _) = pop stack'
+        heap' = hUpdate heap root (NNum (m `op` n))
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateAndUpdate expr updAddr heap env = case expr of
