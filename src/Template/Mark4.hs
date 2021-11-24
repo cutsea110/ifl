@@ -216,12 +216,10 @@ instantiateAndUpdate expr updAddr heap env = case expr of
 
 getargs :: TiHeap -> TiStack -> [Addr]
 getargs heap stack = case getStack stack of
-  sc:stack' -> map getarg stack'
-    where
-      getarg addr = arg
-        where
-          NAp fun arg = hLookup heap addr
-  []        -> error "Empty stack"
+  []       -> error "Empty stack"
+  _:stack' -> map getarg stack'
+    where getarg addr = arg
+            where NAp _fun arg = hLookup heap addr
 
 instantiate :: CoreExpr -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
 instantiate expr heap env = case expr of
