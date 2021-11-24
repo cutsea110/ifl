@@ -15,11 +15,11 @@ import Utils (space)
 
 -- | 抽象データ型的に使う
 class Iseq iseq where
-  iNil :: iseq
-  iStr :: String -> iseq
-  iAppend :: iseq -> iseq -> iseq
+  iNil     :: iseq
+  iStr     :: String -> iseq
+  iAppend  :: iseq -> iseq -> iseq
   iNewline :: iseq
-  iIndent :: iseq -> iseq
+  iIndent  :: iseq -> iseq
   iDisplay :: iseq -> String
 
 infixr 5 `iAppend`
@@ -36,8 +36,8 @@ instance Iseq IseqRep where
   iNil              = INil
   iStr []           = INil
   iStr s            = case break (=='\n') s of
-    (x, [])  -> IStr s
-    (x, _:y) -> IStr x `iAppend` INewline `iAppend` iStr y
+                        (x, [])  -> IStr s
+                        (x, _:y) -> IStr x `iAppend` INewline `iAppend` iStr y
   iAppend INil seq  = seq
   iAppend seq  INil = seq
   iAppend seq1 seq2 = IAppend seq1 seq2
