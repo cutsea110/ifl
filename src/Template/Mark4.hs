@@ -62,8 +62,7 @@ applyToStats f (stack, dump, heap, scDefs, stats)
   = (stack, dump, heap, scDefs, f stats)
 
 compile :: CoreProgram -> TiState
-compile program
-  = (initialStack, initialTiDump, initialHeap, globals, tiStatInitial)
+compile program = (initialStack, initialTiDump, initialHeap, globals, tiStatInitial)
   where
     scDefs = program ++ preludeDefs ++ extraPreludeDefs
     (initialHeap, globals) = buildInitialHeap scDefs
@@ -178,7 +177,7 @@ primNeg (stack, dump, heap, globals, stats)
         argnode = hLookup heap argaddr
         NNum n = argnode
         (_, stack') = pop stack
-        (root, stack'') = pop stack'
+        (root, _)   = pop stack'
         heap' = hUpdate heap root (NNum (negate n))
 
 primArith :: TiState -> (Int -> Int -> Int) -> TiState
@@ -197,22 +196,21 @@ primArith (stack, dump, heap, globals, stats) op
         heap' = hUpdate heap root (NNum (m `op` n))
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
-instantiateAndUpdate expr updAddr heap env = case expr of
-  ENum n -> hUpdate heap updAddr (NNum n)
-  EAp e1 e2 -> hUpdate heap'' updAddr (NAp a1 a2)
-    where (heap',  a1) = instantiate e1 heap  env
-          (heap'', a2) = instantiate e2 heap' env
-  EVar v -> hUpdate heap updAddr (NInd varAddr)
-    where varAddr = aLookup env v (error ("Undefined name " ++ show v))
-  ELet isrec defs body -> instantiateAndUpdate body updAddr heap' env'
-    where (heap', extraBindings) = mapAccumL instantiateRhs heap defs
-          env' = extraBindings ++ env
-          rhsEnv | isrec     = env'
-                 | otherwise = env
-          instantiateRhs heap (name, rhs) = (heap', (name, addr))
-            where (heap', addr) = instantiate rhs heap rhsEnv
-  EConstr tag arity -> error "TODO: implement instantiateAndUpdate"
-  _                 -> error "not yet implemented"
+instantiateAndUpdate (ENum n)               updAddr heap env = hUpdate heap updAddr (NNum n)
+instantiateAndUpdate (EAp e1 e2)            updAddr heap env = hUpdate heap2 updAddr (NAp a1 a2)
+  where (heap1, a1) = instantiate e1 heap  env
+        (heap2, a2) = instantiate e2 heap1 env
+instantiateAndUpdate (EVar v)               updAddr heap env = hUpdate heap updAddr (NInd varAddr)
+  where varAddr = aLookup env v (error $ "Undefined name " ++ show v)
+instantiateAndUpdate (ELet isrec defs body) updAddr heap env = instantiateAndUpdate body updAddr heap' env'
+  where (heap', extraBindings) = mapAccumL instantiateRhs heap defs
+        env' = extraBindings ++ env
+        rhsEnv | isrec     = env'
+               | otherwise = env
+        instantiateRhs heap (name, rhs) = (heap', (name, addr))
+          where (heap', addr) = instantiate rhs heap rhsEnv
+instantiateAndUpdate (EConstr tag arity)    updAddr heap env = error "TODO: implement instantiateAndUpdate"
+instantiateAndUpdate _                      updAddr heap env = error "not yet implemented"
 
 getargs :: TiHeap -> TiStack -> [Addr]
 getargs heap stack = case getStack stack of
@@ -222,29 +220,29 @@ getargs heap stack = case getStack stack of
             where NAp _fun arg = hLookup heap addr
 
 instantiate :: CoreExpr -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
-instantiate expr heap env = case expr of
-  ENum n               -> hAlloc heap (NNum n)
-  EAp e1 e2            -> hAlloc heap2 (NAp a1 a2)
-    where
-      (heap1, a1) = instantiate e1 heap  env
-      (heap2, a2) = instantiate e2 heap1 env
-  EVar v               -> (heap, aLookup env v (error ("Undefined name " ++ show v)))
-  EConstr tag arity    -> instantiateConstr tag arity heap env
-  ELet isrec defs body -> instantiateLet isrec defs body heap env
-  ECase e alts         -> error "Can't instantiate case exprs"
-  ELam vs e            -> error "Can't instantiate lambda abstractions"
+instantiate (ENum n)               heap env = hAlloc heap (NNum n)
+instantiate (EAp e1 e2)            heap env = hAlloc heap2 (NAp a1 a2)
+  where
+    (heap1, a1) = instantiate e1 heap  env
+    (heap2, a2) = instantiate e2 heap1 env
+instantiate (EVar v)               heap env = (heap, aLookup env v (error ("Undefined name " ++ show v)))
+instantiate (EConstr tag arity)    heap env = instantiateConstr tag arity heap env
+instantiate (ELet isrec defs body) heap env = instantiateLet isrec defs body heap env
+instantiate (ECase e alts)         heap env = error "Can't instantiate case exprs"
+instantiate (ELam vs e)            heap env = error "Can't instantiate lambda abstractions"
 
 instantiateConstr :: Tag -> Arity -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
 instantiateConstr = error "TODO: implement instantiateConstr"
 
 instantiateLet :: IsRec -> [(Name, CoreExpr)] -> CoreExpr -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
 instantiateLet isrec defs expr heap env = instantiate expr heap' env'
-  where (heap', extraBindings) = mapAccumL instantiateRhs heap defs
-        env' = extraBindings ++ env
-        rhsEnv | isrec     = env'
-               | otherwise = env
-        instantiateRhs heap (name, rhs) = (heap1, (name, addr))
-          where (heap1, addr) = instantiate rhs heap rhsEnv
+  where
+    (heap', extraBindings) = mapAccumL instantiateRhs heap defs
+    env' = extraBindings ++ env
+    rhsEnv | isrec     = env'
+           | otherwise = env
+    instantiateRhs heap (name, rhs) = (heap1, (name, addr))
+      where (heap1, addr) = instantiate rhs heap rhsEnv
 
 ------
 
@@ -263,8 +261,6 @@ showStackMaxDepth (stack, _, _, _, _)
   = iConcat [ iNewline, iStr "  Stack maximum depth = "
             , iNum (getWaterMark stack)
             ]
-  
-
 
 showAllocCount :: TiState -> IseqRep
 showAllocCount (_, _, heap, _, _) = case heap of
