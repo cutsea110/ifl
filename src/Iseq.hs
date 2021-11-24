@@ -47,16 +47,11 @@ instance Iseq IseqRep where
 
 flatten :: Int -> [(IseqRep, Int)] -> String
 flatten col [] = ""
-flatten col ((INil, indent) : seqs)
-  = flatten col seqs
-flatten col ((IStr s, indent) : seqs)
-  = s ++ flatten (col + length s) seqs
-flatten col ((IAppend seq1 seq2, indent) : seqs)
-  = flatten col ((seq1, indent) : (seq2, indent) : seqs)
-flatten col ((INewline, indent) : seqs)
-  = '\n' : (space indent ++ flatten indent seqs)
-flatten col ((IIndent seq, indent) : seqs)
-  = flatten col ((seq, col) : seqs)
+flatten col ((INil, indent):seqs)              = flatten col seqs
+flatten col ((IStr s, indent):seqs)            = s ++ flatten (col + length s) seqs
+flatten col ((IAppend seq1 seq2, indent):seqs) = flatten col ((seq1, indent) : (seq2, indent) : seqs)
+flatten col ((INewline, indent):seqs)          = '\n' : (space indent ++ flatten indent seqs)
+flatten col ((IIndent seq, indent):seqs)       = flatten col ((seq, col) : seqs)
 
 iNum :: Iseq iseq => Int -> iseq
 iNum n = iStr (show n)
