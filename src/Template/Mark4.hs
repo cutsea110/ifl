@@ -196,13 +196,14 @@ primArith :: TiState -> (Int -> Int -> Int) -> TiState
 primArith state op = case state of
   (stack, dump, heap, globals, stats)
     | length args /= 2 -> error "primArith: wrong number of args."
-    | not (isDataNode lnode) -> (push laddr emptyStack, push stack' dump, heap, globals, stats)
-    | not (isDataNode rnode) -> (push raddr emptyStack, push stack' dump, heap, globals, stats)
+    | not (isDataNode lnode) -> (push laddr emptyStack, dump', heap, globals, stats)
+    | not (isDataNode rnode) -> (push raddr emptyStack, dump', heap, globals, stats)
     | otherwise -> (stack', dump, heap', globals, stats)
     where args = getargs heap stack
           [laddr, raddr] = args
           [lnode, rnode] = map (hLookup heap) args
           stack' = discard 2 stack
+          dump' = push stack' dump
           (root, _) = pop stack'
           heap' = hUpdate heap root (NNum (m `op` n))
           NNum m = lnode
