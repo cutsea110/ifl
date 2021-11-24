@@ -280,17 +280,16 @@ showState (stack, dump, heap, globals, stats)
             ]
 
 showHeap :: TiHeap -> IseqRep
-showHeap heap = case heap of
-  (_, _, _, cts) -> iConcat
-                    [ iStr "Heap  ["
-                    , iIndent (iInterleave iNewline (map showHeapItem cts))
-                    , iStr " ]"
-                    ]
-    where
-      showHeapItem (addr, node)
-        = iConcat [ showFWAddr addr, iStr ": "
-                  , showNode node
-                  ]
+showHeap (_, _, _, cts)
+  = iConcat [ iStr "Heap  ["
+            , iIndent (iInterleave iNewline $ map showHeapItem cts)
+            , iStr " ]"
+            ]
+  where
+    showHeapItem (addr, node)
+      = iConcat [ showFWAddr addr, iStr ": "
+                , showNode node
+                ]
 
 showStack :: TiHeap -> TiStack -> IseqRep
 showStack heap stack
@@ -307,10 +306,9 @@ showStack heap stack
 
 showDumpDepth :: TiDump -> IseqRep
 showDumpDepth dump
-  = iConcat
-    [ iStr "Dump Depth "
-    , iStr (show $ getDepth dump)
-    ]
+  = iConcat [ iStr "Dump Depth "
+            , iStr (show $ getDepth dump)
+            ]
 
 showStkNode :: TiHeap -> Node -> IseqRep
 showStkNode heap (NAp funAddr argAddr)
@@ -321,23 +319,20 @@ showStkNode heap (NAp funAddr argAddr)
 showStkNode heap node = showNode node
 
 showNode :: Node -> IseqRep
-showNode node = case node of
-  NAp a1 a2 -> iConcat [ iStr "NAp ", showAddr a1
-                       , iStr " ",    showAddr a2
-                       ]
-  NSupercomb name args body
-    -> iStr ("NSupercomb " ++ name)
-  NNum n -> iStr "NNum " `iAppend` iNum n
-  NInd a -> iStr "NInd " `iAppend` showAddr a
-  NPrim name prim -> iStr "NPrim " `iAppend` iStr (show prim)
+showNode (NAp a1 a2)           = iConcat [ iStr "NAp ", showAddr a1
+                                         , iStr " ",    showAddr a2
+                                         ]
+showNode (NSupercomb name _ _) = iStr ("NSupercomb " ++ name)
+showNode (NNum n)              = iStr "NNum " `iAppend` iNum n
+showNode (NInd a)              = iStr "NInd " `iAppend` showAddr a
+showNode (NPrim _ prim)        = iStr "NPrim " `iAppend` iStr (show prim)
 
 showAddr :: Addr -> IseqRep
 showAddr addr = iStr (showaddr addr)
 
 showFWAddr :: Addr -> IseqRep
 showFWAddr addr = iStr (space (4 - length str) ++ str)
-  where
-    str = show addr
+  where str = show addr
 
 showStats :: TiState -> IseqRep
 showStats (stack, dump, heap, globals, stats)
