@@ -263,10 +263,10 @@ showStackMaxDepth (stack, _, _, _, _)
             ]
 
 showAllocCount :: TiState -> IseqRep
-showAllocCount (_, _, heap, _, _) = case heap of
-  (allocs, _, _, _) -> iConcat [ iNewline, iStr "     Allocation count = "
-                               , iNum allocs
-                               ]
+showAllocCount (_, _, (allocs, _, _, _), _, _)
+  = iConcat [ iNewline, iStr "     Allocation count = "
+            , iNum allocs
+            ]
 
 showState :: TiState -> IseqRep
 showState (stack, dump, heap, globals, stats)
