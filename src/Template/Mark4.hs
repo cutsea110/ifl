@@ -13,12 +13,14 @@ import Heap
 import Stack
 import Utils
 
-data Primitive = Neg
-               | Add
-               | Sub
-               | Mul
-               | Div
-               deriving Show
+data Primitive
+  = Neg
+  | Add
+  | Sub
+  | Mul
+  | Div
+  deriving Show
+
 data Node
   = NAp Addr Addr
   | NSupercomb Name [Name] CoreExpr
