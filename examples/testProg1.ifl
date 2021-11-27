@@ -1,1 +1,3 @@
+-- test program 1
+
 main = S K K -- Error!

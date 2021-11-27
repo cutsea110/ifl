@@ -1,2 +1,3 @@
 -- test program 5
+
 main = negate (negate 7)
