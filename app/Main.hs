@@ -8,8 +8,8 @@ import System.IO (getContents)
 -- import Template.Mark3 (parse, compile, eval, showResults)
 import Template.Mark4 (parse, compile, eval, showResults)
 
-run :: String -> IO ()
-run = putStrLn . showResults . eval . compile . parse
+exec :: String -> IO ()
+exec = putStrLn . showResults . eval . compile . parse
 
 printHelp :: IO ()
 printHelp = do
@@ -23,15 +23,15 @@ printHelp = do
                    , "> cabal v2-run ifl <file-path>"
                    ]
 
-exec :: FilePath -> IO ()
-exec file = do
+run :: FilePath -> IO ()
+run file = do
   putStrLn $ "Program Source: " ++ file
   testProg <- readFile file
   -- compile and eval program
-  run testProg
+  exec testProg
 
 main :: IO ()
 main = do
   args <- getArgs
   if null args then printHelp
-    else exec (head args)
+    else run (head args)
