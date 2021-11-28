@@ -26,12 +26,10 @@ printHelp = do
 run :: FilePath -> IO ()
 run file = do
   putStrLn $ "Program Source: " ++ file
-  testProg <- readFile file
-  -- compile and eval program
-  exec testProg
+  exec =<< readFile file
 
 main :: IO ()
 main = do
   args <- getArgs
   if null args then printHelp
-    else run (head args)
+    else run $ head args
