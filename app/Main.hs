@@ -18,7 +18,7 @@ printHelp = do
                    , "   /  _/ ____/ /"
                    , "   / // /_  / /"
                    , " _/ // __/ / /___"
-                   , "/___/_/   /_____/"
+                   , "/___/_/   /_____/ Implimenting Functional Languages"
                    , ""
                    , "> cabal v2-run ifl <file-path>"
                    ]
