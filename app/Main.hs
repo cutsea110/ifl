@@ -17,8 +17,8 @@ printHelp = do
                            , "> cabal v2-run ifl <file-path>"
                            ]
 
-run :: FilePath -> IO ()
-run file = do
+run :: [String] -> IO ()
+run (file:_) = do
   hPutStrLn stderr $ "Program Source: " ++ file
   exec =<< readFile file
 
@@ -29,4 +29,4 @@ main :: IO ()
 main = do
   args <- getArgs
   if null args then printHelp
-    else run $ head args
+    else run args
