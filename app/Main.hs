@@ -3,9 +3,6 @@ module Main where
 import System.Environment (getArgs)
 import System.IO (getContents, hPutStr, hPutStrLn, stdout, stderr)
 
--- import Template.Mark1 (parse, compile, eval, showResults)
--- import Template.Mark2 (parse, compile, eval, showResults)
--- import Template.Mark3 (parse, compile, eval, showResults)
 import Template.Mark4 (parse, compile, eval, showResults)
 
 exec :: String -> IO ()
