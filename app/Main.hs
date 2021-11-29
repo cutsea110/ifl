@@ -17,7 +17,9 @@ printHelp = do
                            , "> cabal v2-run ifl <file-path>"
                            ]
 
-run :: [String] -> IO ()
+type Arguments = [String]
+
+run :: Arguments -> IO ()
 run (file:_) = do
   hPutStrLn stderr $ "Program Source: " ++ file
   exec =<< readFile file
