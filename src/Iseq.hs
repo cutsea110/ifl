@@ -46,7 +46,7 @@ instance Iseq IseqRep where
   iDisplay seq      = flatten 0 [(seq, 0)]
 
 flatten :: Int -> [(IseqRep, Int)] -> String
-flatten col [] = ""
+flatten col []                                 = ""
 flatten col ((INil, indent):seqs)              = flatten col seqs
 flatten col ((IStr s, indent):seqs)            = s ++ flatten (col + length s) seqs
 flatten col ((IAppend seq1 seq2, indent):seqs) = flatten col ((seq1, indent) : (seq2, indent) : seqs)

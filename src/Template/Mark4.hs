@@ -125,11 +125,11 @@ step :: TiState -> TiState
 step state@(stack, dump, heap, globals, stats) = dispatch (hLookup heap item)
   where
     (item, stack') = pop stack
-    dispatch (NNum n) = numStep state n
-    dispatch (NAp a1 a2) = apStep state a1 a2
+    dispatch (NNum n)                  = numStep state n
+    dispatch (NAp a1 a2)               = apStep state a1 a2
     dispatch (NSupercomb sc args body) = scStep state sc args body
-    dispatch (NInd a) = indStep state a
-    dispatch (NPrim name prim) = primStep state prim
+    dispatch (NInd a)                  = indStep state a
+    dispatch (NPrim name prim)         = primStep state prim
 
 numStep :: TiState -> Int -> TiState
 numStep (stack, dump, heap, globals, stats) n
