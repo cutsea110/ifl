@@ -781,8 +781,8 @@ pCase = ECase <$> (pLit "case" *> pExpr <* pLit "of") <*> pArms
 -}
 pAexpr :: Parser CoreExpr
 pAexpr =
-  ENum <$> pNum `pAlt`
-  EVar <$> pVar `pAlt`
+  (ENum <$> pNum) `pAlt`
+  (EVar <$> pVar) `pAlt`
   uncurry EConstr <$> pConstr `pAlt`
   pLit "(" *> pExpr <* pLit ")"
 
