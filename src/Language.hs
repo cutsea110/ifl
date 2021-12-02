@@ -1165,7 +1165,8 @@ compose f g x = f (g x) ;
 twice f = compose f f
 -}
 preludeDefs :: CoreProgram
--- preludeDefs = parse preludeCode
+preludeDefs = parse preludeCode
+{-
 preludeDefs
   = [ ("I", ["x"], EVar "x")
     , ("K", ["x", "y"], EVar "x")
@@ -1176,6 +1177,7 @@ preludeDefs
                                    (EAp (EVar "g") (EVar "x")))
     , ("twice", ["f"], EAp (EAp (EVar "compose") (EVar "f")) (EVar "f"))
     ]
+-}
 
 ----------------------------------------------------------------------------------------
 -- sample code and prelude
