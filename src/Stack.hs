@@ -21,13 +21,39 @@ data Stack a
           , highWaterMark :: Int
           } deriving Show
 
+{- |
+>>> getStack $ fromList []
+[]
+
+>>> getStack $ fromList [1..5]
+[1,2,3,4,5]
+-}
 -- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
 getStack :: Stack a -> [a]
-getStack (Stack s _ _) = s
+getStack = stack
 
+
+{- |
+>>> getDepth $ fromList []
+0
+
+>>> getDepth $ fromList [1..5]
+5
+-}
+-- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
+getDepth :: Stack a -> Int
+getDepth = depth
+
+{- |
+>>> getHighWaterMark $ fromList []
+0
+
+>>> getHighWaterMark $ fromList [1..5]
+5
+-}
 -- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
 getHighWaterMark :: Stack a -> Int
-getHighWaterMark (Stack _ _ m) = m
+getHighWaterMark = highWaterMark
 
 {- |
 >>> isEmpty emptyStack
@@ -68,16 +94,6 @@ emptyStack = Stack [] 0 0
 fromList :: [a] -> Stack a
 fromList xs = Stack xs l l
   where l = length xs
-
-{- |
->>> getDepth $ fromList []
-0
-
->>> getDepth $ fromList [1..5]
-5
--}
-getDepth :: Stack a -> Int
-getDepth (Stack _ d _) = d
 
 {- |
 >>> let s0 = emptyStack
