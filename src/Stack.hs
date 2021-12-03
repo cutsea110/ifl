@@ -5,9 +5,9 @@ module Stack
   , emptyStack
   , fromList
     -- getter
-  , getStack      -- readonly
-  , getDepth      -- readonly
-  , getWaterMark  -- readonly
+  , getStack          -- readonly
+  , getDepth          -- readonly
+  , getHighWaterMark  -- readonly
   , isEmpty
     -- operator
   , push
@@ -15,19 +15,19 @@ module Stack
   , discard
   ) where
 
-data Stack a = Stack { stack :: [a]
-                     , depth :: Int
-                     , highWaterMark :: Int
-                     }
-             deriving Show
+data Stack a
+  = Stack { stack :: [a]
+          , depth :: Int
+          , highWaterMark :: Int
+          } deriving Show
 
 -- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
 getStack :: Stack a -> [a]
 getStack (Stack s _ _) = s
 
 -- | NOTE: record syntax で構成できないようにアクセサを別途あつらえる
-getWaterMark :: Stack a -> Int
-getWaterMark (Stack _ _ m) = m
+getHighWaterMark :: Stack a -> Int
+getHighWaterMark (Stack _ _ m) = m
 
 {- |
 >>> isEmpty emptyStack

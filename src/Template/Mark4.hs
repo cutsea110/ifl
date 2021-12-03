@@ -261,7 +261,7 @@ showResults states
 showStackMaxDepth :: TiState -> IseqRep
 showStackMaxDepth (stack, _, _, _, _)
   = iConcat [ iNewline, iStr "  Stack maximum depth = "
-            , iNum (getWaterMark stack)
+            , iNum (getHighWaterMark stack)
             ]
 
 showAllocCount :: TiState -> IseqRep
