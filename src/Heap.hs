@@ -72,5 +72,6 @@ showaddr a = "#" ++ show a
 -}
 remove :: [(Addr, a)] -> Addr -> [(Addr, a)]
 remove [] a = error $ "Attempt to update or free nonexistent address: " ++ showaddr a
-remove ((a', n):cts) a | a == a' = cts
-                       | a /= a' = (a', n):remove cts a
+remove ((a', n):cts) a
+  | a == a'    = cts
+  | otherwise  = (a', n):remove cts a
