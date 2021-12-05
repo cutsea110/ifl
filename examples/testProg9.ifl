@@ -1,0 +1,5 @@
+-- test program 9
+
+double x = x + x ;
+id x = S K K (x * x) ;
+main = double (id 3)
