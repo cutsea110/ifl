@@ -1,6 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Stack
-  ( Stack         -- type only
+  ( Stack             -- type only
     -- constructor
   , emptyStack
   , fromList
