@@ -1,23 +1,81 @@
 module Main where
 
+import Data.Maybe (fromMaybe)
+import System.Console.GetOpt
 import System.Environment (getArgs)
 import System.IO (getContents, hPutStr, hPutStrLn, stdout, stderr)
 
+import qualified Template.Mark1 as Mark1 (parse, compile, eval, showResults)
+import qualified Template.Mark2 as Mark2 (parse, compile, eval, showResults)
+import qualified Template.Mark3 as Mark3 (parse, compile, eval, showResults)
 import qualified Template.Mark4 as Mark4 (parse, compile, eval, showResults)
 
-type Arguments = [String]
+data Engine = Mark1
+            | Mark2
+            | Mark3
+            | Mark4
+            deriving Show
+
+data Options = Options
+  { optVerbose     :: Bool -- TODO
+  , optShowVersion :: Bool
+  , optEngine      :: Engine
+  }
+
+defaultOptions :: Options
+defaultOptions = Options
+  { optVerbose     = True  -- TODO
+  , optShowVersion = False
+  , optEngine      = Mark4
+  }
+
+options :: [OptDescr (Options -> Options)]
+options = [ Option ['v']      ["verbose"] (NoArg (\opts -> opts {optVerbose = True}))
+            "chatty output on stderr"
+          , Option ['V', '?'] ["version"] (NoArg (\opts -> opts {optShowVersion = True}))
+            "show version"
+          , Option ['e']      ["engine"]  (ReqArg (\e opts -> opts {optEngine = decideEngine e}) "Engine")
+            "compiler engine name [mark1|mark2|mark3|mark4]"
+          ]
+  where decideEngine :: String -> Engine
+        decideEngine "mark1" = Mark1
+        decideEngine "mark2" = Mark2
+        decideEngine "mark3" = Mark3
+        decideEngine "mark4" = Mark4
+        decideEngine _       = error "Unknown engine" -- FIXME: ここエラーにならない
+
+compilerOpts :: [String] -> IO (Options, [String])
+compilerOpts argv =
+  case getOpt Permute options argv of
+    (o, n, []  ) -> return (foldl (flip id) defaultOptions o, n)
+    (_, _, errs) -> ioError (userError (concat errs ++ usageInfo header options))
+  where header = "Usage: cabal v2-run ifl -- [OPTION...] <program-file>"
 
 class Compiler c where
   exec :: c -> String -> IO ()
 
+data Mk1 = Mk1
+instance Compiler Mk1 where
+  exec _ = putStrLn . Mark1.showResults . Mark1.eval . Mark1.compile . Mark1.parse
+data Mk2 = Mk2
+instance Compiler Mk2 where
+  exec _ = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mark2.parse
+data Mk3 = Mk3
+instance Compiler Mk3 where
+  exec _ = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
 data Mk4 = Mk4
 instance Compiler Mk4 where
   exec _ = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
 
-run :: Arguments -> IO ()
-run (file:_) = do
+run :: Options -> [String] -> IO ()
+run opts (file:_) = do
   hPutStrLn stderr $ "Program Source: " ++ file
-  exec Mk4 =<< readFile file
+  execEngine =<< readFile file
+  where execEngine = case optEngine opts of
+          Mark1 -> exec Mk1
+          Mark2 -> exec Mk2
+          Mark3 -> exec Mk3
+          Mark4 -> exec Mk4
 
 printHelp :: IO ()
 printHelp = do
@@ -28,11 +86,12 @@ printHelp = do
                            , " _/ // __/ / /___"
                            , "/___/_/   /_____/ Implimenting Functional Languages"
                            , ""
-                           , "> cabal v2-run ifl <file-path>"
+                           , "> cabal v2-run ifl -- [OPTION...] <program-file>"
                            ]
 
 main :: IO ()
 main = do
   args <- getArgs
-  if null args then printHelp
-    else run args
+  (opts, rest) <- compilerOpts args
+  if null rest then printHelp
+    else run opts rest
