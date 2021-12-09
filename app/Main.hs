@@ -10,6 +10,9 @@ import qualified Template.Mark2 as Mark2 (parse, compile, eval, showResults)
 import qualified Template.Mark3 as Mark3 (parse, compile, eval, showResults)
 import qualified Template.Mark4 as Mark4 (parse, compile, eval, showResults)
 
+---------------------------------------------------------------
+-- COMPILER
+---------------------------------------------------------------
 
 class Compiler c where
   executer :: c -> String -> IO ()
@@ -27,6 +30,10 @@ data Mk4 = Mk4
 instance Compiler Mk4 where
   executer _ = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
 
+
+---------------------------------------------------------------
+-- COMMAND LINE OPTIONS
+---------------------------------------------------------------
 
 data Engine = Mark1  -- Mk1
             | Mark2  -- Mk2
@@ -68,6 +75,10 @@ compilerOpts argv =
     (o, n, []  ) -> return (foldl (flip id) defaultOptions o, n)
     (_, _, errs) -> ioError (userError (concat errs ++ usageInfo header options))
   where header = "Usage: cabal v2-run ifl -- [OPTION...] <program-file>"
+
+---------------------------------------------------------------
+-- MAIN
+---------------------------------------------------------------
 
 run :: Options -> [String] -> IO ()
 run opts (file:_) = do
