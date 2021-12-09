@@ -10,10 +10,28 @@ import qualified Template.Mark2 as Mark2 (parse, compile, eval, showResults)
 import qualified Template.Mark3 as Mark3 (parse, compile, eval, showResults)
 import qualified Template.Mark4 as Mark4 (parse, compile, eval, showResults)
 
-data Engine = Mark1
-            | Mark2
-            | Mark3
-            | Mark4
+
+class Compiler c where
+  executer :: c -> String -> IO ()
+
+data Mk1 = Mk1
+instance Compiler Mk1 where
+  executer _ = putStrLn . Mark1.showResults . Mark1.eval . Mark1.compile . Mark1.parse
+data Mk2 = Mk2
+instance Compiler Mk2 where
+  executer _ = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mark2.parse
+data Mk3 = Mk3
+instance Compiler Mk3 where
+  executer _ = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
+data Mk4 = Mk4
+instance Compiler Mk4 where
+  executer _ = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
+
+
+data Engine = Mark1  -- Mk1
+            | Mark2  -- Mk2
+            | Mark3  -- Mk3
+            | Mark4  -- Mk4
             deriving Show
 
 data Options = Options
@@ -42,7 +60,7 @@ options = [ Option ['v']      ["verbose"] (NoArg (\opts -> opts {optVerbose = Tr
         decideEngine "mark2" = Mark2
         decideEngine "mark3" = Mark3
         decideEngine "mark4" = Mark4
-        decideEngine _       = error "Unknown engine" -- FIXME: ここエラーにならない
+        decideEngine e       = error $ "Unknown engine: " ++ e
 
 compilerOpts :: [String] -> IO (Options, [String])
 compilerOpts argv =
@@ -51,31 +69,15 @@ compilerOpts argv =
     (_, _, errs) -> ioError (userError (concat errs ++ usageInfo header options))
   where header = "Usage: cabal v2-run ifl -- [OPTION...] <program-file>"
 
-class Compiler c where
-  exec :: c -> String -> IO ()
-
-data Mk1 = Mk1
-instance Compiler Mk1 where
-  exec _ = putStrLn . Mark1.showResults . Mark1.eval . Mark1.compile . Mark1.parse
-data Mk2 = Mk2
-instance Compiler Mk2 where
-  exec _ = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mark2.parse
-data Mk3 = Mk3
-instance Compiler Mk3 where
-  exec _ = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
-data Mk4 = Mk4
-instance Compiler Mk4 where
-  exec _ = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
-
 run :: Options -> [String] -> IO ()
 run opts (file:_) = do
   hPutStrLn stderr $ "Program Source: " ++ file
-  execEngine =<< readFile file
-  where execEngine = case optEngine opts of
-          Mark1 -> exec Mk1
-          Mark2 -> exec Mk2
-          Mark3 -> exec Mk3
-          Mark4 -> exec Mk4
+  exec =<< readFile file
+  where exec = case optEngine opts of
+          Mark1 -> executer Mk1
+          Mark2 -> executer Mk2
+          Mark3 -> executer Mk3
+          Mark4 -> executer Mk4
 
 printHelp :: IO ()
 printHelp = do
