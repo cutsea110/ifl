@@ -13,7 +13,7 @@ run (file:_) = do
   exec =<< readFile file
 
 exec :: String -> IO ()
-exec = putStrLn . showResults . eval . compile . parse
+exec = hPutStrLn stdout . showResults . eval . compile . parse
 
 printHelp :: IO ()
 printHelp = do
