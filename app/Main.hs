@@ -3,17 +3,21 @@ module Main where
 import System.Environment (getArgs)
 import System.IO (getContents, hPutStr, hPutStrLn, stdout, stderr)
 
-import Template.Mark4 (parse, compile, eval, showResults)
+import qualified Template.Mark4 as Mark4 (parse, compile, eval, showResults)
 
 type Arguments = [String]
+
+class Compiler e where
+  exec :: e -> String -> IO ()
+
+data Mk4 = Mk4
+instance Compiler Mk4 where
+  exec _ = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
 
 run :: Arguments -> IO ()
 run (file:_) = do
   hPutStrLn stderr $ "Program Source: " ++ file
-  exec =<< readFile file
-
-exec :: String -> IO ()
-exec = hPutStrLn stdout . showResults . eval . compile . parse
+  exec Mk4 =<< readFile file
 
 printHelp :: IO ()
 printHelp = do
