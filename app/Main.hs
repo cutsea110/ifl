@@ -44,14 +44,14 @@ data Engine = Mark1  -- Mk1
 data Options = Options
   { optVerbose     :: Bool -- TODO
   , optShowVersion :: Bool
-  , optEngine      :: Engine
+  , optEngine      :: Either String Engine
   }
 
 defaultOptions :: Options
 defaultOptions = Options
   { optVerbose     = True  -- TODO
   , optShowVersion = False
-  , optEngine      = Mark4
+  , optEngine      = Right Mark4
   }
 
 options :: [OptDescr (Options -> Options)]
@@ -62,12 +62,12 @@ options = [ Option ['v']      ["verbose"] (NoArg (\opts -> opts {optVerbose = Tr
           , Option ['e']      ["engine"]  (ReqArg (\e opts -> opts {optEngine = decideEngine e}) "Engine")
             "compiler engine name [mark1|mark2|mark3|mark4]"
           ]
-  where decideEngine :: String -> Engine
-        decideEngine "mark1" = Mark1
-        decideEngine "mark2" = Mark2
-        decideEngine "mark3" = Mark3
-        decideEngine "mark4" = Mark4
-        decideEngine e       = error $ "Unknown engine: " ++ e
+  where decideEngine :: String -> Either String Engine
+        decideEngine "mark1" = Right Mark1
+        decideEngine "mark2" = Right Mark2
+        decideEngine "mark3" = Right Mark3
+        decideEngine "mark4" = Right Mark4
+        decideEngine e       = Left $ "Unknown engine: " ++ e
 
 compilerOpts :: [String] -> IO (Options, [String])
 compilerOpts argv =
@@ -85,10 +85,13 @@ run opts (file:_) = do
   hPutStrLn stderr $ "Program Source: " ++ file
   exec =<< readFile file
   where exec = case optEngine opts of
-          Mark1 -> executer Mk1
-          Mark2 -> executer Mk2
-          Mark3 -> executer Mk3
-          Mark4 -> executer Mk4
+          Right Mark1 -> executer Mk1
+          Right Mark2 -> executer Mk2
+          Right Mark3 -> executer Mk3
+          Right Mark4 -> executer Mk4
+          Left  msg   -> \_ -> do
+            putStrLn $ "Error: " ++ msg
+            printHelp
 
 printHelp :: IO ()
 printHelp = do
