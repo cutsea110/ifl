@@ -100,6 +100,7 @@ printHelp = do
                            , "/___/_/   /_____/ Implimenting Functional Languages"
                            , ""
                            , "> cabal v2-run ifl -- [OPTION...] <program-file>"
+                           , usageInfo "OPTION" options
                            ]
 
 main :: IO ()
