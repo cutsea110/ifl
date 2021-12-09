@@ -7,8 +7,8 @@ import qualified Template.Mark4 as Mark4 (parse, compile, eval, showResults)
 
 type Arguments = [String]
 
-class Compiler e where
-  exec :: e -> String -> IO ()
+class Compiler c where
+  exec :: c -> String -> IO ()
 
 data Mk4 = Mk4
 instance Compiler Mk4 where
