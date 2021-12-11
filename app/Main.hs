@@ -21,7 +21,7 @@ executer Mark1 = putStrLn . Mark1.showResults . Mark1.eval . Mark1.compile . Mar
 executer Mark2 = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mark2.parse
 executer Mark3 = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
 executer Mark4 = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
-executer (Noco name) = \_ -> do
+executer (Noco name) _ = do
   putStrLn $ "Error: Unknown compiler engine = " ++ name
   printHelp
 
