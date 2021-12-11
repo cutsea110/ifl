@@ -54,6 +54,13 @@ defaultOptions = Options
   , optEngine      = Right Mark4
   }
 
+name2Engine :: [(String, Engine)]
+name2Engine = [ ("mark1", Mark1)
+              , ("mark2", Mark2)
+              , ("mark3", Mark3)
+              , ("mark4", Mark4)
+              ]
+
 options :: [OptDescr (Options -> Options)]
 options = [ Option ['v']      ["verbose"] (NoArg (\opts -> opts {optVerbose = True}))
             "chatty output on stderr"
@@ -63,12 +70,9 @@ options = [ Option ['v']      ["verbose"] (NoArg (\opts -> opts {optVerbose = Tr
             "compiler engine name [mark1|mark2|mark3|mark4]"
           ]
   where decideEngine :: String -> Either String Engine
-        decideEngine "mark1" = Right Mark1
-        decideEngine "mark2" = Right Mark2
-        decideEngine "mark3" = Right Mark3
-        decideEngine "mark4" = Right Mark4
-        decideEngine e       = Left $ "Unknown engine: " ++ e
-
+        decideEngine name = maybe err Right $ lookup name name2Engine
+          where err = Left $ "Unknown engine: " ++ name
+          
 compilerOpts :: [String] -> IO (Options, [String])
 compilerOpts argv =
   case getOpt Permute options argv of
