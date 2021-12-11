@@ -21,7 +21,7 @@ executer Mark1 = putStrLn . Mark1.showResults . Mark1.eval . Mark1.compile . Mar
 executer Mark2 = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mark2.parse
 executer Mark3 = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
 executer Mark4 = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
-executer (Err name) = \_ -> do
+executer (Noco name) = \_ -> do
   putStrLn $ "Error: Unknown compiler engine = " ++ name
   printHelp
 
@@ -29,7 +29,7 @@ executer (Err name) = \_ -> do
 -- COMMAND LINE OPTIONS
 ---------------------------------------------------------------
 
-data Compiler = Err String | Mark1 | Mark2 | Mark3 | Mark4 deriving Show
+data Compiler = Noco String | Mark1 | Mark2 | Mark3 | Mark4 deriving Show
 
 data Options = Options
   { optVerbose     :: Bool -- TODO
@@ -60,7 +60,7 @@ options = [ Option ['v']      ["verbose"]   (NoArg (\opts -> opts {optVerbose = 
             ("compiler name [" ++ intercalate "|" compilers ++ "]")
           ]
   where decideEngine :: String -> Compiler
-        decideEngine name = fromMaybe (Err name) $ lookup name name2Compiler
+        decideEngine name = fromMaybe (Noco name) $ lookup name name2Compiler
         compilers = map fst name2Compiler
           
 compilerOpts :: [String] -> IO (Options, [String])
