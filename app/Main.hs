@@ -13,28 +13,24 @@ import qualified Template.Mark4 as Mark4 (parse, compile, eval, showResults)
 ---------------------------------------------------------------
 -- COMPILER
 ---------------------------------------------------------------
-type Compiler = String -> IO ()
+type Executer = String -> IO ()
 
-compiler :: Engine -> Compiler
-compiler Mark1 = putStrLn . Mark1.showResults . Mark1.eval . Mark1.compile . Mark1.parse
-compiler Mark2 = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mark2.parse
-compiler Mark3 = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
-compiler Mark4 = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
+executer :: Compiler -> Executer
+executer Mark1 = putStrLn . Mark1.showResults . Mark1.eval . Mark1.compile . Mark1.parse
+executer Mark2 = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mark2.parse
+executer Mark3 = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
+executer Mark4 = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
 
 ---------------------------------------------------------------
 -- COMMAND LINE OPTIONS
 ---------------------------------------------------------------
 
-data Engine = Mark1  -- Mk1
-            | Mark2  -- Mk2
-            | Mark3  -- Mk3
-            | Mark4  -- Mk4
-            deriving Show
+data Compiler = Mark1 | Mark2 | Mark3 | Mark4 deriving Show
 
 data Options = Options
   { optVerbose     :: Bool -- TODO
   , optShowVersion :: Bool
-  , optEngine      :: Either String Engine
+  , optEngine      :: Either String Compiler
   }
 
 defaultOptions :: Options
@@ -44,12 +40,12 @@ defaultOptions = Options
   , optEngine      = Right Mark4
   }
 
-name2Engine :: [(String, Engine)]
-name2Engine = [ ("mark1", Mark1)
-              , ("mark2", Mark2)
-              , ("mark3", Mark3)
-              , ("mark4", Mark4)
-              ]
+name2Compiler :: [(String, Compiler)]
+name2Compiler = [ ("mark1", Mark1)
+                , ("mark2", Mark2)
+                , ("mark3", Mark3)
+                , ("mark4", Mark4)
+                ]
 
 options :: [OptDescr (Options -> Options)]
 options = [ Option ['v']      ["verbose"] (NoArg (\opts -> opts {optVerbose = True}))
@@ -59,8 +55,8 @@ options = [ Option ['v']      ["verbose"] (NoArg (\opts -> opts {optVerbose = Tr
           , Option ['e']      ["engine"]  (ReqArg (\e opts -> opts {optEngine = decideEngine e}) "Engine")
             "compiler engine name [mark1|mark2|mark3|mark4]"
           ]
-  where decideEngine :: String -> Either String Engine
-        decideEngine name = maybe err Right $ lookup name name2Engine
+  where decideEngine :: String -> Either String Compiler
+        decideEngine name = maybe err Right $ lookup name name2Compiler
           where err = Left $ "Unknown engine: " ++ name
           
 compilerOpts :: [String] -> IO (Options, [String])
@@ -78,8 +74,9 @@ run :: Options -> [String] -> IO ()
 run opts (file:_) = do
   hPutStrLn stderr $ "Program Source: " ++ file
   exec =<< readFile file
-  where exec = either err compiler $ optEngine opts
-          where err  msg = \_ -> do
+  where exec = either err executer $ optEngine opts
+          where err :: String -> Executer
+                err msg = \_ -> do
                   putStrLn $ "Error: " ++ msg
                   printHelp
 
