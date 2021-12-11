@@ -1,5 +1,6 @@
 module Main where
 
+import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import System.Console.GetOpt
 import System.Environment (getArgs)
@@ -53,11 +54,12 @@ options = [ Option ['v']      ["verbose"] (NoArg (\opts -> opts {optVerbose = Tr
           , Option ['V', '?'] ["version"] (NoArg (\opts -> opts {optShowVersion = True}))
             "show version"
           , Option ['e']      ["engine"]  (ReqArg (\e opts -> opts {optEngine = decideEngine e}) "Engine")
-            "compiler engine name [mark1|mark2|mark3|mark4]"
+            ("compiler engine name [" ++ intercalate "|" compilers ++ "]")
           ]
   where decideEngine :: String -> Either String Compiler
         decideEngine name = maybe err Right $ lookup name name2Compiler
           where err = Left $ "Unknown engine: " ++ name
+        compilers = map fst name2Compiler
           
 compilerOpts :: [String] -> IO (Options, [String])
 compilerOpts argv =
