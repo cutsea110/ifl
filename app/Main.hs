@@ -21,24 +21,27 @@ executer Mark1 = putStrLn . Mark1.showResults . Mark1.eval . Mark1.compile . Mar
 executer Mark2 = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mark2.parse
 executer Mark3 = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
 executer Mark4 = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
+executer (Err name) = \_ -> do
+  putStrLn $ "Error: Unknown compiler engine = " ++ name
+  printHelp
 
 ---------------------------------------------------------------
 -- COMMAND LINE OPTIONS
 ---------------------------------------------------------------
 
-data Compiler = Mark1 | Mark2 | Mark3 | Mark4 deriving Show
+data Compiler = Err String | Mark1 | Mark2 | Mark3 | Mark4 deriving Show
 
 data Options = Options
   { optVerbose     :: Bool -- TODO
   , optShowVersion :: Bool
-  , optEngine      :: Either String Compiler
+  , optEngine      :: Compiler
   }
 
 defaultOptions :: Options
 defaultOptions = Options
   { optVerbose     = True  -- TODO
   , optShowVersion = False
-  , optEngine      = Right Mark4
+  , optEngine      = Mark4
   }
 
 name2Compiler :: [(String, Compiler)]
@@ -49,16 +52,15 @@ name2Compiler = [ ("mark1", Mark1)
                 ]
 
 options :: [OptDescr (Options -> Options)]
-options = [ Option ['v']      ["verbose"] (NoArg (\opts -> opts {optVerbose = True}))
+options = [ Option ['v']      ["verbose"]   (NoArg (\opts -> opts {optVerbose = True}))
             "chatty output on stderr"
-          , Option ['V', '?'] ["version"] (NoArg (\opts -> opts {optShowVersion = True}))
+          , Option ['V', '?'] ["version"]   (NoArg (\opts -> opts {optShowVersion = True}))
             "show version"
-          , Option ['e']      ["engine"]  (ReqArg (\e opts -> opts {optEngine = decideEngine e}) "Engine")
-            ("compiler engine name [" ++ intercalate "|" compilers ++ "]")
+          , Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optEngine = decideEngine e}) "Compiler")
+            ("compiler name [" ++ intercalate "|" compilers ++ "]")
           ]
-  where decideEngine :: String -> Either String Compiler
-        decideEngine name = maybe err Right $ lookup name name2Compiler
-          where err = Left $ "Unknown engine: " ++ name
+  where decideEngine :: String -> Compiler
+        decideEngine name = fromMaybe (Err name) $ lookup name name2Compiler
         compilers = map fst name2Compiler
           
 compilerOpts :: [String] -> IO (Options, [String])
@@ -75,12 +77,7 @@ compilerOpts argv =
 run :: Options -> [String] -> IO ()
 run opts (file:_) = do
   hPutStrLn stderr $ "Program Source: " ++ file
-  exec =<< readFile file
-  where exec = either err executer $ optEngine opts
-          where err :: String -> Executer
-                err msg = \_ -> do
-                  putStrLn $ "Error: " ++ msg
-                  printHelp
+  executer (optEngine opts) =<< readFile file
 
 printHelp :: IO ()
 printHelp = do
