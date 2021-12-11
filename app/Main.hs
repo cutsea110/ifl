@@ -13,23 +13,13 @@ import qualified Template.Mark4 as Mark4 (parse, compile, eval, showResults)
 ---------------------------------------------------------------
 -- COMPILER
 ---------------------------------------------------------------
+type Compiler = String -> IO ()
 
-class Compiler c where
-  executer :: c -> String -> IO ()
-
-data Mk1 = Mk1
-instance Compiler Mk1 where
-  executer _ = putStrLn . Mark1.showResults . Mark1.eval . Mark1.compile . Mark1.parse
-data Mk2 = Mk2
-instance Compiler Mk2 where
-  executer _ = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mark2.parse
-data Mk3 = Mk3
-instance Compiler Mk3 where
-  executer _ = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
-data Mk4 = Mk4
-instance Compiler Mk4 where
-  executer _ = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
-
+compiler :: Engine -> Compiler
+compiler Mark1 = putStrLn . Mark1.showResults . Mark1.eval . Mark1.compile . Mark1.parse
+compiler Mark2 = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mark2.parse
+compiler Mark3 = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
+compiler Mark4 = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
 
 ---------------------------------------------------------------
 -- COMMAND LINE OPTIONS
@@ -88,14 +78,10 @@ run :: Options -> [String] -> IO ()
 run opts (file:_) = do
   hPutStrLn stderr $ "Program Source: " ++ file
   exec =<< readFile file
-  where exec = case optEngine opts of
-          Right Mark1 -> executer Mk1
-          Right Mark2 -> executer Mk2
-          Right Mark3 -> executer Mk3
-          Right Mark4 -> executer Mk4
-          Left  msg   -> \_ -> do
-            putStrLn $ "Error: " ++ msg
-            printHelp
+  where exec = either err compiler $ optEngine opts
+          where err  msg = \_ -> do
+                  putStrLn $ "Error: " ++ msg
+                  printHelp
 
 printHelp :: IO ()
 printHelp = do
