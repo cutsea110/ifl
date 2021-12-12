@@ -22,7 +22,7 @@ executer Mark2 = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mar
 executer Mark3 = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
 executer Mark4 = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
 executer (Noco name) = \_ -> do
-  putStrLn $ "Error: Unknown compiler engine = " ++ name
+  putStrLn $ "Error: Unknown compiler = " ++ name
   printHelp
 
 ---------------------------------------------------------------
@@ -34,14 +34,14 @@ data Compiler = Noco String | Mark1 | Mark2 | Mark3 | Mark4 deriving Show
 data Options = Options
   { optVerbose     :: Bool -- TODO
   , optShowVersion :: Bool
-  , optEngine      :: Compiler
+  , optCompiler      :: Compiler
   }
 
 defaultOptions :: Options
 defaultOptions = Options
   { optVerbose     = True  -- TODO
   , optShowVersion = False
-  , optEngine      = Mark4
+  , optCompiler    = Mark4
   }
 
 name2Compiler :: [(String, Compiler)]
@@ -52,7 +52,7 @@ name2Compiler = [ ("mark1", Mark1)
                 ]
 
 options :: [OptDescr (Options -> Options)]
-options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optEngine = decide e}) "Compiler")
+options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optCompiler = decide e}) "Compiler")
             ("compiler name [" ++ intercalate "|" compilers ++ "]")
           , Option ['v']      ["verbose"]   (NoArg (\opts -> opts {optVerbose = True}))
             "chatty output on stderr"
@@ -77,7 +77,7 @@ compilerOpts argv =
 run :: Options -> [String] -> IO ()
 run opts (file:_) = do
   hPutStrLn stderr $ "Program Source: " ++ file
-  executer (optEngine opts) =<< readFile file
+  executer (optCompiler opts) =<< readFile file
 
 printHelp :: IO ()
 printHelp = do
