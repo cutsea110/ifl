@@ -52,15 +52,15 @@ name2Compiler = [ ("mark1", Mark1)
                 ]
 
 options :: [OptDescr (Options -> Options)]
-options = [ Option ['v']      ["verbose"]   (NoArg (\opts -> opts {optVerbose = True}))
+options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optEngine = decide e}) "Compiler")
+            ("compiler name [" ++ intercalate "|" compilers ++ "]")
+          , Option ['v']      ["verbose"]   (NoArg (\opts -> opts {optVerbose = True}))
             "chatty output on stderr"
           , Option ['V', '?'] ["version"]   (NoArg (\opts -> opts {optShowVersion = True}))
             "show version"
-          , Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optEngine = decideEngine e}) "Compiler")
-            ("compiler name [" ++ intercalate "|" compilers ++ "]")
           ]
-  where decideEngine :: String -> Compiler
-        decideEngine name = fromMaybe (Noco name) $ lookup name name2Compiler
+  where decide :: String -> Compiler
+        decide name = fromMaybe (Noco name) $ lookup name name2Compiler
         compilers = map fst name2Compiler
           
 compilerOpts :: [String] -> IO (Options, [String])
