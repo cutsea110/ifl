@@ -34,7 +34,7 @@ data Compiler = Noco String | Mark1 | Mark2 | Mark3 | Mark4 deriving Show
 data Options = Options
   { optVerbose     :: Bool -- TODO
   , optShowVersion :: Bool
-  , optCompiler      :: Compiler
+  , optCompiler    :: Compiler
   }
 
 defaultOptions :: Options
