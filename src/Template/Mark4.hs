@@ -163,11 +163,12 @@ indStep (stack, dump, heap, globals, stats) a = (stack', dump, heap, globals, st
   where stack' = push a (discard 1 stack)
 
 primStep :: TiState -> Primitive -> TiState
-primStep state Neg = primNeg state
-primStep state Add = primArith state (+)
-primStep state Sub = primArith state (-)
-primStep state Mul = primArith state (*)
-primStep state Div = primArith state div
+primStep state prim = doAdminPrim (step prim)
+  where step Neg = primNeg state
+        step Add = primArith state (+)
+        step Sub = primArith state (-)
+        step Mul = primArith state (*)
+        step Div = primArith state div
 
 primNeg :: TiState -> TiState
 primNeg (stack, dump, heap, globals, stats)
