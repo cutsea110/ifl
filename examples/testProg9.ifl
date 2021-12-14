@@ -1,5 +1,5 @@
 -- test program 9
 
 double x = x + x ;
-id x = S K K (x * x) ;
-main = double (id 3)
+sq x = S K K (x * x) ;
+main = double (sq 3)
