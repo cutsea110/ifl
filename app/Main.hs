@@ -74,10 +74,10 @@ compilerOpts argv =
 -- MAIN
 ---------------------------------------------------------------
 
-run :: Options -> [String] -> IO ()
-run opts (file:_) = do
-  hPutStrLn stderr $ "Program Source: " ++ file
-  executer (optCompiler opts) =<< readFile file
+run :: Options -> FilePath -> IO ()
+run opts fp = do
+  hPutStrLn stderr $ "Program Source: " ++ fp
+  executer (optCompiler opts) =<< readFile fp
 
 printHelp :: IO ()
 printHelp = do
@@ -97,4 +97,4 @@ main = do
   args <- getArgs
   (opts, rest) <- compilerOpts args
   if null rest then printHelp
-    else run opts rest
+    else run opts (head rest)
