@@ -1,5 +1,6 @@
 module Main where
 
+import Control.Monad (forM_)
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import System.Console.GetOpt
@@ -97,4 +98,4 @@ main = do
   args <- getArgs
   (opts, rest) <- compilerOpts args
   if null rest then printHelp
-    else run opts (head rest)
+    else forM_ rest (run opts)
