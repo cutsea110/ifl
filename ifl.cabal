@@ -30,7 +30,7 @@ library
                        Template.Mark4
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.13 && <4.16
+  build-depends:       base >=4.13
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -38,7 +38,7 @@ executable ifl
   main-is:             Main.hs
   -- other-modules:    MyLib
   -- other-extensions:
-  build-depends:       base >=4.13 && <4.16, ifl
+  build-depends:       base >=4.13, ifl
   hs-source-dirs:      app
   default-language:    Haskell2010
 
