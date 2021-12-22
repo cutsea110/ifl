@@ -54,7 +54,7 @@ name2Compiler = [ ("mark1", Mark1)
 
 options :: [OptDescr (Options -> Options)]
 options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optCompiler = decide e}) "Compiler")
-            ("compiler name [" ++ intercalate " | " compilers ++ "]")
+            ("compiler name (" ++ intercalate " | " compilers ++ ")")
           , Option ['v']      ["verbose"]   (NoArg (\opts -> opts {optVerbose = True}))
             "chatty output on stderr"
           , Option ['V', '?'] ["version"]   (NoArg (\opts -> opts {optShowVersion = True}))
