@@ -52,9 +52,12 @@ name2Compiler = [ ("mark1", Mark1)
                 , ("mark4", Mark4)
                 ]
 
+compilerNames :: [String]
+compilerNames = map fst name2Compiler
+
 options :: [OptDescr (Options -> Options)]
 options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optCompiler = decide e}) "Compiler")
-            ("compiler name (" ++ intercalate " | " compilers ++ ")")
+            ("compiler name (" ++ intercalate " | " compilerNames ++ ")")
           , Option ['v']      ["verbose"]   (NoArg (\opts -> opts {optVerbose = True}))
             "chatty output on stderr"
           , Option ['V', '?'] ["version"]   (NoArg (\opts -> opts {optShowVersion = True}))
@@ -62,7 +65,6 @@ options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optCompile
           ]
   where decide :: String -> Compiler
         decide name = fromMaybe (Noco name) $ lookup name name2Compiler
-        compilers = map fst name2Compiler
           
 compilerOpts :: [String] -> IO (Options, [String])
 compilerOpts argv =
@@ -78,6 +80,8 @@ compilerOpts argv =
 run :: Options -> FilePath -> IO ()
 run opts fp = do
   hPutStrLn stderr $ "Program Source: " ++ fp
+  hPutStrLn stderr $
+    "The compilers that can be specified are as follows: " ++ intercalate "," compilerNames ++ "."
   executer (optCompiler opts) =<< readFile fp
 
 printHelp :: IO ()
