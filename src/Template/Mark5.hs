@@ -19,6 +19,8 @@ data Primitive
   | Sub
   | Mul
   | Div
+  | PrimConstr Tag Arity
+  | If
   deriving Show
 
 data Node
@@ -27,6 +29,7 @@ data Node
   | NNum Int
   | NInd Addr
   | NPrim Name Primitive
+  | NData Int [Addr]
 
 primitives :: Assoc Name Primitive
 primitives = [ ("negate", Neg)
@@ -34,6 +37,7 @@ primitives = [ ("negate", Neg)
              , ("-", Sub)
              , ("*", Mul)
              , ("/", Div)
+             , ("if", If)
              ]
 
 type TiState = (TiStack, TiDump, TiHeap, TiGlobals, TiStats)
@@ -72,7 +76,9 @@ compile program = (initialStack, initialTiDump, initialHeap, globals, tiStatInit
     addressOfMain = aLookup globals "main" (error "main is not defined")
 
 extraPreludeDefs :: CoreProgram
-extraPreludeDefs = []
+extraPreludeDefs = [ ("False", [], EConstr 1 0)
+                   , ("True",  [], EConstr 2 0)
+                   ]
 
 buildInitialHeap :: [CoreScDefn] -> (TiHeap, TiGlobals)
 buildInitialHeap scDefs = (heap', env ++ env')
@@ -114,8 +120,9 @@ tiFinal (stack, dump, heap, _, _) = case getStack stack of
   _          -> False
 
 isDataNode :: Node -> Bool
-isDataNode (NNum _) = True
-isDataNode _        = False
+isDataNode (NNum _)    = True
+isDataNode (NData _ _) = True
+isDataNode _           = False
 
 isIndNode :: Node -> Bool
 isIndNode (NInd _) = True
@@ -130,6 +137,7 @@ step state@(stack, dump, heap, globals, stats) = dispatch (hLookup heap item)
     dispatch (NSupercomb sc args body) = doAdminSc $ scStep state sc args body
     dispatch (NInd a)                  = indStep state a
     dispatch (NPrim name prim)         = doAdminPrim $ primStep state prim
+    dispatch (NData tag fields)        = dataStep state tag fields
 
 numStep :: TiState -> Int -> TiState
 numStep (stack, dump, heap, globals, stats) n
@@ -163,11 +171,22 @@ indStep (stack, dump, heap, globals, stats) a = (stack', dump, heap, globals, st
   where stack' = push a (discard 1 stack)
 
 primStep :: TiState -> Primitive -> TiState
-primStep state Neg = primNeg state
-primStep state Add = primArith state (+)
-primStep state Sub = primArith state (-)
-primStep state Mul = primArith state (*)
-primStep state Div = primArith state div
+primStep state Neg                    = primNeg state
+primStep state Add                    = primArith state (+)
+primStep state Sub                    = primArith state (-)
+primStep state Mul                    = primArith state (*)
+primStep state Div                    = primArith state div
+primStep state (PrimConstr tag arity) = primConstr state tag arity
+primStep state If                     = primIf state
+
+primConstr :: TiState -> Tag -> Arity -> TiState
+primConstr (stack, dump, heap, globals, stats) tag arity
+  | length args /= arity = error "primConstr: wrong number of args."
+  | otherwise            = (stack', dump, heap', globals, stats)
+  where args = getargs heap stack
+        stack' = discard arity stack
+        (rootOfRedex, _) = pop stack'
+        heap' = hUpdate heap rootOfRedex (NData tag args)
 
 primNeg :: TiState -> TiState
 primNeg (stack, dump, heap, globals, stats)
@@ -197,6 +216,25 @@ primArith (stack, dump, heap, globals, stats) op
         (root, _) = pop stack'
         heap' = hUpdate heap root (NNum (m `op` n))
 
+primIf :: TiState -> TiState
+primIf  (stack, dump, heap, globals, stats)
+  | length args < 3           = error "primIf: wrong number of args."
+  | not (isDataNode arg1Node) = (push arg1Addr emptyStack, push stack' dump, heap, globals, stats)
+  | otherwise                 = (stack', dump, heap', globals, stats)
+  where args = getargs heap stack
+        [arg1Addr, arg2Addr, arg3Addr] = take 3 args
+        arg1Node = hLookup heap arg1Addr
+        stack' = discard 3 stack
+        (rootOfRedex, _) = pop stack'
+        result = case arg1Node of
+          NData 2 [] -> arg2Addr -- True  case
+          _          -> arg3Addr -- False case
+        heap' = hUpdate heap rootOfRedex (NInd result)
+
+dataStep :: TiState -> Tag -> [Addr] -> TiState
+dataStep (stack, dump, heap, globals, stats) tag fields = case pop dump of
+  (stack', dump') -> (stack', dump', heap, globals, stats)
+
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateAndUpdate (ENum n)               updAddr heap env = hUpdate heap updAddr (NNum n)
 instantiateAndUpdate (EAp e1 e2)            updAddr heap env = hUpdate heap2 updAddr (NAp a1 a2)
@@ -211,8 +249,12 @@ instantiateAndUpdate (ELet isrec defs body) updAddr heap env = instantiateAndUpd
                | otherwise = env
         instantiateRhs heap (name, rhs) = (heap', (name, addr))
           where (heap', addr) = instantiate rhs heap rhsEnv
-instantiateAndUpdate (EConstr tag arity)    updAddr heap env = error "TODO: implement instantiateAndUpdate"
+instantiateAndUpdate (EConstr tag arity)    updAddr heap env = instantiateAndUpdateConstr tag arity updAddr heap env
 instantiateAndUpdate _                      updAddr heap env = error "not yet implemented"
+
+instantiateAndUpdateConstr :: Tag -> Arity -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
+instantiateAndUpdateConstr tag arity updAddr heap env
+  = hUpdate heap updAddr (NPrim "Cons" (PrimConstr tag arity))
 
 getargs :: TiHeap -> TiStack -> [Addr]
 getargs heap stack = case getStack stack of
@@ -329,6 +371,12 @@ showNode (NSupercomb name _ _) = iStr ("NSupercomb " ++ name)
 showNode (NNum n)              = iStr "NNum " `iAppend` iNum n
 showNode (NInd a)              = iStr "NInd " `iAppend` showAddr a
 showNode (NPrim _ prim)        = iStr "NPrim " `iAppend` iStr (show prim)
+showNode (NData tag fields)    = iConcat [ iStr "NData "
+                                         , iNum tag
+                                         , iStr " ["
+                                         , iInterleave (iStr ",") (map showAddr fields)
+                                         , iStr "]"
+                                         ]
 
 showAddr :: Addr -> IseqRep
 showAddr addr = iStr (showaddr addr)

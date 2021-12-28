@@ -1,0 +1,3 @@
+-- test program 11
+
+main = if True 1 2
