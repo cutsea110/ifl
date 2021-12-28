@@ -274,8 +274,8 @@ primIf  (stack, dump, heap, globals, stats)
         heap' = hUpdate heap rootOfRedex (NInd result)
 
 dataStep :: TiState -> Tag -> [Addr] -> TiState
-dataStep (stack, dump, heap, globals, stats) tag fields = case pop dump of
-  (stack', dump') -> (stack', dump', heap, globals, stats)
+dataStep (stack, dump, heap, globals, stats) tag fields = (stack', dump', heap, globals, stats)
+  where (stack', dump') = pop dump
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateAndUpdate (ENum n)               updAddr heap env = hUpdate heap updAddr (NNum n)
