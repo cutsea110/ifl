@@ -269,7 +269,8 @@ primIf  (stack, dump, heap, globals, stats)
         (rootOfRedex, _) = pop stack'
         result = case arg1Node of
           NData 2 [] -> arg2Addr -- True  case
-          _          -> arg3Addr -- False case
+          NData 1 [] -> arg3Addr -- False case
+          _          -> error "primIf: unexpected node found"
         heap' = hUpdate heap rootOfRedex (NInd result)
 
 dataStep :: TiState -> Tag -> [Addr] -> TiState
