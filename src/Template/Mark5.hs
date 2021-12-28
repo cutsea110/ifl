@@ -199,36 +199,6 @@ primStep state LessEq                 = primComp state (<=)
 primStep state Greater                = primComp state (>)
 primStep state GreaterEq              = primComp state (>=)
 
-primComp :: TiState -> (Int -> Int -> Bool) -> TiState
-primComp state op = primDyadic state op'
-  where op' (NNum m) (NNum n)
-          | m `op` n  = NData 2 [] -- True case
-          | otherwise = NData 1 [] -- False case
-        op' _ _ = error "TODO: implement primComp"
-
-primDyadic :: TiState -> (Node -> Node -> Node) -> TiState
-primDyadic (stack, dump, heap, globals, stats) op
-  | length args /= 2 = error "primDyadic: wrong number of args"
-  | not (isDataNode arg1Node) = (push arg1Addr emptyStack, dump', heap, globals, stats)
-  | not (isDataNode arg2Node) = (push arg2Addr emptyStack, dump', heap, globals, stats)
-  | otherwise = (stack', dump, heap', globals, stats)
-  where args = getargs heap stack
-        [arg1Addr, arg2Addr] = args
-        [arg1Node, arg2Node] = map (hLookup heap) args
-        stack' = discard 2 stack
-        dump' = push stack' dump
-        (rootOfRedex, _) = pop stack'
-        heap' = hUpdate heap rootOfRedex (arg1Node `op` arg2Node)
-
-primConstr :: TiState -> Tag -> Arity -> TiState
-primConstr (stack, dump, heap, globals, stats) tag arity
-  | length args /= arity = error "primConstr: wrong number of args."
-  | otherwise            = (stack', dump, heap', globals, stats)
-  where args = getargs heap stack
-        stack' = discard arity stack
-        (rootOfRedex, _) = pop stack'
-        heap' = hUpdate heap rootOfRedex (NData tag args)
-
 primNeg :: TiState -> TiState
 primNeg (stack, dump, heap, globals, stats)
   | length args /= 1 = error "primNeg: wrong number of args."
@@ -257,6 +227,15 @@ primArith (stack, dump, heap, globals, stats) op
         (root, _) = pop stack'
         heap' = hUpdate heap root (NNum (m `op` n))
 
+primConstr :: TiState -> Tag -> Arity -> TiState
+primConstr (stack, dump, heap, globals, stats) tag arity
+  | length args /= arity = error "primConstr: wrong number of args."
+  | otherwise            = (stack', dump, heap', globals, stats)
+  where args = getargs heap stack
+        stack' = discard arity stack
+        (rootOfRedex, _) = pop stack'
+        heap' = hUpdate heap rootOfRedex (NData tag args)
+
 primIf :: TiState -> TiState
 primIf  (stack, dump, heap, globals, stats)
   | length args < 3           = error "primIf: wrong number of args."
@@ -272,6 +251,27 @@ primIf  (stack, dump, heap, globals, stats)
           NData 1 [] -> arg3Addr -- False case
           _          -> error "primIf: unexpected node found"
         heap' = hUpdate heap rootOfRedex (NInd result)
+
+primComp :: TiState -> (Int -> Int -> Bool) -> TiState
+primComp state op = primDyadic state op'
+  where op' (NNum m) (NNum n)
+          | m `op` n  = NData 2 [] -- True case
+          | otherwise = NData 1 [] -- False case
+        op' _ _ = error "TODO: implement primComp"
+
+primDyadic :: TiState -> (Node -> Node -> Node) -> TiState
+primDyadic (stack, dump, heap, globals, stats) op
+  | length args /= 2 = error "primDyadic: wrong number of args"
+  | not (isDataNode arg1Node) = (push arg1Addr emptyStack, dump', heap, globals, stats)
+  | not (isDataNode arg2Node) = (push arg2Addr emptyStack, dump', heap, globals, stats)
+  | otherwise = (stack', dump, heap', globals, stats)
+  where args = getargs heap stack
+        [arg1Addr, arg2Addr] = args
+        [arg1Node, arg2Node] = map (hLookup heap) args
+        stack' = discard 2 stack
+        dump' = push stack' dump
+        (rootOfRedex, _) = pop stack'
+        heap' = hUpdate heap rootOfRedex (arg1Node `op` arg2Node)
 
 dataStep :: TiState -> Tag -> [Addr] -> TiState
 dataStep (stack, dump, heap, globals, stats) tag fields = (stack', dump', heap, globals, stats)
@@ -413,12 +413,8 @@ showNode (NSupercomb name _ _) = iStr ("NSupercomb " ++ name)
 showNode (NNum n)              = iStr "NNum " `iAppend` iNum n
 showNode (NInd a)              = iStr "NInd " `iAppend` showAddr a
 showNode (NPrim _ prim)        = iStr "NPrim " `iAppend` iStr (show prim)
-showNode (NData tag fields)    = iConcat [ iStr "NData "
-                                         , iNum tag
-                                         , iStr " ["
-                                         , iInterleave (iStr ",") (map showAddr fields)
-                                         , iStr "]"
-                                         ]
+showNode (NData tag fields)    = iConcat [ iStr "NData ", iNum tag, iStr " [", iFields, iStr "]"]
+  where iFields = iInterleave (iStr ",") (map showAddr fields)
 
 showAddr :: Addr -> IseqRep
 showAddr addr = iStr (showaddr addr)
