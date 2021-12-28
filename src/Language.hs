@@ -487,13 +487,11 @@ pprExpr _ pa (EAp e1 e2) = if weakp pa (prec pa) (assoc pa) then iParen e else e
                     , pprExpr Sub functionArgFixity e2
                     ]
 pprExpr l _ (ELet isrec defns expr) = if l /= Top then iParen e else e
-  where
-    keyword | not isrec = "let"
-            | isrec     = "letrec"
-    e = iConcat [ iStr keyword, iNewline
-                , iStr "  ", iIndent (pprDefns defns), iNewline
-                , iStr "in ", pprExpr Top defaultFixity expr
-                ]
+  where keyword = if isrec then "letrec" else "let"
+        e = iConcat [ iStr keyword, iNewline
+                    , iStr "  ", iIndent (pprDefns defns), iNewline
+                    , iStr "in ", pprExpr Top defaultFixity expr
+                    ]
 pprExpr l _ (ECase expr alts) = if l /= Top then iParen e else e
   where e = iConcat [ iStr "case ", iIndent (pprExpr Top defaultFixity expr), iStr " of", iNewline
                     , iStr "  ", iIndent (iInterleave iNL' (map pprAlt alts))
