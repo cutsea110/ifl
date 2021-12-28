@@ -296,7 +296,7 @@ instantiateAndUpdate _                      updAddr heap env = error "not yet im
 
 instantiateAndUpdateConstr :: Tag -> Arity -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateAndUpdateConstr tag arity updAddr heap env
-  = hUpdate heap updAddr (NPrim "Cons" (PrimConstr tag arity))
+  = hUpdate heap updAddr (NPrim "Constr" (PrimConstr tag arity))
 
 getargs :: TiHeap -> TiStack -> [Addr]
 getargs heap stack = case getStack stack of
