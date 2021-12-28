@@ -1,0 +1,3 @@
+-- test program 15
+
+main = or False True

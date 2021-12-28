@@ -1,0 +1,3 @@
+-- test program 16
+
+main = xor False True

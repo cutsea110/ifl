@@ -1,0 +1,3 @@
+-- test program 18
+
+main = and (1 < 2) (2 <= 1)

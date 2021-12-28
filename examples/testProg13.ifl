@@ -1,0 +1,3 @@
+-- test program 13
+
+main = not True
