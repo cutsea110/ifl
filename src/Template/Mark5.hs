@@ -12,6 +12,7 @@ import Language
 import Heap
 import Stack
 import Utils
+import Data.Foldable (Foldable(foldMap'))
 
 data Primitive
   = Neg
@@ -21,6 +22,9 @@ data Primitive
   | Div
   | PrimConstr Tag Arity
   | If
+  | Eq | NotEq
+  | Less | LessEq
+  | Greater | GreaterEq
   deriving Show
 
 data Node
@@ -38,6 +42,12 @@ primitives = [ ("negate", Neg)
              , ("*", Mul)
              , ("/", Div)
              , ("if", If)
+             , ("==", Eq)
+             , ("/=", NotEq)
+             , ("<", Less)
+             , ("<=", LessEq)
+             , (">", Greater)
+             , (">=", GreaterEq)
              ]
 
 type TiState = (TiStack, TiDump, TiHeap, TiGlobals, TiStats)
@@ -182,6 +192,33 @@ primStep state Mul                    = primArith state (*)
 primStep state Div                    = primArith state div
 primStep state (PrimConstr tag arity) = primConstr state tag arity
 primStep state If                     = primIf state
+primStep state Eq                     = primComp state (==)
+primStep state NotEq                  = primComp state (/=)
+primStep state Less                   = primComp state (<)
+primStep state LessEq                 = primComp state (<=)
+primStep state Greater                = primComp state (>)
+primStep state GreaterEq              = primComp state (>=)
+
+primComp :: TiState -> (Int -> Int -> Bool) -> TiState
+primComp state op = primDyadic state op'
+  where op' (NNum m) (NNum n)
+          | m `op` n  = NData 2 [] -- True case
+          | otherwise = NData 1 [] -- False case
+        op' _ _ = error "TODO: implement primComp"
+
+primDyadic :: TiState -> (Node -> Node -> Node) -> TiState
+primDyadic (stack, dump, heap, globals, stats) op
+  | length args /= 2 = error "primDyadic: wrong number of args"
+  | not (isDataNode arg1Node) = (push arg1Addr emptyStack, dump', heap, globals, stats)
+  | not (isDataNode arg2Node) = (push arg2Addr emptyStack, dump', heap, globals, stats)
+  | otherwise = (stack', dump, heap', globals, stats)
+  where args = getargs heap stack
+        [arg1Addr, arg2Addr] = args
+        [arg1Node, arg2Node] = map (hLookup heap) args
+        stack' = discard 2 stack
+        dump' = push stack' dump
+        (rootOfRedex, _) = pop stack'
+        heap' = hUpdate heap rootOfRedex (arg1Node `op` arg2Node)
 
 primConstr :: TiState -> Tag -> Arity -> TiState
 primConstr (stack, dump, heap, globals, stats) tag arity
