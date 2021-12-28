@@ -127,9 +127,9 @@ step state@(stack, dump, heap, globals, stats) = dispatch (hLookup heap item)
     (item, stack') = pop stack
     dispatch (NNum n)                  = numStep state n
     dispatch (NAp a1 a2)               = apStep state a1 a2
-    dispatch (NSupercomb sc args body) = scStep state sc args body
+    dispatch (NSupercomb sc args body) = doAdminSc $ scStep state sc args body
     dispatch (NInd a)                  = indStep state a
-    dispatch (NPrim name prim)         = primStep state prim
+    dispatch (NPrim name prim)         = doAdminPrim $ primStep state prim
 
 numStep :: TiState -> Int -> TiState
 numStep (stack, dump, heap, globals, stats) n
@@ -150,7 +150,7 @@ apStep (stack, dump, heap, globals, stats) a1 a2
 scStep :: TiState -> Name -> [Name] -> CoreExpr -> TiState
 scStep (stack, dump, heap, globals, stats) scName argNames body
   | getDepth stack < length argNames + 1 = error "Too few arguments given"
-  | otherwise = doAdminSc (stack', dump, heap', globals, stats)
+  | otherwise = (stack', dump, heap', globals, stats)
   where
     argsLen = length argNames
     stack' = discard argsLen stack
@@ -163,7 +163,7 @@ indStep (stack, dump, heap, globals, stats) a = (stack', dump, heap, globals, st
   where stack' = push a (discard 1 stack)
 
 primStep :: TiState -> Primitive -> TiState
-primStep state prim = doAdminPrim (step prim)
+primStep state prim = step prim
   where step Neg = primNeg state
         step Add = primArith state (+)
         step Sub = primArith state (-)
