@@ -11,6 +11,7 @@ import qualified Template.Mark1 as Mark1 (parse, compile, eval, showResults)
 import qualified Template.Mark2 as Mark2 (parse, compile, eval, showResults)
 import qualified Template.Mark3 as Mark3 (parse, compile, eval, showResults)
 import qualified Template.Mark4 as Mark4 (parse, compile, eval, showResults)
+import qualified Template.Mark5 as Mark5 (parse, compile, eval, showResults)
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -22,6 +23,7 @@ executer Mark1 = putStrLn . Mark1.showResults . Mark1.eval . Mark1.compile . Mar
 executer Mark2 = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mark2.parse
 executer Mark3 = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
 executer Mark4 = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
+executer Mark5 = putStrLn . Mark5.showResults . Mark5.eval . Mark5.compile . Mark5.parse
 executer (Noco name) = \_ -> do
   putStrLn $ "Error: Unknown compiler = " ++ name
   printHelp
@@ -30,7 +32,7 @@ executer (Noco name) = \_ -> do
 -- COMMAND LINE OPTIONS
 ---------------------------------------------------------------
 
-data Compiler = Noco String | Mark1 | Mark2 | Mark3 | Mark4 deriving Show
+data Compiler = Noco String | Mark1 | Mark2 | Mark3 | Mark4 | Mark5 deriving Show
 
 data Options = Options
   { optVerbose     :: Bool -- TODO
@@ -42,7 +44,7 @@ defaultOptions :: Options
 defaultOptions = Options
   { optVerbose     = True  -- TODO
   , optShowVersion = False
-  , optCompiler    = Mark4
+  , optCompiler    = Mark5
   }
 
 name2Compiler :: [(String, Compiler)]
@@ -50,6 +52,7 @@ name2Compiler = [ ("mark1", Mark1)
                 , ("mark2", Mark2)
                 , ("mark3", Mark3)
                 , ("mark4", Mark4)
+                , ("mark5", Mark5)
                 ]
 
 compilerNames :: [String]
