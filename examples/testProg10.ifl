@@ -1,0 +1,5 @@
+-- test program 10
+
+double x = x + x ;
+square x = x * x ;
+main = double (square 3)
