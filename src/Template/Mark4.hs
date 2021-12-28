@@ -255,9 +255,16 @@ showResults states
                       , showStats lastState
                       , showAllocCount lastState
                       , showStackMaxDepth lastState
+                      , showDumpMaxDepth lastState
                       ])
   where
     lastState = last states
+
+showDumpMaxDepth :: TiState -> IseqRep
+showDumpMaxDepth (_, dump, _, _, _)
+  = iConcat [ iNewline, iStr "   Dump maximum depth = "
+            , iNum (getHighWaterMark dump)
+            ]
 
 showStackMaxDepth :: TiState -> IseqRep
 showStackMaxDepth (stack, _, _, _, _)
