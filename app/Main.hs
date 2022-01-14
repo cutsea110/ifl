@@ -42,7 +42,7 @@ data Options = Options
 
 defaultOptions :: Options
 defaultOptions = Options
-  { optVerbose     = False  -- TODO
+  { optVerbose     = False
   , optShowVersion = False
   , optCompiler    = Mark5
   }
