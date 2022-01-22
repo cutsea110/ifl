@@ -12,7 +12,6 @@ import Language
 import Heap
 import Stack
 import Utils
-import Data.Foldable (Foldable(foldMap'))
 
 data Primitive
   = Neg
