@@ -26,6 +26,7 @@ data Primitive
   | Less | LessEq
   | Greater | GreaterEq
   | PrimCasePair
+  | PrimCaseList
   deriving Show
 
 data Node
@@ -50,6 +51,7 @@ primitives = [ ("negate", Neg)
              , (">", Greater)
              , (">=", GreaterEq)
              , ("casePair", PrimCasePair)
+             , ("caseList", PrimCaseList)
              ]
 
 type TiState = (TiStack, TiDump, TiHeap, TiGlobals, TiStats)
@@ -97,6 +99,8 @@ extraPreludeDefs = [ ("False", [], EConstr 1 0)
                    , ("MkPair", [], EConstr 1 2)
                    , ("fst", ["p"], EAp (EAp (EVar "casePair") (EVar "p")) (EVar "K"))
                    , ("snd", ["p"], EAp (EAp (EVar "casePair") (EVar "p")) (EVar "K1"))
+                   , ("Nil", [], EConstr 1 0)
+                   , ("Cons", [], EConstr 2 2)
                    ]
 
 buildInitialHeap :: [CoreScDefn] -> (TiHeap, TiGlobals)
@@ -204,6 +208,7 @@ primStep state LessEq                 = primComp state (<=)
 primStep state Greater                = primComp state (>)
 primStep state GreaterEq              = primComp state (>=)
 primStep state PrimCasePair           = primCasePair state
+primStep state PrimCaseList           = primCaseList state
 
 primNeg :: TiState -> TiState
 primNeg (stack, dump, heap, globals, stats)
@@ -293,7 +298,24 @@ primCasePair (stack, dump, heap, globals, stats)
           NData _ [fstAddr, sndAddr] ->
             case hAlloc heap (NAp arg2Addr fstAddr) of
               (heap1, addr) -> hUpdate heap1 root (NAp addr sndAddr)
-          _ -> error "primCasePair: NData is expected."
+          _ -> error "primCaseList: invalid node."
+
+primCaseList :: TiState -> TiState
+primCaseList (stack, dump, heap, globals, stats)
+  | length args /= 3          = error "primCaseList: wrong number of args."
+  | not (isDataNode arg1Node) = (push arg1Addr emptyStack, push stack' dump, heap, globals, stats)
+  | otherwise                 = (stack', dump, heap', globals, stats)
+  where args = getargs heap stack
+        [arg1Addr, arg2Addr, arg3Addr] = take 3 args
+        arg1Node = hLookup heap arg1Addr
+        stack' = discard 3 stack
+        (root, _) = pop stack'
+        heap' = case arg1Node of
+          NData 1 []               -> hUpdate heap root (NInd arg2Addr)
+          NData 2 [hdAddr, tlAddr] -> case hAlloc heap (NAp arg3Addr hdAddr) of
+            (heap1, addr) -> hUpdate heap1 root (NAp addr tlAddr)
+          _ -> error "primCaseList: invalid node."
+            
 
 dataStep :: TiState -> Tag -> [Addr] -> TiState
 dataStep (stack, dump, heap, globals, stats) tag fields = (stack', dump', heap, globals, stats)
