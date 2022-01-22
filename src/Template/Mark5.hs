@@ -70,21 +70,25 @@ initialTiDump :: TiDump
 initialTiDump = emptyStack
 type TiHeap = Heap Node
 type TiGlobals = Assoc Name Addr
-type TiStats = (Int, Int, Int)
+-- type TiStats = (Int, Int, Int)
+data TiStats = TiStats { ttl :: Int  -- ^ total steps
+                       , sc  :: Int  -- ^ super combinator steps
+                       , p   :: Int  -- ^ primitive steps
+                       }
 tiStatInitial :: TiStats
-tiStatInitial = (0, 0, 0)
+tiStatInitial = TiStats { ttl = 0, sc = 0, p = 0 }
 tiStatIncSteps :: TiStats -> TiStats
-tiStatIncSteps (ttl, sc, p) = (ttl+1, sc, p)
+tiStatIncSteps s = s { ttl = ttl s +1 }
 tiStatIncScSteps :: TiStats -> TiStats
-tiStatIncScSteps (ttl, sc, p) = (ttl, sc+1, p)
+tiStatIncScSteps s = s { sc = sc s + 1 }
 tiStatIncPrimSteps :: TiStats -> TiStats
-tiStatIncPrimSteps (ttl, sc, p) = (ttl, sc, p+1)
+tiStatIncPrimSteps s = s { p = p s + 1 }
 tiStatGetSteps :: TiStats -> Int
-tiStatGetSteps (ttl, _, _) = ttl
+tiStatGetSteps s = ttl s
 tiStatGetScSteps :: TiStats -> Int
-tiStatGetScSteps (_, sc, _) = sc
+tiStatGetScSteps s = sc s
 tiStatGetPrimSteps :: TiStats -> Int
-tiStatGetPrimSteps (_, _, p) = p
+tiStatGetPrimSteps s = p s
 applyToStats :: (TiStats -> TiStats) -> TiState -> TiState
 applyToStats f (out, stack, dump, heap, scDefs, stats)
   = (out, stack, dump, heap, scDefs, f stats)
