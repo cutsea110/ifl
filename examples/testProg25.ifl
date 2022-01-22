@@ -1,0 +1,1 @@
+main = head (tail (Cons 1 (Cons 2 Nil)))
