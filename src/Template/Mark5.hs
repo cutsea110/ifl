@@ -166,21 +166,21 @@ step :: TiState -> TiState
 step state@(output, stack, dump, heap, globals, stats) = dispatch (hLookup heap item)
   where
     (item, stack') = pop stack
-    dispatch (NNum n)                  = numStep state n
-    dispatch (NAp a1 a2)               = apStep state a1 a2
-    dispatch (NSupercomb sc args body) = doAdminSc $ scStep state sc args body
-    dispatch (NInd a)                  = indStep state a
-    dispatch (NPrim name prim)         = doAdminPrim $ primStep state prim
-    dispatch (NData tag fields)        = dataStep state tag fields
+    dispatch (NNum n)                  = numStep n state
+    dispatch (NAp a1 a2)               = apStep a1 a2 state
+    dispatch (NSupercomb sc args body) = doAdminSc $ scStep sc args body state
+    dispatch (NInd a)                  = indStep a state
+    dispatch (NPrim name prim)         = doAdminPrim $ primStep prim state
+    dispatch (NData tag fields)        = dataStep tag fields state
 
-numStep :: TiState -> Int -> TiState
-numStep (output, stack, dump, heap, globals, stats) n
+numStep :: Int -> TiState -> TiState
+numStep n (output, stack, dump, heap, globals, stats)
   | isEmpty stack = error "numStep: empty stack."
   | otherwise     = (output, stack', dump', heap, globals, stats)
   where (stack', dump') = pop dump
 
-apStep :: TiState -> Addr -> Addr -> TiState
-apStep (output, stack, dump, heap, globals, stats) a1 a2
+apStep :: Addr -> Addr -> TiState ->  TiState
+apStep a1 a2 (output, stack, dump, heap, globals, stats)
   | isIndNode a2node = (output, stack,  dump, heap', globals, stats)
   | otherwise        = (output, stack', dump, heap,  globals, stats)
   where stack' = push a1 stack
@@ -189,8 +189,8 @@ apStep (output, stack, dump, heap, globals, stats) a1 a2
         NInd a3 = a2node
         heap' = hUpdate heap a0 (NAp a1 a3)
 
-scStep :: TiState -> Name -> [Name] -> CoreExpr -> TiState
-scStep (output, stack, dump, heap, globals, stats) scName argNames body
+scStep :: Name -> [Name] -> CoreExpr -> TiState -> TiState
+scStep scName argNames body (output, stack, dump, heap, globals, stats)
   | getDepth stack < length argNames + 1 = error "Too few arguments given"
   | otherwise = (output, stack', dump, heap', globals, stats)
   where
@@ -200,29 +200,29 @@ scStep (output, stack, dump, heap, globals, stats) scName argNames body
     heap' = instantiateAndUpdate body root heap (bindings ++ globals)
     bindings = zip argNames (getargs heap stack)
 
-indStep :: TiState -> Addr -> TiState
-indStep (output, stack, dump, heap, globals, stats) a = (output, stack', dump, heap, globals, stats)
+indStep :: Addr -> TiState -> TiState
+indStep a (output, stack, dump, heap, globals, stats) = (output, stack', dump, heap, globals, stats)
   where stack' = push a (discard 1 stack)
 
-primStep :: TiState -> Primitive -> TiState
-primStep state Neg                    = primNeg state
-primStep state Add                    = primArith state (+)
-primStep state Sub                    = primArith state (-)
-primStep state Mul                    = primArith state (*)
-primStep state Div                    = primArith state div
-primStep state (PrimConstr tag arity) = primConstr state tag arity
-primStep state If                     = primIf state
-primStep state Eq                     = primComp state (==)
-primStep state NotEq                  = primComp state (/=)
-primStep state Less                   = primComp state (<)
-primStep state LessEq                 = primComp state (<=)
-primStep state Greater                = primComp state (>)
-primStep state GreaterEq              = primComp state (>=)
-primStep state PrimCasePair           = primCasePair state
-primStep state PrimCaseList           = primCaseList state
-primStep state Abort                  = primAbort state
-primStep state Print                  = primPrint state
-primStep state Stop                   = primStop state
+primStep :: Primitive -> TiState -> TiState
+primStep Neg                    state = primNeg state
+primStep Add                    state = primArith (+) state
+primStep Sub                    state = primArith (-) state
+primStep Mul                    state = primArith (*) state
+primStep Div                    state = primArith div state
+primStep (PrimConstr tag arity) state = primConstr tag arity state
+primStep If                     state = primIf state
+primStep Eq                     state = primComp (==) state
+primStep NotEq                  state = primComp (/=) state
+primStep Less                   state = primComp (<) state
+primStep LessEq                 state = primComp (<=) state
+primStep Greater                state = primComp (>) state
+primStep GreaterEq              state = primComp (>=) state
+primStep PrimCasePair           state = primCasePair state
+primStep PrimCaseList           state = primCaseList state
+primStep Abort                  state = primAbort state
+primStep Print                  state = primPrint state
+primStep Stop                   state = primStop state
 
 primNeg :: TiState -> TiState
 primNeg (output, stack, dump, heap, globals, stats)
@@ -237,8 +237,8 @@ primNeg (output, stack, dump, heap, globals, stats)
         (root, _)   = pop stack'
         heap' = hUpdate heap root (NNum (negate n))
 
-primArith :: TiState -> (Int -> Int -> Int) -> TiState
-primArith (output, stack, dump, heap, globals, stats) op
+primArith :: (Int -> Int -> Int) -> TiState -> TiState
+primArith op (output, stack, dump, heap, globals, stats)
   | length args /= 2 = error "primArith: wrong number of args."
   | not (isDataNode lnode) = (output, push laddr emptyStack, dump', heap, globals, stats)
   | not (isDataNode rnode) = (output, push raddr emptyStack, dump', heap, globals, stats)
@@ -252,8 +252,8 @@ primArith (output, stack, dump, heap, globals, stats) op
         (root, _) = pop stack'
         heap' = hUpdate heap root (NNum (m `op` n))
 
-primConstr :: TiState -> Tag -> Arity -> TiState
-primConstr (output, stack, dump, heap, globals, stats) tag arity
+primConstr :: Tag -> Arity -> TiState -> TiState
+primConstr tag arity (output, stack, dump, heap, globals, stats)
   | length args /= arity = error "primConstr: wrong number of args."
   | otherwise            = (output, stack', dump, heap', globals, stats)
   where args = getargs heap stack
@@ -277,15 +277,15 @@ primIf  (output, stack, dump, heap, globals, stats)
           _          -> error "primIf: unexpected node found"
         heap' = hUpdate heap root (NInd result)
 
-primComp :: TiState -> (Int -> Int -> Bool) -> TiState
-primComp state op = primDyadic state op'
+primComp :: (Int -> Int -> Bool) -> TiState -> TiState
+primComp op state = primDyadic op' state
   where op' (NNum m) (NNum n)
           | m `op` n  = NData 2 [] -- True case
           | otherwise = NData 1 [] -- False case
         op' _ _ = error "TODO: implement primComp"
 
-primDyadic :: TiState -> (Node -> Node -> Node) -> TiState
-primDyadic (output, stack, dump, heap, globals, stats) op
+primDyadic :: (Node -> Node -> Node) -> TiState -> TiState
+primDyadic op (output, stack, dump, heap, globals, stats)
   | length args /= 2 = error "primDyadic: wrong number of args"
   | not (isDataNode arg1Node) = (output, push arg1Addr emptyStack, dump', heap, globals, stats)
   | not (isDataNode arg2Node) = (output, push arg2Addr emptyStack, dump', heap, globals, stats)
@@ -354,8 +354,8 @@ primStop (output, stack, dump, heap, globals, stats)
   | otherwise          = (output, stack', dump, heap, globals, stats)
   where (_, stack') = pop stack
 
-dataStep :: TiState -> Tag -> [Addr] -> TiState
-dataStep (output, stack, dump, heap, globals, stats) tag fields = (output, stack', dump', heap, globals, stats)
+dataStep :: Tag -> [Addr] -> TiState -> TiState
+dataStep tag fields (output, stack, dump, heap, globals, stats) = (output, stack', dump', heap, globals, stats)
   where (stack', dump') = pop dump
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
