@@ -1,5 +1,6 @@
 Tasks
 
+- examples/testProg28 しか動かなくなったので何とかする(テストが一気に無くなったのでテスト追加でも良い)
 - TiState を record にする
 - どの Rule が適用されたか分かるようにしたい
 - dump を使って退避しつつヒープを emptyStack 使って初期化している箇所は discard 後の pop 後の stack を使うようにする
