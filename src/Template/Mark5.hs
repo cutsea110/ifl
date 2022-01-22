@@ -27,6 +27,7 @@ data Primitive
   | Greater | GreaterEq
   | PrimCasePair
   | PrimCaseList
+  | Abort
   deriving Show
 
 data Node
@@ -52,6 +53,7 @@ primitives = [ ("negate", Neg)
              , (">=", GreaterEq)
              , ("casePair", PrimCasePair)
              , ("caseList", PrimCaseList)
+             , ("abort", Abort)
              ]
 
 type TiState = (TiStack, TiDump, TiHeap, TiGlobals, TiStats)
@@ -101,6 +103,8 @@ extraPreludeDefs = [ ("False", [], EConstr 1 0)
                    , ("snd", ["p"], EAp (EAp (EVar "casePair") (EVar "p")) (EVar "K1"))
                    , ("Nil", [], EConstr 1 0)
                    , ("Cons", [], EConstr 2 2)
+                   , ("head", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "abort")) (EVar "K"))
+                   , ("tail", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "abort")) (EVar "K1"))
                    ]
 
 buildInitialHeap :: [CoreScDefn] -> (TiHeap, TiGlobals)
@@ -209,6 +213,7 @@ primStep state Greater                = primComp state (>)
 primStep state GreaterEq              = primComp state (>=)
 primStep state PrimCasePair           = primCasePair state
 primStep state PrimCaseList           = primCaseList state
+primStep state Abort                  = primAbort state
 
 primNeg :: TiState -> TiState
 primNeg (stack, dump, heap, globals, stats)
@@ -298,7 +303,7 @@ primCasePair (stack, dump, heap, globals, stats)
           NData _ [fstAddr, sndAddr] ->
             case hAlloc heap (NAp arg2Addr fstAddr) of
               (heap1, addr) -> hUpdate heap1 root (NAp addr sndAddr)
-          _ -> error "primCaseList: invalid node."
+          _ -> error "primCasePair: invalid node."
 
 primCaseList :: TiState -> TiState
 primCaseList (stack, dump, heap, globals, stats)
@@ -311,11 +316,15 @@ primCaseList (stack, dump, heap, globals, stats)
         stack' = discard 3 stack
         (root, _) = pop stack'
         heap' = case arg1Node of
-          NData 1 []               -> hUpdate heap root (NInd arg2Addr)
-          NData 2 [hdAddr, tlAddr] -> case hAlloc heap (NAp arg3Addr hdAddr) of
+          NData 1 []               -- Nil
+            -> hUpdate heap root (NInd arg2Addr)
+          NData 2 [hdAddr, tlAddr] -- Cons
+            -> case hAlloc heap (NAp arg3Addr hdAddr) of
             (heap1, addr) -> hUpdate heap1 root (NAp addr tlAddr)
           _ -> error "primCaseList: invalid node."
-            
+
+primAbort :: TiState -> TiState
+primAbort _ = error "abort program."
 
 dataStep :: TiState -> Tag -> [Addr] -> TiState
 dataStep (stack, dump, heap, globals, stats) tag fields = (stack', dump', heap, globals, stats)
