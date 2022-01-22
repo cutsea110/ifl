@@ -94,6 +94,9 @@ extraPreludeDefs = [ ("False", [], EConstr 1 0)
                    , ("and", ["x", "y"], EAp (EAp (EAp (EVar "if") (EVar "x")) (EVar "y")) (EVar "False"))
                    , ("or",  ["x", "y"], EAp (EAp (EAp (EVar "if") (EVar "x")) (EVar "True")) (EVar "y"))
                    , ("xor", ["x", "y"], EAp (EAp (EAp (EVar "if") (EVar "x")) (EAp (EVar "not") (EVar "y"))) (EVar "y"))
+                   , ("MkPair", [], EConstr 1 2)
+                   , ("fst", ["p"], EAp (EAp (EVar "casePair") (EVar "p")) (EVar "K"))
+                   , ("snd", ["p"], EAp (EAp (EVar "casePair") (EVar "p")) (EVar "K1"))
                    ]
 
 buildInitialHeap :: [CoreScDefn] -> (TiHeap, TiGlobals)
