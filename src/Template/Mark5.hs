@@ -27,6 +27,8 @@ data Primitive
   | PrimCasePair
   | PrimCaseList
   | Abort
+  | Print
+  | Stop
   deriving Show
 
 data Node
@@ -53,6 +55,8 @@ primitives = [ ("negate", Neg)
              , ("casePair", PrimCasePair)
              , ("caseList", PrimCaseList)
              , ("abort", Abort)
+             , ("print", Print)
+             , ("stop", Stop)
              ]
 
 type TiState = (TiOutput, TiStack, TiDump, TiHeap, TiGlobals, TiStats)
@@ -107,6 +111,8 @@ extraPreludeDefs = [ ("False", [], EConstr 1 0)
                    , ("Cons", [], EConstr 2 2)
                    , ("head", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "abort")) (EVar "K"))
                    , ("tail", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "abort")) (EVar "K1"))
+                   , ("printList", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "stop")) (EVar "printCons"))
+                   , ("printCons", ["h", "t"], EAp (EAp (EVar "print") (EVar "h")) (EAp (EVar "printList") (EVar "t")))
                    ]
 
 buildInitialHeap :: [CoreScDefn] -> (TiHeap, TiGlobals)
@@ -143,10 +149,7 @@ doAdminPrim :: TiState -> TiState
 doAdminPrim state = applyToStats tiStatIncPrimSteps state
 
 tiFinal :: TiState -> Bool
-tiFinal (_, stack, dump, heap, _, _) = case getStack stack of
-  [soleAddr] -> isDataNode (hLookup heap soleAddr) && isEmpty dump
-  []         -> error "Empty stack"
-  _          -> False
+tiFinal (_, stack, dump, heap, _, _) = isEmpty stack && isEmpty dump
 
 isDataNode :: Node -> Bool
 isDataNode (NNum _)    = True
@@ -216,6 +219,8 @@ primStep state GreaterEq              = primComp state (>=)
 primStep state PrimCasePair           = primCasePair state
 primStep state PrimCaseList           = primCaseList state
 primStep state Abort                  = primAbort state
+primStep state Print                  = primPrint state
+primStep state Stop                   = primStop state
 
 primNeg :: TiState -> TiState
 primNeg (output, stack, dump, heap, globals, stats)
@@ -323,10 +328,29 @@ primCaseList (output, stack, dump, heap, globals, stats)
           NData 2 [hdAddr, tlAddr] -- Cons case
             -> case hAlloc heap (NAp arg3Addr hdAddr) of
             (heap1, addr) -> hUpdate heap1 root (NAp addr tlAddr)
-          _ -> error "primCaseList: invalid node."
+          _ -> error "primCaseList: Unknown constructor."
 
 primAbort :: TiState -> TiState
 primAbort _ = error "abort program."
+
+primPrint :: TiState -> TiState
+primPrint (output, stack, dump, heap, globals, stats)
+  | length args /= 2   = error "primPrint: wrong number of args."
+  | not (isEmpty dump) = error "primPrint: dump isn't empty."
+  | otherwise          = case arg1Node of
+      NNum n    -> (output++[n], push arg2Addr emptyStack, dump, heap, globals, stats)
+      NData _ _ -> error "primPrint: node is not a number."
+      _         -> (output, push arg1Addr emptyStack, push stack' dump, heap, globals, stats)
+  where args = getargs heap stack
+        [arg1Addr, arg2Addr] = take 2 args
+        arg1Node = hLookup heap arg1Addr
+        stack' = discard 2 stack
+
+primStop :: TiState -> TiState
+primStop (output, stack, dump, heap, globals, stats)
+  | not (isEmpty dump) = error "primStop: dump isn't empty."
+  | otherwise          = (output, stack', dump, heap, globals, stats)
+  where (_, stack') = pop stack
 
 dataStep :: TiState -> Tag -> [Addr] -> TiState
 dataStep (output, stack, dump, heap, globals, stats) tag fields = (output, stack', dump', heap, globals, stats)
@@ -398,6 +422,9 @@ showResults states
   where
     lastState = last states
 
+showOutput :: TiOutput -> IseqRep
+showOutput output = iStr ("Output " ++ show output)
+
 showDumpMaxDepth :: TiState -> IseqRep
 showDumpMaxDepth (_, _, dump, _, _, _)
   = iConcat [ iNewline, iStr "   Dump maximum depth = "
@@ -421,6 +448,7 @@ showState (output, stack, dump, heap, globals, stats)
   = iConcat [ showHeap heap, iNewline
             , showStack heap stack, iNewline
             , showDumpDepth dump, iNewline
+            , showOutput output, iNewline
             ]
 
 showHeap :: TiHeap -> IseqRep
