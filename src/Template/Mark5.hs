@@ -25,6 +25,7 @@ data Primitive
   | Eq | NotEq
   | Less | LessEq
   | Greater | GreaterEq
+  | PrimCasePair
   deriving Show
 
 data Node
@@ -48,6 +49,7 @@ primitives = [ ("negate", Neg)
              , ("<=", LessEq)
              , (">", Greater)
              , (">=", GreaterEq)
+             , ("casePair", PrimCasePair)
              ]
 
 type TiState = (TiStack, TiDump, TiHeap, TiGlobals, TiStats)
@@ -198,6 +200,7 @@ primStep state Less                   = primComp state (<)
 primStep state LessEq                 = primComp state (<=)
 primStep state Greater                = primComp state (>)
 primStep state GreaterEq              = primComp state (>=)
+primStep state PrimCasePair           = primCasePair state
 
 primNeg :: TiState -> TiState
 primNeg (stack, dump, heap, globals, stats)
@@ -272,6 +275,22 @@ primDyadic (stack, dump, heap, globals, stats) op
         dump' = push stack' dump
         (rootOfRedex, _) = pop stack'
         heap' = hUpdate heap rootOfRedex (arg1Node `op` arg2Node)
+
+primCasePair :: TiState -> TiState
+primCasePair (stack, dump, heap, globals, stats)
+  | length args /= 2          = error "primCasePair: wrong number of args."
+  | not (isDataNode arg1Node) = (push arg1Addr emptyStack, push stack' dump, heap, globals, stats)
+  | otherwise                 = (stack', dump, heap', globals, stats)
+  where args = getargs heap stack
+        [arg1Addr, arg2Addr] = take 2 args
+        arg1Node = hLookup heap arg1Addr
+        stack' = discard 2 stack
+        (rootOfRedex, _) = pop stack'
+        heap' = case arg1Node of
+          NData _ [fstAddr, sndAddr] ->
+            case hAlloc heap (NAp arg2Addr fstAddr) of
+              (heap1, addr) -> hUpdate heap1 rootOfRedex (NAp addr sndAddr)
+          _ -> error "primCasePair: NData is expected."
 
 dataStep :: TiState -> Tag -> [Addr] -> TiState
 dataStep (stack, dump, heap, globals, stats) tag fields = (stack', dump', heap, globals, stats)
