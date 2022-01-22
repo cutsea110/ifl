@@ -236,8 +236,8 @@ primConstr (stack, dump, heap, globals, stats) tag arity
   | otherwise            = (stack', dump, heap', globals, stats)
   where args = getargs heap stack
         stack' = discard arity stack
-        (rootOfRedex, _) = pop stack'
-        heap' = hUpdate heap rootOfRedex (NData tag args)
+        (root, _) = pop stack'
+        heap' = hUpdate heap root (NData tag args)
 
 primIf :: TiState -> TiState
 primIf  (stack, dump, heap, globals, stats)
@@ -248,12 +248,12 @@ primIf  (stack, dump, heap, globals, stats)
         [arg1Addr, arg2Addr, arg3Addr] = take 3 args
         arg1Node = hLookup heap arg1Addr
         stack' = discard 3 stack
-        (rootOfRedex, _) = pop stack'
+        (root, _) = pop stack'
         result = case arg1Node of
           NData 2 [] -> arg2Addr -- True  case
           NData 1 [] -> arg3Addr -- False case
           _          -> error "primIf: unexpected node found"
-        heap' = hUpdate heap rootOfRedex (NInd result)
+        heap' = hUpdate heap root (NInd result)
 
 primComp :: TiState -> (Int -> Int -> Bool) -> TiState
 primComp state op = primDyadic state op'
@@ -273,8 +273,8 @@ primDyadic (stack, dump, heap, globals, stats) op
         [arg1Node, arg2Node] = map (hLookup heap) args
         stack' = discard 2 stack
         dump' = push stack' dump
-        (rootOfRedex, _) = pop stack'
-        heap' = hUpdate heap rootOfRedex (arg1Node `op` arg2Node)
+        (root, _) = pop stack'
+        heap' = hUpdate heap root (arg1Node `op` arg2Node)
 
 primCasePair :: TiState -> TiState
 primCasePair (stack, dump, heap, globals, stats)
@@ -285,11 +285,11 @@ primCasePair (stack, dump, heap, globals, stats)
         [arg1Addr, arg2Addr] = take 2 args
         arg1Node = hLookup heap arg1Addr
         stack' = discard 2 stack
-        (rootOfRedex, _) = pop stack'
+        (root, _) = pop stack'
         heap' = case arg1Node of
           NData _ [fstAddr, sndAddr] ->
             case hAlloc heap (NAp arg2Addr fstAddr) of
-              (heap1, addr) -> hUpdate heap1 rootOfRedex (NAp addr sndAddr)
+              (heap1, addr) -> hUpdate heap1 root (NAp addr sndAddr)
           _ -> error "primCasePair: NData is expected."
 
 dataStep :: TiState -> Tag -> [Addr] -> TiState
