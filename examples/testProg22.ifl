@@ -1,0 +1,4 @@
+length xs = caseList xs 0 len2 ;
+len2 x xs = 1 + length xs ;
+main = length Nil
+
