@@ -315,9 +315,9 @@ primCaseList (stack, dump, heap, globals, stats)
         stack' = discard 3 stack
         (root, _) = pop stack'
         heap' = case arg1Node of
-          NData 1 []               -- Nil
+          NData 1 []               -- Nil case
             -> hUpdate heap root (NInd arg2Addr)
-          NData 2 [hdAddr, tlAddr] -- Cons
+          NData 2 [hdAddr, tlAddr] -- Cons case
             -> case hAlloc heap (NAp arg3Addr hdAddr) of
             (heap1, addr) -> hUpdate heap1 root (NAp addr tlAddr)
           _ -> error "primCaseList: invalid node."
