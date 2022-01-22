@@ -90,12 +90,14 @@ applyToStats f (out, stack, dump, heap, scDefs, stats)
   = (out, stack, dump, heap, scDefs, f stats)
 
 compile :: CoreProgram -> TiState
-compile program = (initialOutput, initialStack, initialTiDump, initialHeap, globals, tiStatInitial)
+compile program = (initialOutput, initialStack, initialTiDump, initialHeap1, initialGlobals, tiStatInitial)
   where
     scDefs = program ++ preludeDefs ++ extraPreludeDefs
-    (initialHeap, globals) = buildInitialHeap scDefs
-    initialStack = fromList [addressOfMain]
-    addressOfMain = aLookup globals "main" (error "main is not defined")
+    (initialHeap, initialGlobals) = buildInitialHeap scDefs
+    initialStack = push addr emptyStack
+    addressOfMain = aLookup initialGlobals "main" (error "main is not defined")
+    addressOfPrint = aLookup initialGlobals "printList" (error "printList is not defined")
+    (initialHeap1, addr) = hAlloc initialHeap (NAp addressOfPrint addressOfMain)
 
 extraPreludeDefs :: CoreProgram
 extraPreludeDefs = [ ("False", [], EConstr 1 0)
