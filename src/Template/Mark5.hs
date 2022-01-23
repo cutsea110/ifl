@@ -174,7 +174,7 @@ step state@(output, stack, dump, heap, globals, stats) = dispatch (hLookup heap 
     dispatch (NAp a1 a2)               = apStep a1 a2 state
     dispatch (NSupercomb sc args body) = doAdminSc $ scStep sc args body state
     dispatch (NInd a)                  = indStep a state
-    dispatch (NPrim name prim)         = doAdminPrim $ primStep prim state
+    dispatch (NPrim name prim)         = primStep prim state
     dispatch (NData tag fields)        = dataStep tag fields state
 
 numStep :: Int -> TiState -> TiState
@@ -231,7 +231,7 @@ primStep Stop                   state = primStop state
 primNeg :: TiState -> TiState
 primNeg (output, stack, dump, heap, globals, stats)
   | length args /= 1 = error "primNeg: wrong number of args."
-  | isDataNode argnode = (output, stack', dump, heap', globals, stats)
+  | isDataNode argnode = doAdminPrim (output, stack', dump, heap', globals, stats)
   | otherwise = (output, push argaddr emptyStack, push stack dump, heap, globals, stats)
   where args = getargs heap stack
         [argaddr] = args
@@ -246,7 +246,7 @@ primArith op (output, stack, dump, heap, globals, stats)
   | length args /= 2 = error "primArith: wrong number of args."
   | not (isDataNode lnode) = (output, push laddr emptyStack, dump', heap, globals, stats)
   | not (isDataNode rnode) = (output, push raddr emptyStack, dump', heap, globals, stats)
-  | otherwise = (output, stack', dump, heap', globals, stats)
+  | otherwise = doAdminPrim (output, stack', dump, heap', globals, stats)
   where args = getargs heap stack
         [laddr, raddr] = args
         [lnode, rnode] = map (hLookup heap) args
@@ -259,7 +259,7 @@ primArith op (output, stack, dump, heap, globals, stats)
 primConstr :: Tag -> Arity -> TiState -> TiState
 primConstr tag arity (output, stack, dump, heap, globals, stats)
   | length args /= arity = error "primConstr: wrong number of args."
-  | otherwise            = (output, stack', dump, heap', globals, stats)
+  | otherwise            = doAdminPrim (output, stack', dump, heap', globals, stats)
   where args = getargs heap stack
         stack' = discard arity stack
         (root, _) = pop stack'
@@ -269,7 +269,7 @@ primIf :: TiState -> TiState
 primIf  (output, stack, dump, heap, globals, stats)
   | length args < 3           = error "primIf: wrong number of args."
   | not (isDataNode arg1Node) = (output, push arg1Addr emptyStack, push stack' dump, heap, globals, stats)
-  | otherwise                 = (output, stack', dump, heap', globals, stats)
+  | otherwise                 = doAdminPrim (output, stack', dump, heap', globals, stats)
   where args = getargs heap stack
         [arg1Addr, arg2Addr, arg3Addr] = take 3 args
         arg1Node = hLookup heap arg1Addr
@@ -282,7 +282,7 @@ primIf  (output, stack, dump, heap, globals, stats)
         heap' = hUpdate heap root (NInd result)
 
 primComp :: (Int -> Int -> Bool) -> TiState -> TiState
-primComp op state = primDyadic op' state
+primComp op state = doAdminPrim $ primDyadic op' state
   where op' (NNum m) (NNum n)
           | m `op` n  = NData 2 [] -- True case
           | otherwise = NData 1 [] -- False case
@@ -293,7 +293,7 @@ primDyadic op (output, stack, dump, heap, globals, stats)
   | length args /= 2 = error "primDyadic: wrong number of args"
   | not (isDataNode arg1Node) = (output, push arg1Addr emptyStack, dump', heap, globals, stats)
   | not (isDataNode arg2Node) = (output, push arg2Addr emptyStack, dump', heap, globals, stats)
-  | otherwise = (output, stack', dump, heap', globals, stats)
+  | otherwise = doAdminPrim (output, stack', dump, heap', globals, stats)
   where args = getargs heap stack
         [arg1Addr, arg2Addr] = args
         [arg1Node, arg2Node] = map (hLookup heap) args
@@ -306,7 +306,7 @@ primCasePair :: TiState -> TiState
 primCasePair (output, stack, dump, heap, globals, stats)
   | length args /= 2          = error "primCasePair: wrong number of args."
   | not (isDataNode arg1Node) = (output, push arg1Addr emptyStack, push stack' dump, heap, globals, stats)
-  | otherwise                 = (output, stack', dump, heap', globals, stats)
+  | otherwise                 = doAdminPrim (output, stack', dump, heap', globals, stats)
   where args = getargs heap stack
         [arg1Addr, arg2Addr] = take 2 args
         arg1Node = hLookup heap arg1Addr
@@ -322,7 +322,7 @@ primCaseList :: TiState -> TiState
 primCaseList (output, stack, dump, heap, globals, stats)
   | length args /= 3          = error "primCaseList: wrong number of args."
   | not (isDataNode arg1Node) = (output, push arg1Addr emptyStack, push stack' dump, heap, globals, stats)
-  | otherwise                 = (output, stack', dump, heap', globals, stats)
+  | otherwise                 = doAdminPrim (output, stack', dump, heap', globals, stats)
   where args = getargs heap stack
         [arg1Addr, arg2Addr, arg3Addr] = take 3 args
         arg1Node = hLookup heap arg1Addr
@@ -337,13 +337,13 @@ primCaseList (output, stack, dump, heap, globals, stats)
           _ -> error "primCaseList: Unknown constructor."
 
 primAbort :: TiState -> TiState
-primAbort _ = error "abort program."
+primAbort _ = error "abort program." -- WANTFIX: doAdminPrim?
 
 primPrint :: TiState -> TiState
 primPrint (output, stack, dump, heap, globals, stats)
   | length args /= 2   = error "primPrint: wrong number of args."
   | not (isEmpty dump) = error "primPrint: dump isn't empty."
-  | otherwise          = case arg1Node of
+  | otherwise          = doAdminPrim $ case arg1Node of
       NNum n    -> (output++[n], push arg2Addr emptyStack, dump, heap, globals, stats)
       NData _ _ -> error "primPrint: node is not a number."
       _         -> (output, push arg1Addr emptyStack, push stack' dump, heap, globals, stats)
@@ -355,7 +355,7 @@ primPrint (output, stack, dump, heap, globals, stats)
 primStop :: TiState -> TiState
 primStop (output, stack, dump, heap, globals, stats)
   | not (isEmpty dump) = error "primStop: dump isn't empty."
-  | otherwise          = (output, stack', dump, heap, globals, stats)
+  | otherwise          = doAdminPrim (output, stack', dump, heap, globals, stats)
   where (_, stack') = pop stack
 
 dataStep :: Tag -> [Addr] -> TiState -> TiState
