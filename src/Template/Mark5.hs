@@ -70,7 +70,6 @@ initialTiDump :: TiDump
 initialTiDump = emptyStack
 type TiHeap = Heap Node
 type TiGlobals = Assoc Name Addr
--- type TiStats = (Int, Int, Int)
 data TiStats = TiStats { stepTotal :: Int  -- ^ total steps
                        , stepSc    :: Int  -- ^ super combinator steps
                        , stepPrim  :: Int  -- ^ primitive steps
