@@ -78,7 +78,7 @@ data TiStats = TiStats { stepTotal :: Int  -- ^ total steps
 tiStatInitial :: TiStats
 tiStatInitial = TiStats { stepTotal = 0, stepSc = 0, stepPrim = 0 }
 tiStatIncSteps :: TiStats -> TiStats
-tiStatIncSteps s = s { stepTotal = stepTotal s +1 }
+tiStatIncSteps s = s { stepTotal = stepTotal s + 1 }
 tiStatIncScSteps :: TiStats -> TiStats
 tiStatIncScSteps s = s { stepSc = stepSc s + 1 }
 tiStatIncPrimSteps :: TiStats -> TiStats
