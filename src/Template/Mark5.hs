@@ -71,24 +71,24 @@ initialTiDump = emptyStack
 type TiHeap = Heap Node
 type TiGlobals = Assoc Name Addr
 -- type TiStats = (Int, Int, Int)
-data TiStats = TiStats { ttl :: Int  -- ^ total steps
-                       , sc  :: Int  -- ^ super combinator steps
-                       , p   :: Int  -- ^ primitive steps
+data TiStats = TiStats { stepTotal :: Int  -- ^ total steps
+                       , stepSc    :: Int  -- ^ super combinator steps
+                       , stepPrim  :: Int  -- ^ primitive steps
                        }
 tiStatInitial :: TiStats
-tiStatInitial = TiStats { ttl = 0, sc = 0, p = 0 }
+tiStatInitial = TiStats { stepTotal = 0, stepSc = 0, stepPrim = 0 }
 tiStatIncSteps :: TiStats -> TiStats
-tiStatIncSteps s = s { ttl = ttl s +1 }
+tiStatIncSteps s = s { stepTotal = stepTotal s +1 }
 tiStatIncScSteps :: TiStats -> TiStats
-tiStatIncScSteps s = s { sc = sc s + 1 }
+tiStatIncScSteps s = s { stepSc = stepSc s + 1 }
 tiStatIncPrimSteps :: TiStats -> TiStats
-tiStatIncPrimSteps s = s { p = p s + 1 }
+tiStatIncPrimSteps s = s { stepPrim = stepPrim s + 1 }
 tiStatGetSteps :: TiStats -> Int
-tiStatGetSteps s = ttl s
+tiStatGetSteps s = stepTotal s
 tiStatGetScSteps :: TiStats -> Int
-tiStatGetScSteps s = sc s
+tiStatGetScSteps s = stepSc s
 tiStatGetPrimSteps :: TiStats -> Int
-tiStatGetPrimSteps s = p s
+tiStatGetPrimSteps s = stepPrim s
 applyToStats :: (TiStats -> TiStats) -> TiState -> TiState
 applyToStats f (out, stack, dump, heap, scDefs, stats)
   = (out, stack, dump, heap, scDefs, f stats)
@@ -155,7 +155,7 @@ doAdminPrim :: TiState -> TiState
 doAdminPrim state = applyToStats tiStatIncPrimSteps state
 
 tiFinal :: TiState -> Bool
-tiFinal (_, stack, dump, heap, _, _) = isEmpty stack && isEmpty dump
+tiFinal (_, stack, dump, _, _, _) = isEmpty stack && isEmpty dump
 
 isDataNode :: Node -> Bool
 isDataNode (NNum _)    = True
@@ -167,18 +167,18 @@ isIndNode (NInd _) = True
 isIndNode _        = False
 
 step :: TiState -> TiState
-step state@(output, stack, dump, heap, globals, stats) = dispatch (hLookup heap item)
+step state@(_, stack, _, heap, _, _) = dispatch (hLookup heap item)
   where
-    (item, stack') = pop stack
+    (item, _) = pop stack
     dispatch (NNum n)                  = numStep n state
     dispatch (NAp a1 a2)               = apStep a1 a2 state
     dispatch (NSupercomb sc args body) = doAdminSc $ scStep sc args body state
     dispatch (NInd a)                  = indStep a state
-    dispatch (NPrim name prim)         = primStep prim state
+    dispatch (NPrim _ prim)            = primStep prim state
     dispatch (NData tag fields)        = dataStep tag fields state
 
 numStep :: Int -> TiState -> TiState
-numStep n (output, stack, dump, heap, globals, stats)
+numStep _ (output, stack, dump, heap, globals, stats)
   | isEmpty stack = error "numStep: empty stack."
   | otherwise     = (output, stack', dump', heap, globals, stats)
   where (stack', dump') = pop dump
@@ -194,7 +194,7 @@ apStep a1 a2 (output, stack, dump, heap, globals, stats)
         heap' = hUpdate heap a0 (NAp a1 a3)
 
 scStep :: Name -> [Name] -> CoreExpr -> TiState -> TiState
-scStep scName argNames body (output, stack, dump, heap, globals, stats)
+scStep _ argNames body (output, stack, dump, heap, globals, stats)
   | getDepth stack < length argNames + 1 = error "Too few arguments given"
   | otherwise = (output, stack', dump, heap', globals, stats)
   where
@@ -359,11 +359,11 @@ primStop (output, stack, dump, heap, globals, stats)
   where (_, stack') = pop stack
 
 dataStep :: Tag -> [Addr] -> TiState -> TiState
-dataStep tag fields (output, stack, dump, heap, globals, stats) = (output, stack', dump', heap, globals, stats)
+dataStep _ _ (output, _, dump, heap, globals, stats) = (output, stack', dump', heap, globals, stats)
   where (stack', dump') = pop dump
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
-instantiateAndUpdate (ENum n)               updAddr heap env = hUpdate heap updAddr (NNum n)
+instantiateAndUpdate (ENum n)               updAddr heap _   = hUpdate heap updAddr (NNum n)
 instantiateAndUpdate (EAp e1 e2)            updAddr heap env = hUpdate heap2 updAddr (NAp a1 a2)
   where (heap1, a1) = instantiate e1 heap  env
         (heap2, a2) = instantiate e2 heap1 env
@@ -374,13 +374,13 @@ instantiateAndUpdate (ELet isrec defs body) updAddr heap env = instantiateAndUpd
         env' = extraBindings ++ env
         rhsEnv | isrec     = env'
                | otherwise = env
-        instantiateRhs heap (name, rhs) = (heap', (name, addr))
-          where (heap', addr) = instantiate rhs heap rhsEnv
+        instantiateRhs hp (name, rhs) = (hp', (name, addr))
+          where (hp', addr) = instantiate rhs hp rhsEnv
 instantiateAndUpdate (EConstr tag arity)    updAddr heap env = instantiateAndUpdateConstr tag arity updAddr heap env
-instantiateAndUpdate _                      updAddr heap env = error "not yet implemented"
+instantiateAndUpdate _                      _       _    _   = error "not yet implemented"
 
 instantiateAndUpdateConstr :: Tag -> Arity -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
-instantiateAndUpdateConstr tag arity updAddr heap env
+instantiateAndUpdateConstr tag arity updAddr heap _
   = hUpdate heap updAddr (NPrim "Constr" (PrimConstr tag arity))
 
 getargs :: TiHeap -> TiStack -> [Addr]
@@ -391,7 +391,7 @@ getargs heap stack = case getStack stack of
             where NAp _fun arg = hLookup heap addr
 
 instantiate :: CoreExpr -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
-instantiate (ENum n)               heap env = hAlloc heap (NNum n)
+instantiate (ENum n)               heap _   = hAlloc heap (NNum n)
 instantiate (EAp e1 e2)            heap env = hAlloc heap2 (NAp a1 a2)
   where
     (heap1, a1) = instantiate e1 heap  env
@@ -399,8 +399,8 @@ instantiate (EAp e1 e2)            heap env = hAlloc heap2 (NAp a1 a2)
 instantiate (EVar v)               heap env = (heap, aLookup env v (error ("Undefined name " ++ show v)))
 instantiate (EConstr tag arity)    heap env = instantiateConstr tag arity heap env
 instantiate (ELet isrec defs body) heap env = instantiateLet isrec defs body heap env
-instantiate (ECase e alts)         heap env = error "Can't instantiate case exprs"
-instantiate (ELam vs e)            heap env = error "Can't instantiate lambda abstractions"
+instantiate (ECase _ _)            _    _   = error "Can't instantiate case exprs"
+instantiate (ELam _ _)             _    _   = error "Can't instantiate lambda abstractions"
 
 instantiateConstr :: Tag -> Arity -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
 instantiateConstr = error "TODO: implement instantiateConstr"
@@ -412,8 +412,8 @@ instantiateLet isrec defs expr heap env = instantiate expr heap' env'
     env' = extraBindings ++ env
     rhsEnv | isrec     = env'
            | otherwise = env
-    instantiateRhs heap (name, rhs) = (heap1, (name, addr))
-      where (heap1, addr) = instantiate rhs heap rhsEnv
+    instantiateRhs hp (name, rhs) = (heap1, (name, addr))
+      where (heap1, addr) = instantiate rhs hp rhsEnv
 
 ------
 
@@ -450,7 +450,7 @@ showAllocCount (_, _, _, (allocs, _, _, _), _, _)
             ]
 
 showState :: TiState -> IseqRep
-showState (output, stack, dump, heap, globals, stats)
+showState (output, stack, dump, heap, _, _)
   = iConcat [ showHeap heap, iNewline
             , showStack heap stack, iNewline
             , showDumpDepth dump, iNewline
@@ -494,7 +494,7 @@ showStkNode heap (NAp funAddr argAddr)
             , iStr " ", showFWAddr argAddr
             , iStr " (", showNode (hLookup heap argAddr), iStr ")"
             ]
-showStkNode heap node = showNode node
+showStkNode _ node = showNode node
 
 showNode :: Node -> IseqRep
 showNode (NAp a1 a2)           = iConcat [ iStr "NAp ", showAddr a1, iStr " ", showAddr a2 ]
@@ -513,7 +513,7 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
   where str = show addr
 
 showStats :: TiState -> IseqRep
-showStats (output, stack, dump, heap, globals, stats)
+showStats (_, _, _, _, _, stats)
   = iConcat [ iNewline
             , iNewline, iStr "Total number of steps = "
             , iNum (tiStatGetSteps stats)
