@@ -202,7 +202,7 @@ step state@(TiState _ stack _ heap _ _) = dispatch (hLookup heap item)
 numStep :: Int -> TiState -> TiState
 numStep _ state@(TiState _ stack dump _ _ _)
   | isEmpty stack = error "numStep: empty stack."
-  | otherwise     = state { tiStack = stack' `inheritFrom` stack, tiDump = dump'}
+  | otherwise     = state { tiStack = stack', tiDump = dump'}
   where (stack', dump') = pop dump
 
 apStep :: Addr -> Addr -> TiState ->  TiState
@@ -381,8 +381,8 @@ primStop state@(TiState _ stack dump _ _ _)
   where (_, stack') = pop stack
 
 dataStep :: Tag -> [Addr] -> TiState -> TiState
-dataStep _ _ state@(TiState _ stack dump _ _ _)
-  = state { tiStack = stack' `inheritFrom` stack, tiDump = dump' }
+dataStep _ _ state@(TiState _ _ dump _ _ _)
+  = state { tiStack = stack', tiDump = dump' }
   where (stack', dump') = pop dump
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
