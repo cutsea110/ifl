@@ -13,6 +13,7 @@ module Stack
   , push
   , pop
   , discard
+  , inheritFrom
   ) where
 
 data Stack a
@@ -184,3 +185,21 @@ discard n s = s { stack = stack', depth = depth' }
   where
     stack' = drop n $ stack s
     depth' = max 0 (depth s - n)
+
+{- |
+>>> let s0 = fromList [1..5]
+>>> let s1 = push 0 s0
+>>> highWaterMark s0
+5
+>>> highWaterMark s1
+6
+>>> let s2 = s0 `inheritFrom` s1
+>>> highWaterMark s2
+6
+>>> depth s2
+5
+-}
+inheritFrom :: Stack a -> Stack a -> Stack a
+base `inheritFrom` parent = base { highWaterMark = max hwmb hwmp }
+  where hwmb = highWaterMark base
+        hwmp = highWaterMark parent
