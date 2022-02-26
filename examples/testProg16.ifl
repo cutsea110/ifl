@@ -1,3 +1,3 @@
 -- test program 16
 
-main = xor False True
+main = if (xor False True) 1 2

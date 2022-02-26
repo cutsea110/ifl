@@ -1,3 +1,4 @@
 -- test program 13
 
-main = not True
+main = if (not True) 1 2
+

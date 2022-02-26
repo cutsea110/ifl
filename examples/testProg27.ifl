@@ -1,2 +1,2 @@
-main = tail Nil
+main = tail Nil -- error!
 

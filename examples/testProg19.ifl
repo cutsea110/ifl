@@ -1,3 +1,3 @@
 -- test program 19
 
-main = or (1 > 2) (2 >= 1)
+main = if (or (1 > 2) (2 >= 1)) 1 2
