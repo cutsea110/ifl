@@ -202,7 +202,7 @@ step state@(TiState _ stack _ heap _ _) = dispatch (hLookup heap item)
 numStep :: Int -> TiState -> TiState
 numStep _ state@(TiState _ stack dump _ _ _)
   | isEmpty stack = error "numStep: empty stack."
-  | otherwise     = state { tiStack = stack', tiDump = dump'}
+  | otherwise     = state { tiStack = stack' `inheritFrom` stack, tiDump = dump'}
   where (stack', dump') = pop dump
 
 apStep :: Addr -> Addr -> TiState ->  TiState
@@ -381,8 +381,8 @@ primStop state@(TiState _ stack dump _ _ _)
   where (_, stack') = pop stack
 
 dataStep :: Tag -> [Addr] -> TiState -> TiState
-dataStep _ _ state@(TiState _ _ dump _ _ _)
-  = state { tiStack = stack', tiDump = dump' }
+dataStep _ _ state@(TiState _ stack dump _ _ _)
+  = state { tiStack = stack' `inheritFrom` stack, tiDump = dump' }
   where (stack', dump') = pop dump
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
@@ -456,19 +456,19 @@ showOutput output = iStr ("Output " ++ show output)
 
 showDumpMaxDepth :: TiState -> IseqRep
 showDumpMaxDepth (TiState _ _ dump _ _ _)
-  = iConcat [ iNewline, iStr "   Dump maximum depth = "
+  = iConcat [ iStr "   Dump maximum depth = "
             , iNum (getHighWaterMark dump)
             ]
 
 showStackMaxDepth :: TiState -> IseqRep
 showStackMaxDepth (TiState _ stack _ _ _ _)
-  = iConcat [ iNewline, iStr "  Stack maximum depth = "
+  = iConcat [ iStr "  Stack maximum depth = "
             , iNum (getHighWaterMark stack)
             ]
 
 showAllocCount :: TiState -> IseqRep
 showAllocCount (TiState _ _ _ (allocs, _, _, _) _ _)
-  = iConcat [ iNewline, iStr "     Allocation count = "
+  = iConcat [ iStr "     Allocation count = "
             , iNum allocs
             ]
 
