@@ -418,12 +418,12 @@ instantiateLet isrec defs expr heap env = instantiate expr heap' env'
 
 showResults :: [TiState] -> String
 showResults states
-  = iDisplay (iConcat [ iLayn (map showState states)
-                      , showStats lastState
-                      , showAllocCount lastState
-                      , showStackMaxDepth lastState
-                      , showDumpMaxDepth lastState
-                      ])
+  = unlines (map iDisplay (iLayn' (map showState states) ++
+             [ showStats lastState
+             , showAllocCount lastState
+             , showStackMaxDepth lastState
+             , showDumpMaxDepth lastState
+             ]))
   where
     lastState = last states
 

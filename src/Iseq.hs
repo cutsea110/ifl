@@ -8,6 +8,7 @@ module Iseq
   , iNum
   , iFWNum
   , iLayn
+  , iLayn'
   , flatten
   ) where
 
@@ -64,6 +65,10 @@ iFWNum width n = iStr (space (width - length digits) ++ digits)
 -- | Layout numbers
 iLayn :: Iseq iseq => [iseq] -> iseq
 iLayn seqs = iConcat (zipWith layItem [1..] seqs)
+  where layItem n seq = iConcat [iFWNum 4 n, iStr ") ", iIndent seq, iNewline]
+
+iLayn' :: Iseq iseq => [iseq] -> [iseq]
+iLayn' seqs = zipWith layItem [1..] seqs
   where layItem n seq = iConcat [iFWNum 4 n, iStr ") ", iIndent seq, iNewline]
 
 iParen :: Iseq iseq => iseq -> iseq
