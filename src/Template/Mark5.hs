@@ -2,6 +2,7 @@ module Template.Mark5
   ( parse
   , eval
   , compile
+  , cnv
   , showResults
   ) where
 
@@ -108,6 +109,21 @@ compile program = TiState initialOutput initialStack initialTiDump initialHeap1 
     addressOfMain = aLookup initialGlobals "main" (error "main is not defined")
     addressOfPrint = aLookup initialGlobals "printList" (error "printList is not defined")
     (initialHeap1, addr) = hAlloc initialHeap (NAp addressOfPrint addressOfMain)
+
+-- | convert newer version
+-- main := Cons main Nil
+cnv :: TiState -> TiState
+cnv state@(TiState _ _ _ heap globals _) = state { tiStack = initialStack, tiHeap = initialHeap }
+  where
+    initialStack = push addr emptyStack
+    addressOfMain = aLookup globals "main" (error "main is not defined")
+    addressOfPrint = aLookup globals "printList" (error "printList is not defined")
+    addressOfCons = aLookup globals "Cons" (error "Nil is not defined")
+    addressOfNil = aLookup globals "Nil" (error "Nil is not defined")
+    (heap1, addr1) = hAlloc heap (NAp addressOfCons addressOfMain)
+    (heap2, addr2) = hAlloc heap1 (NAp addr1 addressOfNil)
+    (initialHeap, addr) = hAlloc heap2 (NAp addressOfPrint addr2)
+    
 
 extraPreludeDefs :: CoreProgram
 extraPreludeDefs = [ ("False", [], EConstr 1 0)
