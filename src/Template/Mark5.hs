@@ -202,7 +202,7 @@ step state@(TiState _ stack _ heap _ _) = dispatch (hLookup heap item)
 numStep :: Int -> TiState -> TiState
 numStep _ state@(TiState _ stack dump _ _ _)
   | isEmpty stack = error "numStep: empty stack."
-  | otherwise     = state { tiStack = stack', tiDump = dump'}
+  | otherwise     = state { tiStack = stack', tiDump = dump' }
   where (stack', dump') = restore stack dump
 
 apStep :: Addr -> Addr -> TiState ->  TiState
@@ -254,7 +254,7 @@ primNeg :: TiState -> TiState
 primNeg state@(TiState _ stack dump heap _ _)
   | length args /= 1 = error "primNeg: wrong number of args."
   | isDataNode argnode = doAdminPrim state { tiStack = stack', tiHeap = heap' }
-  | otherwise = state { tiStack = push argaddr emptyStack, tiDump = push stack dump}
+  | otherwise = state { tiStack = push argaddr emptyStack, tiDump = push stack dump }
   where args = getargs heap stack
         [argaddr] = args
         argnode = hLookup heap argaddr
