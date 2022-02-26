@@ -203,7 +203,7 @@ numStep :: Int -> TiState -> TiState
 numStep _ state@(TiState _ stack dump _ _ _)
   | isEmpty stack = error "numStep: empty stack."
   | otherwise     = state { tiStack = stack', tiDump = dump'}
-  where (stack', dump') = pop dump
+  where (stack', dump') = restore stack dump
 
 apStep :: Addr -> Addr -> TiState ->  TiState
 apStep a1 a2 state@(TiState _ stack _ heap _ _)
@@ -381,9 +381,8 @@ primStop state@(TiState _ stack dump _ _ _)
   where (_, stack') = pop stack
 
 dataStep :: Tag -> [Addr] -> TiState -> TiState
-dataStep _ _ state@(TiState _ _ dump _ _ _)
-  = state { tiStack = stack', tiDump = dump' }
-  where (stack', dump') = pop dump
+dataStep _ _ state@(TiState _ stack dump _ _ _) = state { tiStack = stack', tiDump = dump' }
+  where (stack', dump') = restore stack dump
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateAndUpdate (ENum n)               updAddr heap _   = hUpdate heap updAddr (NNum n)
