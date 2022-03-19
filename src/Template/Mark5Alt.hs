@@ -14,23 +14,7 @@ import Heap
 import Stack
 import Utils
 
-data Primitive
-  = Neg
-  | Add
-  | Sub
-  | Mul
-  | Div
-  | PrimConstr Tag Arity
-  | If
-  | Eq | NotEq
-  | Less | LessEq
-  | Greater | GreaterEq
-  | PrimCasePair
-  | PrimCaseList
-  | Abort
-  | Print
-  | Stop
-  deriving Show
+type Primitive = TiState -> TiState
 
 data Node
   = NAp Addr Addr
@@ -41,23 +25,23 @@ data Node
   | NData Int [Addr]
 
 primitives :: Assoc Name Primitive
-primitives = [ ("negate", Neg)
-             , ("+", Add)
-             , ("-", Sub)
-             , ("*", Mul)
-             , ("/", Div)
-             , ("if", If)
-             , ("==", Eq)
-             , ("/=", NotEq)
-             , ("<", Less)
-             , ("<=", LessEq)
-             , (">", Greater)
-             , (">=", GreaterEq)
-             , ("casePair", PrimCasePair)
-             , ("caseList", PrimCaseList)
-             , ("abort", Abort)
-             , ("print", Print)
-             , ("stop", Stop)
+primitives = [ ("negate", primNeg)
+             , ("+", primArith (+))
+             , ("-", primArith (-))
+             , ("*", primArith (*))
+             , ("/", primArith div)
+             , ("if", primIf)
+             , ("==", primComp (==))
+             , ("/=", primComp (/=))
+             , ("<", primComp (<))
+             , ("<=", primComp (<=))
+             , (">", primComp (>))
+             , (">=", primComp (>=))
+             , ("casePair", primCasePair)
+             , ("caseList", primCaseList)
+             , ("abort", primAbort)
+             , ("print", primPrint)
+             , ("stop", primStop)
              ]
 
 data TiState
@@ -196,7 +180,7 @@ step state@(TiState _ stack _ heap _ _) = dispatch (hLookup heap item)
     dispatch (NAp a1 a2)               = apStep a1 a2 state
     dispatch (NSupercomb sc args body) = doAdminSc $ scStep sc args body state
     dispatch (NInd a)                  = indStep a state
-    dispatch (NPrim _ prim)            = primStep prim state
+    dispatch (NPrim name prim)         = primStep name prim state
     dispatch (NData tag fields)        = dataStep tag fields state
 
 numStep :: Int -> TiState -> TiState
@@ -230,25 +214,8 @@ indStep :: Addr -> TiState -> TiState
 indStep a state@(TiState _ stack _ _ _ _) = state { tiStack = stack' }
   where stack' = push a (discard 1 stack)
 
-primStep :: Primitive -> TiState -> TiState
-primStep Neg                    state = primNeg state
-primStep Add                    state = primArith (+) state
-primStep Sub                    state = primArith (-) state
-primStep Mul                    state = primArith (*) state
-primStep Div                    state = primArith div state
-primStep (PrimConstr tag arity) state = primConstr tag arity state
-primStep If                     state = primIf state
-primStep Eq                     state = primComp (==) state
-primStep NotEq                  state = primComp (/=) state
-primStep Less                   state = primComp (<) state
-primStep LessEq                 state = primComp (<=) state
-primStep Greater                state = primComp (>) state
-primStep GreaterEq              state = primComp (>=) state
-primStep PrimCasePair           state = primCasePair state
-primStep PrimCaseList           state = primCaseList state
-primStep Abort                  state = primAbort state
-primStep Print                  state = primPrint state
-primStep Stop                   state = primStop state
+primStep :: Name -> Primitive -> TiState -> TiState
+primStep _name prim = prim
 
 primNeg :: TiState -> TiState
 primNeg state@(TiState _ stack dump heap _ _)
@@ -403,7 +370,7 @@ instantiateAndUpdate _                      _       _    _   = error "not yet im
 
 instantiateAndUpdateConstr :: Tag -> Arity -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateAndUpdateConstr tag arity updAddr heap _
-  = hUpdate heap updAddr (NPrim "Constr" (PrimConstr tag arity))
+  = hUpdate heap updAddr (NPrim "Constr" (primConstr tag arity))
 
 getargs :: TiHeap -> TiStack -> [Addr]
 getargs heap stack = case getStack stack of
@@ -523,7 +490,7 @@ showNode (NAp a1 a2)           = iConcat [ iStr "NAp ", showAddr a1, iStr " ", s
 showNode (NSupercomb name _ _) = iStr ("NSupercomb " ++ name)
 showNode (NNum n)              = iStr "NNum " `iAppend` iNum n
 showNode (NInd a)              = iStr "NInd " `iAppend` showAddr a
-showNode (NPrim _ prim)        = iStr "NPrim " `iAppend` iStr (show prim)
+showNode (NPrim name _prim)    = iStr "NPrim " `iAppend` iStr name
 showNode (NData tag fields)    = iConcat [ iStr "NData ", iNum tag, iStr " [", iFields, iStr "]"]
   where iFields = iInterleave (iStr ",") (map showAddr fields)
 

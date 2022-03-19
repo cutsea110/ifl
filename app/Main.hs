@@ -27,7 +27,7 @@ executer Mark4 = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mar
 executer Mark5 = putStrLn . Mark5.showResults . Mark5.eval . Mark5.compile . Mark5.parse
 executer Mark5cnv = putStrLn . Mark5.showResults . Mark5.eval . Mark5.cnv . Mark5.compile . Mark5.parse
 executer Mark5Alt = putStrLn . Mark5Alt.showResults . Mark5Alt.eval . Mark5Alt.compile . Mark5Alt.parse
-executer Mark5Altconv = putStrLn . Mark5Alt.showResults . Mark5Alt.eval . Mark5Alt.cnv . Mark5Alt.compile . Mark5Alt.parse
+executer Mark5Altcnv = putStrLn . Mark5Alt.showResults . Mark5Alt.eval . Mark5Alt.cnv . Mark5Alt.compile . Mark5Alt.parse
 executer (Noco name) = \_ -> do
   putStrLn $ "Error: Unknown compiler = " ++ name
   printHelp
@@ -36,7 +36,7 @@ executer (Noco name) = \_ -> do
 -- COMMAND LINE OPTIONS
 ---------------------------------------------------------------
 
-data Compiler = Noco String | Mark1 | Mark2 | Mark3 | Mark4 | Mark5 | Mark5cnv | Mark5Alt | Mark5Altconv deriving Show
+data Compiler = Noco String | Mark1 | Mark2 | Mark3 | Mark4 | Mark5 | Mark5cnv | Mark5Alt | Mark5Altcnv deriving Show
 
 data Options = Options
   { optVerbose     :: Bool -- TODO
@@ -58,6 +58,8 @@ name2Compiler = [ ("mark1", Mark1)
                 , ("mark4", Mark4)
                 , ("mark5", Mark5)
                 , ("mark5cnv", Mark5cnv) -- convert newer version
+                , ("mark5alt", Mark5Alt)
+                , ("mark5altcnv", Mark5Altcnv) -- convert newer version
                 ]
 
 compilerNames :: [String]
