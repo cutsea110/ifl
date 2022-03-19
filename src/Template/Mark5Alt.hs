@@ -186,33 +186,33 @@ step state@(TiState _ stack _ heap _ _) = dispatch (hLookup heap item)
 numStep :: Int -> TiState -> TiState
 numStep _ state@(TiState _ stack dump _ _ _)
   | isEmpty stack = error "numStep: empty stack."
-  | otherwise     = state { tiStack = stack', tiDump = dump' }
-  where (stack', dump') = popAndRestore stack dump
+  | otherwise     = state { tiStack = stack1, tiDump = dump1 }
+  where (stack1, dump1) = popAndRestore stack dump
 
 apStep :: Addr -> Addr -> TiState ->  TiState
 apStep a1 a2 state@(TiState _ stack _ heap _ _)
-  | isIndNode a2node = state { tiHeap = heap' }
-  | otherwise        = state { tiStack = stack' }
-  where stack' = push a1 stack
+  | isIndNode a2node = state { tiHeap = heap1 }
+  | otherwise        = state { tiStack = stack1 }
+  where stack1 = push a1 stack
         (a0, _) = pop stack
         a2node = hLookup heap a2
         NInd a3 = a2node
-        heap' = hUpdate heap a0 (NAp a1 a3)
+        heap1 = hUpdate heap a0 (NAp a1 a3)
 
 scStep :: Name -> [Name] -> CoreExpr -> TiState -> TiState
 scStep _ argNames body state@(TiState _ stack _ heap globals _)
   | getDepth stack < length argNames + 1 = error "Too few arguments given"
-  | otherwise = state { tiStack = stack', tiHeap = heap' }
+  | otherwise = state { tiStack = stack1, tiHeap = heap1 }
   where
     argsLen = length argNames
-    stack' = discard argsLen stack
-    (root, _) = pop stack'
-    heap' = instantiateAndUpdate body root heap (bindings ++ globals)
+    stack1 = discard argsLen stack
+    (root, _) = pop stack1
+    heap1 = instantiateAndUpdate body root heap (bindings ++ globals)
     bindings = zip argNames (getargs heap stack)
 
 indStep :: Addr -> TiState -> TiState
-indStep a state@(TiState _ stack _ _ _ _) = state { tiStack = stack' }
-  where stack' = push a (discard 1 stack)
+indStep a state@(TiState _ stack _ _ _ _) = state { tiStack = stack1 }
+  where stack1 = push a (discard 1 stack)
 
 primStep :: Name -> Primitive -> TiState -> TiState
 primStep _name prim = prim
@@ -341,12 +341,12 @@ primPrint state@(TiState output stack dump heap _ _)
 primStop :: TiState -> TiState
 primStop state@(TiState _ stack dump _ _ _)
   | not (isEmpty dump) = error "primStop: dump isn't empty."
-  | otherwise          = doAdminPrim state { tiStack = stack' }
-  where (_, stack') = pop stack
+  | otherwise          = doAdminPrim state { tiStack = stack1 }
+  where (_, stack1) = pop stack
 
 dataStep :: Tag -> [Addr] -> TiState -> TiState
-dataStep _ _ state@(TiState _ stack dump _ _ _) = state { tiStack = stack', tiDump = dump' }
-  where (stack', dump') = popAndRestore stack dump
+dataStep _ _ state@(TiState _ stack dump _ _ _) = state { tiStack = stack1, tiDump = dump1 }
+  where (stack1, dump1) = popAndRestore stack dump
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateAndUpdate (ENum n)               updAddr heap _   = hUpdate heap updAddr (NNum n)
