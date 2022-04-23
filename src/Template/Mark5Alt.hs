@@ -514,7 +514,7 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
   where str = show addr
 
 showStats :: TiState -> IseqRep
-showStats (TiState _ _ _ _ _ stats)
+showStats (TiState _ _ _ heap _ stats)
   = iConcat [ iNewline
             , iNewline, iStr "Total number of steps = "
             , iNum (tiStatGetSteps stats)
@@ -522,6 +522,8 @@ showStats (TiState _ _ _ _ _ stats)
             , iNum (tiStatGetScSteps stats)
             , iNewline, iStr "      Primitive steps = "
             , iNum (tiStatGetPrimSteps stats)
+            , iNewline, iStr "            Heap size = "
+            , iNum (hSize heap)
             ]
 
 saveAndPush :: Addr -> TiStack -> TiDump -> (TiStack, TiDump)

@@ -78,7 +78,7 @@ tiStatInitial = TiStats { stepTotal = 0
                         , stepSc = 0
                         , stepPrim = 0
                         , gcCount = 0
-                        ,  gcHist = []
+                        , gcHist = []
                         }
 tiStatIncSteps :: TiStats -> TiStats
 tiStatIncSteps s = s { stepTotal = stepTotal s + 1 }
@@ -92,6 +92,10 @@ tiStatGetScSteps :: TiStats -> Int
 tiStatGetScSteps s = stepSc s
 tiStatGetPrimSteps :: TiStats -> Int
 tiStatGetPrimSteps s = stepPrim s
+tiStatGetGcCount :: TiStats -> Int
+tiStatGetGcCount s = gcCount s
+tiStatGetGcHist :: TiStats -> [(Int, Int)]
+tiStatGetGcHist s = gcHist s
 applyToStats :: (TiStats -> TiStats) -> TiState -> TiState
 applyToStats f state@(TiState _ _ _ _ _ stats)
   = state { tiStats = f stats }
@@ -528,7 +532,7 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
   where str = show addr
 
 showStats :: TiState -> IseqRep
-showStats (TiState _ _ _ _ _ stats)
+showStats (TiState _ _ _ heap _ stats)
   = iConcat [ iNewline
             , iNewline, iStr "Total number of steps = "
             , iNum (tiStatGetSteps stats)
@@ -536,6 +540,10 @@ showStats (TiState _ _ _ _ _ stats)
             , iNum (tiStatGetScSteps stats)
             , iNewline, iStr "      Primitive steps = "
             , iNum (tiStatGetPrimSteps stats)
+            , iNewline, iStr "            Heap size = "
+            , iNum (hSize heap)
+            , iNewline, iStr "              GC call = "
+            , iNum (tiStatGetGcCount stats)
             ]
 
 saveAndPush :: Addr -> TiStack -> TiDump -> (TiStack, TiDump)
