@@ -1,0 +1,3 @@
+-- test program 31
+
+main = Cons (CFst (CSnd (CSnd (CPair 1 (CPair 2 (CPair 3 4)))))) Nil

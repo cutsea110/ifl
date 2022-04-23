@@ -1,0 +1,3 @@
+-- test program 32
+
+main = CCons 1 (CCons 2 (CCons 3 (CCons 4 CNil)))
