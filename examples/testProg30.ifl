@@ -1,0 +1,3 @@
+-- test program 30
+
+main = Cons (CIf (COr CFalse CTrue) 1 2) Nil

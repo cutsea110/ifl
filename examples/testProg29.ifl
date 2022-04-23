@@ -1,0 +1,5 @@
+foo x y z = x + y + z ;
+bar a b c d e f g h i j = a + b + c + d + e + f + g + h + i + j ;
+buz x y z w = x * y * z * w ;
+
+main = foo 1 2 3 + bar 1 2 3 4 5 6 7 8 9 10 + buz 1 2 3 4

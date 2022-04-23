@@ -125,8 +125,14 @@ extraPreludeDefs = [ ("False", [], EConstr 1 0)
                    , ("tail", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "abort")) (EVar "K1"))
                    , ("printList", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "stop")) (EVar "printCons"))
                    , ("printCons", ["h", "t"], EAp (EAp (EVar "print") (EVar "h")) (EAp (EVar "printList") (EVar "t")))
-                   ]
 
+                   , ("CTrue", ["t", "f"], EVar "t")
+                   , ("CFalse", ["t", "f"], EVar "f")
+                   , ("CIf", [], EVar "I")
+                   , ("CAnd",["b1","b2","t","f"],EAp (EAp (EVar "b1") (EAp (EAp (EVar "b2") (EVar "t")) (EVar "f"))) (EVar "f"))
+                   , ("COr",["b1","b2","t","f"],EAp (EAp (EVar "b1") (EVar "t")) (EAp (EAp (EVar "b2") (EVar "t")) (EVar "f")))
+                   , ("CNot",["b","t","f"],EAp (EAp (EVar "b") (EVar "f")) (EVar "t"))
+                   ]
 buildInitialHeap :: [CoreScDefn] -> (TiHeap, TiGlobals)
 buildInitialHeap scDefs = (heap', env ++ env')
   where (heap,  env ) = mapAccumL allocateSc hInitial scDefs
