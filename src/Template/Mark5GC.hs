@@ -70,9 +70,16 @@ type TiGlobals = Assoc Name Addr
 data TiStats = TiStats { stepTotal :: Int  -- ^ total steps
                        , stepSc    :: Int  -- ^ super combinator steps
                        , stepPrim  :: Int  -- ^ primitive steps
+                       , gcCount   :: Int  -- ^ count of run gc
+                       , gcHist    :: [(Int, Int)] -- gc log
                        }
 tiStatInitial :: TiStats
-tiStatInitial = TiStats { stepTotal = 0, stepSc = 0, stepPrim = 0 }
+tiStatInitial = TiStats { stepTotal = 0
+                        , stepSc = 0
+                        , stepPrim = 0
+                        , gcCount = 0
+                        ,  gcHist = []
+                        }
 tiStatIncSteps :: TiStats -> TiStats
 tiStatIncSteps s = s { stepTotal = stepTotal s + 1 }
 tiStatIncScSteps :: TiStats -> TiStats
@@ -202,6 +209,7 @@ step state@(TiState _ stack _ heap _ _) = dispatch (hLookup heap item)
     dispatch (NInd a)                  = indStep a state
     dispatch (NPrim name prim)         = primStep name prim state
     dispatch (NData tag fields)        = dataStep tag fields state
+    dispatch (NMarked _node)           = error "step in gc"
 
 numStep :: Int -> TiState -> TiState
 numStep _ state@(TiState _ stack dump _ _ _)
@@ -510,6 +518,7 @@ showNode (NInd a)              = iStr "NInd " `iAppend` showAddr a
 showNode (NPrim name _prim)    = iStr "NPrim " `iAppend` iStr name
 showNode (NData tag fields)    = iConcat [ iStr "NData ", iNum tag, iStr " [", iFields, iStr "]"]
   where iFields = iInterleave (iStr ",") (map showAddr fields)
+showNode (NMarked _node)       = error "showNode in gc"
 
 showAddr :: Addr -> IseqRep
 showAddr addr = iStr (showaddr addr)
@@ -540,12 +549,16 @@ popAndRestore stack dump
       (sp, dump') -> (discard (getDepth stack - sp) stack, dump')
 
 gc :: TiState -> TiState
-gc state@(TiState _ _ _ heap _ _)
-  | heapSize > threashold = state { tiHeap = scanHeap markedHeap }
+gc state@(TiState _ _ _ heap _ stat)
+  | heapSize > threashold = state { tiHeap = heap1, tiStats = stat1 }
   | otherwise = state
   where rootAddrs = findRoots state
         markedHeap = foldl markFrom heap rootAddrs
-        heapSize = hSize heap 
+        heapSize = hSize heap
+        heap1 = scanHeap markedHeap
+        stat1 = stat { gcCount = gcCount stat + 1
+                     , gcHist = gcHist stat ++ [(heapSize, hSize heap1)]
+                     }
 
 findRoots :: TiState -> [Addr]
 findRoots _state@(TiState _ stack dump _ globals _)
