@@ -30,6 +30,7 @@ library
                        Template.Mark4
                        Template.Mark5
                        Template.Mark5Alt
+                       Template.Mark5GC
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.13
