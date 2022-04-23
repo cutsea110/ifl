@@ -557,47 +557,50 @@ popAndRestore stack dump
       (sp, dump') -> (discard (getDepth stack - sp) stack, dump')
 
 gc :: TiState -> TiState
-gc state@(TiState _ _ _ heap _ stat)
-  | heapSize > threashold = state { tiHeap = heap1, tiStats = stat1 }
+gc state@(TiState _ stack dump heap globals stat)
+  | heapSize > threashold = state { tiStack = stack1
+                                  , tiDump = dump1
+                                  , tiHeap = heap4
+                                  , tiGlobals = globals1
+                                  , tiStats = stat1
+                                  }
   | otherwise = state
-  where rootAddrs = findRoots state
-        markedHeap = foldl markFrom heap rootAddrs
+  where (heap1, stack1) = markFromStack heap stack
+        (heap2, dump1) = markFromDump heap1 dump
+        (heap3, globals1) = markFromGlobals heap2 globals
+        heap4 = scanHeap heap3
         heapSize = hSize heap
-        heap1 = scanHeap markedHeap
         stat1 = stat { gcCount = gcCount stat + 1
-                     , gcHist = gcHist stat ++ [(heapSize, hSize heap1)]
+                     , gcHist = gcHist stat ++ [(heapSize, hSize heap4)]
                      }
 
-findRoots :: TiState -> [Addr]
-findRoots _state@(TiState _ stack dump _ globals _)
-  = findStackRoots stack `union`
-    findDumpRoots dump `union`
-    findGlobalRoots globals
-
-findStackRoots :: TiStack -> [Addr]
-findStackRoots = getStack
-
-findDumpRoots :: TiDump -> [Addr]
-findDumpRoots _ = []
-
-findGlobalRoots :: TiGlobals -> [Addr]
-findGlobalRoots = aRange
-
-markFrom :: TiHeap -> Addr -> TiHeap
+markFrom :: TiHeap -> Addr -> (TiHeap, Addr)
 markFrom heap addr =
   let node = hLookup heap addr
   in case node of
-    NAp addr1 addr2 -> let heap1 = markFrom heap addr1
-                           heap2 = markFrom heap1 addr2
-                       in hUpdate heap2 addr (NMarked node)
-    NSupercomb _ _ _ -> hUpdate heap addr (NMarked node)
-    NNum _ -> hUpdate heap addr (NMarked node)
-    NInd addr1 -> let heap1 = markFrom heap addr1
-                  in hUpdate heap1 addr (NMarked node)
-    NPrim _ _ -> hUpdate heap addr (NMarked node)
-    NData _ args -> let heap1 = foldl markFrom heap args
-                    in hUpdate heap1 addr (NMarked node)
-    NMarked _ -> heap
+    NAp addr1 addr2 ->
+      let (heap1, addr1') = markFrom heap addr1
+          (heap2, addr2') = markFrom heap1 addr2
+      in (hUpdate heap2 addr (NMarked (NAp addr1' addr2')), addr)
+    NSupercomb _ _ _ -> (hUpdate heap addr (NMarked node), addr)
+    NNum _ -> (hUpdate heap addr (NMarked node), addr)
+    NInd addr1 -> markFrom heap addr1
+    NPrim _ _ -> (hUpdate heap addr (NMarked node), addr)
+    NData tag args ->
+      let (heap1, args1) = mapAccumL markFrom heap args
+      in (hUpdate heap1 addr (NMarked (NData tag args1)), addr)
+    NMarked _ -> (heap, addr)
+
+markFromStack :: TiHeap -> TiStack -> (TiHeap, TiStack)
+markFromStack heap stack = (heap1, fromList addrs)
+  where (heap1, addrs) = mapAccumL markFrom heap (getStack stack)
+
+markFromDump :: TiHeap -> TiDump -> (TiHeap, TiDump)
+markFromDump = (,)
+
+markFromGlobals :: TiHeap -> TiGlobals -> (TiHeap, TiGlobals)
+markFromGlobals heap globals = (heap1, zip (aDomain globals) addrs)
+  where (heap1, addrs) = mapAccumL markFrom heap (aRange globals)
 
 scanHeap :: TiHeap -> TiHeap
 scanHeap heap = foldl f heap (hAssocs heap)

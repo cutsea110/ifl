@@ -9,6 +9,8 @@ module Stack
   , getDepth          -- readonly
   , getHighWaterMark  -- readonly
   , isEmpty
+    -- setter
+  , setStack
     -- operator
   , push
   , pop
@@ -33,6 +35,12 @@ data Stack a
 getStack :: Stack a -> [a]
 getStack = stack
 
+-- | TODO: テスト書く
+setStack :: Stack a -> [a] -> Stack a
+setStack s xs = s { stack = xs
+                  , highWaterMark = hwm
+                  }
+  where hwm = max (length xs) (highWaterMark s)
 
 {- |
 >>> getDepth $ fromList []
