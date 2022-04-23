@@ -47,7 +47,7 @@ primitives = [ ("negate", primNeg)
 
 -- for GC
 threashold :: Int
-threashold = 100
+threashold = 105
 
 data TiState
   = TiState { tiOutput  :: TiOutput
@@ -468,11 +468,12 @@ showAllocCount (TiState _ _ _ (allocs, _, _, _) _ _)
             ]
 
 showState :: TiState -> IseqRep
-showState (TiState output stack dump heap _ _)
+showState state@(TiState output stack dump heap _ _)
   = iConcat [ showHeap heap, iNewline
             , showStack heap stack, iNewline
             , showDumpDepth dump, iNewline
             , showOutput output, iNewline
+            , showStats state, iNewline
             ]
 
 showHeap :: TiHeap -> IseqRep
