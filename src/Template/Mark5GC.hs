@@ -548,7 +548,7 @@ gc state@(TiState _ _ _ heap _ _)
         heapSize = hSize heap 
 
 findRoots :: TiState -> [Addr]
-findRoots state@(TiState _ stack dump _ globals _)
+findRoots _state@(TiState _ stack dump _ globals _)
   = findStackRoots stack `union`
     findDumpRoots dump `union`
     findGlobalRoots globals
