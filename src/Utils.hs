@@ -2,6 +2,8 @@ module Utils
   ( space
   , Assoc
   , aLookup
+  , aDomain
+  , aRange,
   ) where
 
 {- |
@@ -37,3 +39,9 @@ aLookup [] _ d = d
 aLookup ((k, v):kvs) k' d
   | k == k' = v
   | otherwise  = aLookup kvs k' d
+
+aDomain :: Assoc k v -> [k]
+aDomain = map fst
+
+aRange :: Assoc k v -> [v]
+aRange = map snd 

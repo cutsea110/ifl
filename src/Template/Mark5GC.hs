@@ -6,7 +6,7 @@ module Template.Mark5GC
   , showResults
   ) where
 
-import Data.List (mapAccumL)
+import Data.List (mapAccumL, union)
 
 import Iseq
 import Language
@@ -23,6 +23,7 @@ data Node
   | NInd Addr
   | NPrim Name Primitive
   | NData Int [Addr]
+  | NMarked Node
 
 primitives :: Assoc Name Primitive
 primitives = [ ("negate", primNeg)
@@ -43,6 +44,10 @@ primitives = [ ("negate", primNeg)
              , ("print", primPrint)
              , ("stop", primStop)
              ]
+
+-- for GC
+threashold :: Int
+threashold = 100
 
 data TiState
   = TiState { tiOutput  :: TiOutput
@@ -167,7 +172,7 @@ eval state = state : restStates
     nextState = doAdmin (step state)
 
 doAdmin :: TiState -> TiState
-doAdmin state = applyToStats tiStatIncSteps state
+doAdmin state = gc (applyToStats tiStatIncSteps state)
 
 doAdminSc :: TiState -> TiState
 doAdminSc state = applyToStats tiStatIncScSteps state
@@ -533,3 +538,48 @@ popAndRestore stack dump
   | isEmpty dump = error "restore: dump is empty"
   | otherwise    = case pop dump of
       (sp, dump') -> (discard (getDepth stack - sp) stack, dump')
+
+gc :: TiState -> TiState
+gc state@(TiState _ _ _ heap _ _)
+  | heapSize > threashold = state { tiHeap = scanHeap markedHeap }
+  | otherwise = state
+  where rootAddrs = findRoots state
+        markedHeap = foldl markFrom heap rootAddrs
+        heapSize = hSize heap 
+
+findRoots :: TiState -> [Addr]
+findRoots state@(TiState _ stack dump _ globals _)
+  = findStackRoots stack `union`
+    findDumpRoots dump `union`
+    findGlobalRoots globals
+
+findStackRoots :: TiStack -> [Addr]
+findStackRoots = getStack
+
+findDumpRoots :: TiDump -> [Addr]
+findDumpRoots _ = []
+
+findGlobalRoots :: TiGlobals -> [Addr]
+findGlobalRoots = aRange
+
+markFrom :: TiHeap -> Addr -> TiHeap
+markFrom heap addr =
+  let node = hLookup heap addr
+  in case node of
+    NAp addr1 addr2 -> let heap1 = markFrom heap addr1
+                           heap2 = markFrom heap1 addr2
+                       in hUpdate heap2 addr (NMarked node)
+    NSupercomb _ _ _ -> hUpdate heap addr (NMarked node)
+    NNum _ -> hUpdate heap addr (NMarked node)
+    NInd addr1 -> let heap1 = markFrom heap addr1
+                  in hUpdate heap1 addr (NMarked node)
+    NPrim _ _ -> hUpdate heap addr (NMarked node)
+    NData _ args -> let heap1 = foldl markFrom heap args
+                    in hUpdate heap1 addr (NMarked node)
+    NMarked _ -> heap
+
+scanHeap :: TiHeap -> TiHeap
+scanHeap heap = foldl f heap (hAssocs heap)
+  where f h (addr, node) = case node of
+          NMarked nd -> hUpdate h addr nd
+          _          -> hFree h addr

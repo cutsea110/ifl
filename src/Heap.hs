@@ -10,6 +10,7 @@ module Heap
   , hLookup
   , hAddresses
   , hSize
+  , hAssocs
   , hNull
   , hIsnull
   , showaddr
@@ -44,6 +45,9 @@ hAddresses (allocs, size, free, cts) = [addr | (addr, node) <- cts]
 
 hSize :: Heap a -> Size
 hSize (_, size, _, _) = size
+
+hAssocs :: Heap a -> Assoc Addr a
+hAssocs (_, _, _, cts) = cts
 
 hNull :: Addr
 hNull = 0
