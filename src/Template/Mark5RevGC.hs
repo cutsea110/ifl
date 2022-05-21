@@ -27,8 +27,8 @@ data Node
 
 data MarkState
   = Done        -- ^ Marking on this node finished
-  | VisitsAp    -- ^ Node visited app
-  | VisitsBody  -- ^ Node visited body
+  | VisitsAp    -- ^ Node visited app  (a.k.a Visible 1)
+  | VisitsBody  -- ^ Node visited body (a.k.a Visible 2)
 
 primitives :: Assoc Name Primitive
 primitives = [ ("negate", primNeg)
