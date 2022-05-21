@@ -51,8 +51,8 @@ primitives = [ ("negate", primNeg)
              ]
 
 -- for GC
-threashold :: Int
-threashold = 105
+threshold :: Int
+threshold = 105
 
 data TiState
   = TiState { tiOutput  :: TiOutput
@@ -564,12 +564,12 @@ popAndRestore stack dump
 
 gc :: TiState -> TiState
 gc state@(TiState _ stack dump heap globals stat)
-  | heapSize > threashold = state { tiStack = stack1
-                                  , tiDump = dump1
-                                  , tiHeap = heap4
-                                  , tiGlobals = globals1
-                                  , tiStats = stat1
-                                  }
+  | heapSize > threshold = state { tiStack = stack1
+                                 , tiDump = dump1
+                                 , tiHeap = heap4
+                                 , tiGlobals = globals1
+                                 , tiStats = stat1
+                                 }
   | otherwise = state
   where (heap1, stack1) = markFromStack heap stack
         (heap2, dump1) = markFromDump heap1 dump
