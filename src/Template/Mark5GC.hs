@@ -6,7 +6,7 @@ module Template.Mark5GC
   , showResults
   ) where
 
-import Data.List (mapAccumL, union)
+import Data.List (mapAccumL)
 
 import Iseq
 import Language
