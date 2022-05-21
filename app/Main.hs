@@ -68,7 +68,7 @@ name2Compiler = [ ("mark1", Mark1)
                 , ("mark5altcnv", Mark5Altcnv) -- convert newer version
                 , ("mark5gc", Mark5GC)
                 , ("mark5gccnv", Mark5GCcnv) -- convert newer version
-                , ("mark5gc", Mark5RevGC)
+                , ("mark5revgc", Mark5RevGC)
                 , ("mark5revgccnv", Mark5RevGCcnv) -- convert newer version
                 ]
 
