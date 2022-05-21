@@ -63,12 +63,12 @@ name2Compiler = [ ("mark1", Mark1)
                 , ("mark3", Mark3)
                 , ("mark4", Mark4)
                 , ("mark5", Mark5)
-                , ("mark5cnv", Mark5cnv) -- convert newer version
+                , ("mark5cnv", Mark5cnv)           -- convert newer version
                 , ("mark5alt", Mark5Alt)
-                , ("mark5altcnv", Mark5Altcnv) -- convert newer version
-                , ("mark5gc", Mark5GC)
-                , ("mark5gccnv", Mark5GCcnv) -- convert newer version
-                , ("mark5revgc", Mark5RevGC)
+                , ("mark5altcnv", Mark5Altcnv)     -- convert newer version
+                , ("mark5gc", Mark5GC)             -- mark gc
+                , ("mark5gccnv", Mark5GCcnv)       -- convert newer version
+                , ("mark5revgc", Mark5RevGC)       -- pointer reversal mark gc
                 , ("mark5revgccnv", Mark5RevGCcnv) -- convert newer version
                 ]
 
