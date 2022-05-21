@@ -626,25 +626,6 @@ mark gcstate@(GcState f b h) =
     NMarked VisitsAp _ -> error "mark meets NMarked VisitsAp."
     NMarked VisitsBody _ -> error "mark meets NMarked VisitsBody."
 
-{--
-markFrom :: TiHeap -> Addr -> (TiHeap, Addr)
-markFrom heap addr =
-  let node = hLookup heap addr
-  in case node of
-    NAp addr1 addr2 ->
-      let (heap1, addr1') = markFrom heap addr1
-          (heap2, addr2') = markFrom heap1 addr2
-      in (hUpdate heap2 addr (NMarked (NAp addr1' addr2')), addr)
-    NSupercomb _ _ _ -> (hUpdate heap addr (NMarked node), addr)
-    NNum _ -> (hUpdate heap addr (NMarked node), addr)
-    NInd addr1 -> markFrom heap addr1
-    NPrim _ _ -> (hUpdate heap addr (NMarked node), addr)
-    NData tag args ->
-      let (heap1, args1) = mapAccumL markFrom heap args
-      in (hUpdate heap1 addr (NMarked (NData tag args1)), addr)
-    NMarked _ -> (heap, addr)
---}
-
 markFromStack :: TiHeap -> TiStack -> (TiHeap, TiStack)
 markFromStack heap stack = (heap1, fromList addrs)
   where (heap1, addrs) = mapAccumL markFrom heap (getStack stack)
