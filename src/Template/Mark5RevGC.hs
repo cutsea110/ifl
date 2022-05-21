@@ -608,7 +608,10 @@ mark gcstate@(GcState f b h) =
     NInd a1 -> mark (gcstate { forward = a1 })
     NPrim _ _ -> let h' = hUpdate h f (NMarked Done node)
                  in mark (gcstate { tiheap = h' })
-    NData _tag _addrs -> error "mark meets NData."
+    NData tag addrs ->
+      let (h1, a1) = mapAccumL markFrom h addrs
+          h' = hUpdate h1 f (NMarked Done (NData tag a1))
+      in mark (gcstate { tiheap = h'})
     NMarked Done _n ->
       if b == hNull
       then gcstate
