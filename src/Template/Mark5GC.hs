@@ -7,6 +7,7 @@ module Template.Mark5GC
   ) where
 
 import Data.List (mapAccumL)
+import GHC.Float (int2Float)
 
 import Iseq
 import Language
@@ -47,7 +48,7 @@ primitives = [ ("negate", primNeg)
 
 -- for GC
 threshold :: Int
-threshold = 105
+threshold = 100
 
 data TiState
   = TiState { tiOutput  :: TiOutput
@@ -559,12 +560,13 @@ popAndRestore stack dump
 
 gc :: TiState -> TiState
 gc state@(TiState _ stack dump heap globals stat)
-  | heapSize > threshold = state { tiStack = stack1
-                                 , tiDump = dump1
-                                 , tiHeap = heap4
-                                 , tiGlobals = globals1
-                                 , tiStats = stat1
-                                 }
+  | int2Float heapSize > int2Float threshold * (1 + 0.2 * int2Float (gcCount stat))
+  = state { tiStack = stack1
+          , tiDump = dump1
+          , tiHeap = heap4
+          , tiGlobals = globals1
+          , tiStats = stat1
+          }
   | otherwise = state
   where (heap1, stack1) = markFromStack heap stack
         (heap2, dump1) = markFromDump heap1 dump
