@@ -15,6 +15,7 @@ import qualified Template.Mark5 as Mark5 (parse, compile, eval, showResults, cnv
 import qualified Template.Mark5Alt as Mark5Alt (parse, compile, eval, showResults, cnv)
 import qualified Template.Mark5GC as Mark5GC (parse, compile, eval, showResults, cnv)
 import qualified Template.Mark5RevGC as Mark5RevGC (parse, compile, eval, showResults, cnv)
+import qualified Template.Mark5Cp as Mark5Cp (parse, compile, eval, showResults, cnv)
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -34,6 +35,7 @@ executer Mark5GC = putStrLn . Mark5GC.showResults . Mark5GC.eval . Mark5GC.compi
 executer Mark5GCcnv = putStrLn . Mark5GC.showResults . Mark5GC.eval . Mark5GC.cnv . Mark5GC.compile . Mark5GC.parse
 executer Mark5RevGC = putStrLn . Mark5RevGC.showResults . Mark5RevGC.eval . Mark5RevGC.compile . Mark5RevGC.parse
 executer Mark5RevGCcnv = putStrLn . Mark5RevGC.showResults . Mark5RevGC.eval . Mark5RevGC.cnv . Mark5RevGC.compile . Mark5RevGC.parse
+executer Mark5Cp = putStrLn . Mark5Cp.showResults . Mark5Cp.eval . Mark5Cp.cnv . Mark5Cp.compile . Mark5Cp.parse
 executer (Noco name) = \_ -> do
   putStrLn $ "Error: Unknown compiler = " ++ name
   printHelp
@@ -42,7 +44,7 @@ executer (Noco name) = \_ -> do
 -- COMMAND LINE OPTIONS
 ---------------------------------------------------------------
 
-data Compiler = Noco String | Mark1 | Mark2 | Mark3 | Mark4 | Mark5 | Mark5cnv | Mark5Alt | Mark5Altcnv | Mark5GC | Mark5GCcnv | Mark5RevGC | Mark5RevGCcnv deriving Show
+data Compiler = Noco String | Mark1 | Mark2 | Mark3 | Mark4 | Mark5 | Mark5cnv | Mark5Alt | Mark5Altcnv | Mark5GC | Mark5GCcnv | Mark5RevGC | Mark5RevGCcnv | Mark5Cp deriving Show
 
 data Options = Options
   { optVerbose     :: Bool -- TODO
@@ -54,7 +56,7 @@ defaultOptions :: Options
 defaultOptions = Options
   { optVerbose     = False
   , optShowVersion = False
-  , optCompiler    = Mark5RevGC
+  , optCompiler    = Mark5Cp
   }
 
 name2Compiler :: [(String, Compiler)]
@@ -70,6 +72,7 @@ name2Compiler = [ ("mark1", Mark1)
                 , ("mark5gccnv", Mark5GCcnv)       -- convert newer version
                 , ("mark5revgc", Mark5RevGC)       -- pointer reversal mark gc
                 , ("mark5revgccnv", Mark5RevGCcnv) -- convert newer version
+                , ("mark5cp", Mark5Cp) -- convert newer version
                 ]
 
 compilerNames :: [String]

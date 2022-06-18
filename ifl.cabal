@@ -32,6 +32,7 @@ library
                        Template.Mark5Alt
                        Template.Mark5GC
                        Template.Mark5RevGC
+                       Template.Mark5Cp
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.13
