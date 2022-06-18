@@ -24,12 +24,6 @@ data Node
   | NInd Addr
   | NPrim Name Primitive
   | NData Int [Addr]
-  | NMarked MarkState Node
-
-data MarkState
-  = Done        -- ^ Marking on this node finished
-  | VisitsAp    -- ^ Node visited app  (a.k.a Visible 1)
-  | VisitsBody  -- ^ Node visited body (a.k.a Visible 2)
 
 primitives :: Assoc Name Primitive
 primitives = [ ("negate", primNeg)
@@ -100,8 +94,6 @@ tiStatGetPrimSteps :: TiStats -> Int
 tiStatGetPrimSteps s = stepPrim s
 tiStatGetGcCount :: TiStats -> Int
 tiStatGetGcCount s = gcCount s
-tiStatGetGcHist :: TiStats -> [(Int, Int)]
-tiStatGetGcHist s = gcHist s
 applyToStats :: (TiStats -> TiStats) -> TiState -> TiState
 applyToStats f state@(TiState _ _ _ _ _ stats)
   = state { tiStats = f stats }
@@ -219,7 +211,6 @@ step state@(TiState _ stack _ heap _ _) = dispatch (hLookup heap item)
     dispatch (NInd a)                  = indStep a state
     dispatch (NPrim name prim)         = primStep name prim state
     dispatch (NData tag fields)        = dataStep tag fields state
-    dispatch (NMarked _ _node)         = error "step in gc"
 
 numStep :: Int -> TiState -> TiState
 numStep _ state@(TiState _ stack dump _ _ _)
@@ -529,7 +520,6 @@ showNode (NInd a)              = iStr "NInd " `iAppend` showAddr a
 showNode (NPrim name _prim)    = iStr "NPrim " `iAppend` iStr name
 showNode (NData tag fields)    = iConcat [ iStr "NData ", iNum tag, iStr " [", iFields, iStr "]"]
   where iFields = iInterleave (iStr ",") (map showAddr fields)
-showNode (NMarked _ _node)     = error "showNode in gc"
 
 showAddr :: Addr -> IseqRep
 showAddr addr = iStr (showaddr addr)
@@ -563,84 +553,6 @@ popAndRestore stack dump
   | otherwise    = case pop dump of
       (sp, dump') -> (discard (getDepth stack - sp) stack, dump')
 
+
 gc :: TiState -> TiState
-gc state@(TiState _ stack dump heap globals stat)
-  | int2Float heapSize > int2Float threshold * (1 + 0.2 * int2Float (gcCount stat))
-  = state { tiStack = stack1
-          , tiDump = dump1
-          , tiHeap = heap4
-          , tiGlobals = globals1
-          , tiStats = stat1
-          }
-  | otherwise = state
-  where (heap1, stack1) = markFromStack heap stack
-        (heap2, dump1) = markFromDump heap1 dump
-        (heap3, globals1) = markFromGlobals heap2 globals
-        heap4 = scanHeap heap3
-        heapSize = hSize heap
-        stat1 = stat { gcCount = gcCount stat + 1
-                     , gcHist = gcHist stat ++ [(heapSize, hSize heap4)]
-                     }
-
-
-data GcState
-  = GcState
-  { forward  :: Addr
-  , backward :: Addr
-  , tiheap   :: TiHeap
-  }
-
-markFrom :: TiHeap -> Addr -> (TiHeap, Addr)
-markFrom heap addr = (tiheap gcs, forward gcs)
-  where
-    gcs = mark (GcState { forward = addr, backward = hNull, tiheap = heap})
-
-mark :: GcState -> GcState
-mark gcstate@(GcState f b h) =
-  let node = hLookup  h f
-  in case node of
-    NAp a1 a2 ->
-      let h' = hUpdate h f (NMarked VisitsAp (NAp b a2))
-      in mark (gcstate { forward = a1, backward = f, tiheap = h'})
-    NSupercomb _name _args _expr ->
-      let h' = hUpdate h f (NMarked Done node)
-      in mark (gcstate { tiheap = h'})
-    NNum _n -> let h' = hUpdate h f (NMarked Done node)
-              in mark (gcstate { tiheap = h' })
-    NInd a1 -> mark (gcstate { forward = a1 })
-    NPrim _ _ -> let h' = hUpdate h f (NMarked Done node)
-                 in mark (gcstate { tiheap = h' })
-    NData tag addrs ->
-      let (h1, a1) = mapAccumL markFrom h addrs
-          h' = hUpdate h1 f (NMarked Done (NData tag a1))
-      in mark (gcstate { tiheap = h'})
-    NMarked Done _n ->
-      if b == hNull
-      then gcstate
-      else case hLookup h b of
-        NMarked VisitsAp (NAp b' a2) ->
-          let h' = hUpdate h b (NMarked VisitsBody (NAp f b'))
-          in mark (gcstate { forward = a2, tiheap = h'})
-        NMarked VisitsBody (NAp a1 b') ->
-          let h' = hUpdate h b (NMarked Done (NAp a1 f))
-          in mark (gcstate { forward = b, backward = b', tiheap = h'})
-        _ -> error "mark meets NMarked Done." 
-    NMarked VisitsAp _ -> error "mark meets NMarked VisitsAp."
-    NMarked VisitsBody _ -> error "mark meets NMarked VisitsBody."
-
-markFromStack :: TiHeap -> TiStack -> (TiHeap, TiStack)
-markFromStack heap stack = (heap1, fromList addrs)
-  where (heap1, addrs) = mapAccumL markFrom heap (getStack stack)
-
-markFromDump :: TiHeap -> TiDump -> (TiHeap, TiDump)
-markFromDump = (,)
-
-markFromGlobals :: TiHeap -> TiGlobals -> (TiHeap, TiGlobals)
-markFromGlobals heap globals = (heap1, zip (aDomain globals) addrs)
-  where (heap1, addrs) = mapAccumL markFrom heap (aRange globals)
-
-scanHeap :: TiHeap -> TiHeap
-scanHeap heap = foldl f heap (hAssocs heap)
-  where f h (addr, node) = case node of
-          NMarked _ nd -> hUpdate h addr nd
-          _            -> hFree h addr
+gc = undefined
