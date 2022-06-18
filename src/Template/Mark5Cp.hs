@@ -6,8 +6,8 @@ module Template.Mark5Cp
   , showResults
   ) where
 
+import Data.Bool (bool)
 import Data.List (mapAccumL)
-import GHC.Float (int2Float)
 
 import Iseq
 import Language
@@ -24,6 +24,7 @@ data Node
   | NInd Addr
   | NPrim Name Primitive
   | NData Int [Addr]
+  | NForward Addr
 
 primitives :: Assoc Name Primitive
 primitives = [ ("negate", primNeg)
@@ -181,7 +182,9 @@ eval state = state : restStates
     nextState = doAdmin (step state)
 
 doAdmin :: TiState -> TiState
-doAdmin state = gc (applyToStats tiStatIncSteps state)
+doAdmin state = bool id gc (length assoc > threshold) (applyToStats tiStatIncSteps state)
+  where
+    (_, _, _, assoc) = tiHeap state
 
 doAdminSc :: TiState -> TiState
 doAdminSc state = applyToStats tiStatIncScSteps state
@@ -211,6 +214,7 @@ step state@(TiState _ stack _ heap _ _) = dispatch (hLookup heap item)
     dispatch (NInd a)                  = indStep a state
     dispatch (NPrim name prim)         = primStep name prim state
     dispatch (NData tag fields)        = dataStep tag fields state
+    dispatch (NForward _)              = error "don't reach here"
 
 numStep :: Int -> TiState -> TiState
 numStep _ state@(TiState _ stack dump _ _ _)
@@ -520,6 +524,7 @@ showNode (NInd a)              = iStr "NInd " `iAppend` showAddr a
 showNode (NPrim name _prim)    = iStr "NPrim " `iAppend` iStr name
 showNode (NData tag fields)    = iConcat [ iStr "NData ", iNum tag, iStr " [", iFields, iStr "]"]
   where iFields = iInterleave (iStr ",") (map showAddr fields)
+showNode (NForward a1)         = iConcat [iStr "NForward (", showAddr a1, iStr ")"]
 
 showAddr :: Addr -> IseqRep
 showAddr addr = iStr (showaddr addr)
@@ -555,4 +560,62 @@ popAndRestore stack dump
 
 
 gc :: TiState -> TiState
-gc = undefined
+gc state = case evacuateStack (tiHeap state) hInitial (tiStack state) of
+  ((from1, to1), stack1) -> case evacuateDump from1 to1 (tiDump state) of
+    ((from2, to2), dump1) -> case evacuateGlobals from2 to2 (tiGlobals state) of
+      ((from3, to3), globals1) -> case scavenge from3 to3 of
+        to4 -> state { tiStack = stack1
+                     , tiDump = dump1
+                     , tiHeap = to4 -- TODO
+                     , tiGlobals = globals1
+                     , tiStats = gcCountup (tiStats state)
+                     }
+
+gcCountup :: TiStats -> TiStats
+gcCountup stats = stats {gcCount = gcCount stats + 1}
+
+evacuateStack :: TiHeap -> TiHeap -> TiStack -> ((TiHeap, TiHeap), TiStack)
+evacuateStack from to stk = case mapAccumL evacuateFrom (from, to) (getStack stk) of
+  (heaps', addrs') -> (heaps', setStack stk addrs')
+
+evacuateDump :: TiHeap -> TiHeap -> TiDump -> ((TiHeap, TiHeap), TiDump)
+evacuateDump from to dump = ((from, to), dump)
+
+evacuateGlobals :: TiHeap -> TiHeap -> TiGlobals -> ((TiHeap, TiHeap), TiGlobals)
+evacuateGlobals from to globals = case unzip globals of
+  (names, addrs) -> case mapAccumL evacuateFrom (from, to) addrs of
+    ((from1, to1), addrs1) -> ((from1, to1), zip names addrs1)
+
+evacuateFrom :: (TiHeap, TiHeap) -> Addr -> ((TiHeap, TiHeap), Addr)
+evacuateFrom (from, to) a = case hLookup from a of
+  node -> case node of
+    NAp b c -> case hAlloc to node of
+      (to1, a') -> case hUpdate from a (NForward a') of
+        from1 -> case evacuateFrom (from1, to1) b of
+          ((from2, to2), _) -> case evacuateFrom (from2, to2) c of
+            ((from3, to3), _) -> ((from3, to3), a')
+    NInd b -> case evacuateFrom (from, to) b of
+      ((from1, to1), b') -> ((hUpdate from1 a(NForward b'), to1), b')
+    NData _name args -> case hAlloc to node of
+      (to1, a') -> case hUpdate from a (NForward a') of
+        from1 -> case mapAccumL evacuateFrom (from1, to1) args of
+          ((from2, to2), _) -> ((from2, to2), a')
+    NForward a' -> ((from, to), a')
+    _ -> case hAlloc to node of
+      (to1, a') -> case hUpdate from a (NForward a') of
+        from1 -> ((from1, to1), a')
+
+scavenge :: TiHeap -> TiHeap -> TiHeap
+scavenge from to@(_, _, _, hp) = foldl phi to hp
+  where
+    phi t (a', n) = case n of
+      NAp b c -> case hLookup from b of
+        NForward b' -> case hLookup from c of
+          NForward c' -> hUpdate t a' (NAp b' c')
+          _ -> error "scavenge: not NForward"
+        _ -> error "scavenge: not NForward"
+      NInd _ -> error "scavenge: NInd"
+      NData name args -> hUpdate t a' (NData name (map (unNF . hLookup from) args))
+      _ -> t
+    unNF (NForward n) = n
+    unNF _            = error "scavenge: not NForward"
