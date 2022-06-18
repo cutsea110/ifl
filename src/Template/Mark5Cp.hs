@@ -575,7 +575,7 @@ gc state = case evacuateStack (tiHeap state) hInitial (tiStack state) of
         to4 -> trace (gcPrint (tiHeap state) from1 to1 from3 to3 to4) $
           state { tiStack = stack1
                      , tiDump = dump1
-                     , tiHeap = to4 -- TODO
+                     , tiHeap = to4
                      , tiGlobals = globals1
                      , tiStats = gcCountup (tiStats state)
                      }
