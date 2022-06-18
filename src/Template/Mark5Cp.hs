@@ -8,12 +8,20 @@ module Template.Mark5Cp
 
 import Data.Bool (bool)
 import Data.List (mapAccumL)
+import qualified Debug.Trace as Deb
 
 import Iseq
 import Language
 import Heap
 import Stack
 import Utils
+
+debug :: Bool
+debug = True
+
+trace :: String -> a -> a
+trace | debug     = Deb.trace
+      | otherwise = const id
 
 type Primitive = TiState -> TiState
 
@@ -182,7 +190,7 @@ eval state = state : restStates
     nextState = doAdmin (step state)
 
 doAdmin :: TiState -> TiState
-doAdmin state = bool id gc (length assoc > threshold) (applyToStats tiStatIncSteps state)
+doAdmin state = bool id {-gc-} id (length assoc > threshold) (applyToStats tiStatIncSteps state)
   where
     (_, _, _, assoc) = tiHeap state
 
@@ -363,7 +371,7 @@ primPrint state@(TiState output stack dump heap _ _)
   | not (isEmpty dump) = error "primPrint: dump isn't empty."
   | otherwise          = doAdminPrim $ case arg1Node of
       NNum n    -> state { tiOutput = output++[n], tiStack = push arg2Addr emptyStack }
-      NData _ _ -> error "primPrint: node is not a number."
+      NData tag addrs -> error ("primPrint: node is not a number." ++ show tag ++ " : " ++ show addrs)
       _         -> case saveAndPush arg1Addr stack1 dump of
         (stack2, dump2) -> state { tiStack = stack2, tiDump = dump2 }
   where args = take 2 $ getargs heap stack
@@ -564,12 +572,33 @@ gc state = case evacuateStack (tiHeap state) hInitial (tiStack state) of
   ((from1, to1), stack1) -> case evacuateDump from1 to1 (tiDump state) of
     ((from2, to2), dump1) -> case evacuateGlobals from2 to2 (tiGlobals state) of
       ((from3, to3), globals1) -> case scavenge from3 to3 of
-        to4 -> state { tiStack = stack1
+        to4 -> trace (gcPrint (tiHeap state) from1 to1 from3 to3 to4) $
+          state { tiStack = stack1
                      , tiDump = dump1
                      , tiHeap = to4 -- TODO
                      , tiGlobals = globals1
                      , tiStats = gcCountup (tiStats state)
                      }
+  where
+    gcPrint h0 f1 t1 f3 t3 t4
+      = iDisplay $ iConcat
+      [ iStr "vvvvvvvvvvvvvvvvvvvvvv"
+      , iNewline
+      , iStr "before:", iNewline
+      , showHeap h0, iNewline
+      , iStr "evacuated: from1", iNewline
+      , showHeap f1, iNewline
+      , iStr "evacuated: to1", iNewline
+      , showHeap t1, iNewline
+      , iStr "evacuated: from3", iNewline
+      , showHeap f3, iNewline
+      , iStr "evacuated: to3", iNewline
+      , showHeap t3, iNewline
+      , iStr "scavenged: after", iNewline
+      , showHeap t4, iNewline
+      , iStr "^^^^^^^^^^^^^^^^^^^^^^"
+      , iNewline
+      ]
 
 gcCountup :: TiStats -> TiStats
 gcCountup stats = stats {gcCount = gcCount stats + 1}
