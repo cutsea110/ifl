@@ -190,7 +190,7 @@ eval state = state : restStates
     nextState = doAdmin (step state)
 
 doAdmin :: TiState -> TiState
-doAdmin state = bool id {-gc-} id (length assoc > threshold) (applyToStats tiStatIncSteps state)
+doAdmin state = bool id gc (length assoc > threshold) (applyToStats tiStatIncSteps state)
   where
     (_, _, _, assoc) = tiHeap state
 
