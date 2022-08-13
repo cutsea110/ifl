@@ -197,9 +197,16 @@ argOffset n env = [(v, n+m) | (v, m) <- env]
 showResults = undefined
 
 
------
+{- |
+>>> test1
+("K",2,[Push 0,Slide 3,Unwind])
+-}
 test1 :: GmCompiledSC
 test1 = compileSc ("K", ["x", "y"], EVar "x")
 
+{- |
+>>> test2
+("S",3,[Push 2,Push 2,Mkap,Push 3,Push 2,Mkap,Mkap,Slide 4,Unwind])
+-}
 test2 :: GmCompiledSC
 test2 = compileSc ("S", ["f", "g", "x"], EAp (EAp (EVar "f") (EVar "x")) (EAp (EVar "g") (EVar "x")))
