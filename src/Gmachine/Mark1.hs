@@ -201,12 +201,15 @@ argOffset n env = [(v, n+m) | (v, m) <- env]
 
 showResults :: [GmState] -> String
 showResults states
-  = iDisplay (iConcat [ iStr "Supercombinator definitions", iNewline
-                      , iInterleave iNewline (map (showSC s) (getGlobals s))
-                      , iNewline, iNewline, iStr "State transitions", iNewline, iNewline
-                      , iLayn (map showState states), iNewline, iNewline
-                      , showStats (last states)
-                      ])
+  = unlines (map iDisplay
+              ([ iStr "Supercombinator definitions", iNewline
+               , iInterleave iNewline (map (showSC s) (getGlobals s))
+               , iStr "State transitions"
+               ] ++
+               iLayn' (map showState states) ++
+               [ showStats (last states)
+               ])
+            )
     where s:ss = states
 
 
