@@ -7,6 +7,7 @@ import Parser
 import qualified Stack as S
 import Utils
 import Data.List (mapAccumL)
+import Numeric (showInt)
 
 runProg :: String -> String
 runProg = showResults . eval . compile . parse
@@ -198,8 +199,68 @@ compileC (EAp e1 e2) env   = compileC e2 env ++ compileC e1 (argOffset 1 env) ++
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v, m) <- env]
 
-showResults = undefined
+showResults :: [GmState] -> String
+showResults states
+  = iDisplay (iConcat [ iStr "Supercombinator definitions", iNewline
+                      , iInterleave iNewline (map (showSC s) (getGlobals s))
+                      , iNewline, iNewline, iStr "State transitions", iNewline, iNewline
+                      , iLayn (map showState states), iNewline, iNewline
+                      , showStats (last states)
+                      ])
+    where s:ss = states
 
+
+showSC :: GmState -> (Name, Addr) -> IseqRep 
+showSC s (name, addr)
+  = iConcat [ iStr "Code for ", iStr name, iNewline
+            , showInstructions code, iNewline, iNewline
+            ]
+  where (NGlobal arity code) = hLookup (getHeap s) addr
+
+showInstructions :: GmCode -> IseqRep
+showInstructions is
+  = iConcat [ iStr "  Code:{"
+            , iIndent (iInterleave iNewline (map showInstruction is))
+            , iStr "}", iNewline
+            ]
+showInstruction :: Instruction -> IseqRep
+showInstruction Unwind = iStr "Unwind"
+showInstruction (Pushglobal f) = (iStr "Pushglobal ") `iAppend` (iStr f)
+showInstruction (Push n) = (iStr "Push ") `iAppend` (iNum n)
+showInstruction (Pushint n) = (iStr "Pushint ") `iAppend` (iNum n)
+showInstruction Mkap = iStr "Mkap"
+showInstruction (Slide n) = (iStr "Slide ") `iAppend` (iNum n)
+
+showState :: GmState -> IseqRep
+showState s
+  = iConcat [ showStack s, iNewline
+            , showInstructions (getCode s), iNewline 
+            ]
+
+showStack :: GmState -> IseqRep
+showStack s
+  = iConcat [ iStr "Stack: ["
+            , iIndent (iInterleave iNewline (map (showStackItem s) (reverse (S.getStack $ getStack s))))
+            , iStr "]"
+            ]
+
+showStackItem :: GmState -> Addr -> IseqRep
+showStackItem s a
+  = iConcat [ iStr (showaddr a), iStr ": "
+            , showNode s a (hLookup (getHeap s) a)
+            ]
+
+showNode :: GmState -> Addr -> Node -> IseqRep
+showNode s a (NNum n) = iNum n
+showNode s a (NGlobal n g) = iConcat [iStr "Global ", iStr v]
+  where v = head [n | (n, b) <- getGlobals s, a == b]
+showNode s a (NAp a1 a2) = iConcat [ iStr "Ap ", iStr (showaddr a1)
+                                   , iStr " ", iStr (showaddr a2)
+                                   ]
+
+showStats :: GmState -> IseqRep
+showStats s
+  = iConcat [ iStr "Steps taken = ", iNum (statGetSteps (getStats s))]
 
 {- |
 >>> test1
