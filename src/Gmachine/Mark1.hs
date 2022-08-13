@@ -55,6 +55,7 @@ data Node
   = NNum Int           -- Numbers
   | NAp Addr Addr      -- Applications
   | NGlobal Int GmCode -- Globals
+  deriving Show
 
 
 type GmGlobals = Assoc Name Addr
@@ -160,8 +161,11 @@ compile program = GmState { code = initialCode
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
   where
-    -- TODO: compiled = map compileSc (preludeDefs ++ program) ++ compiledPrimitives
-    compiled = map compileSc program
+    compiled = map compileSc (preludeDefs ++ program) ++ compiledPrimitives
+    -- compiled = map compileSc program
+
+compiledPrimitives :: [GmCompiledSC]
+compiledPrimitives = []
 
 type GmCompiledSC = (Name, Int, GmCode)
 
@@ -210,3 +214,9 @@ test1 = compileSc ("K", ["x", "y"], EVar "x")
 -}
 test2 :: GmCompiledSC
 test2 = compileSc ("S", ["f", "g", "x"], EAp (EAp (EVar "f") (EVar "x")) (EAp (EVar "g") (EVar "x")))
+
+{- |
+>>> let i = head $ S.getStack $ getStack $ last $ eval $ compile $ parse "main = S K K 3"
+>>> hLookup (getHeap $ last $ eval $ compile $ parse "main = S K K 3") i
+NNum 3
+-}
