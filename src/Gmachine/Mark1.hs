@@ -190,11 +190,11 @@ type GmEnvironment = Assoc Name Int
 -- to Code
 compileC :: GmCompiler
 compileC (EVar v) env
-  | v `elem` (aDomain env) = [Push n]
-  | otherwise              = [Pushglobal v]
+  | v `elem` aDomain env = [Push n]
+  | otherwise            = [Pushglobal v]
   where n = aLookup env v (error "Can't happen")
-compileC (ENum n)    env   = [Pushint n]
-compileC (EAp e1 e2) env   = compileC e2 env ++ compileC e1 (argOffset 1 env) ++ [Mkap]
+compileC (ENum n)    env = [Pushint n]
+compileC (EAp e1 e2) env = compileC e2 env ++ compileC e1 (argOffset 1 env) ++ [Mkap]
 
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v, m) <- env]
@@ -223,13 +223,14 @@ showInstructions is
             , iIndent (iInterleave iNewline (map showInstruction is))
             , iStr "}", iNewline
             ]
+
 showInstruction :: Instruction -> IseqRep
-showInstruction Unwind = iStr "Unwind"
-showInstruction (Pushglobal f) = (iStr "Pushglobal ") `iAppend` (iStr f)
-showInstruction (Push n) = (iStr "Push ") `iAppend` (iNum n)
-showInstruction (Pushint n) = (iStr "Pushint ") `iAppend` (iNum n)
-showInstruction Mkap = iStr "Mkap"
-showInstruction (Slide n) = (iStr "Slide ") `iAppend` (iNum n)
+showInstruction Unwind         = iStr "Unwind"
+showInstruction (Pushglobal f) = iStr "Pushglobal " `iAppend` iStr f
+showInstruction (Push n)       = iStr "Push " `iAppend` iNum n
+showInstruction (Pushint n)    = iStr "Pushint " `iAppend` iNum n
+showInstruction Mkap           = iStr "Mkap"
+showInstruction (Slide n)      = iStr "Slide " `iAppend` iNum n
 
 showState :: GmState -> IseqRep
 showState s
@@ -240,9 +241,11 @@ showState s
 showStack :: GmState -> IseqRep
 showStack s
   = iConcat [ iStr "Stack: ["
-            , iIndent (iInterleave iNewline (map (showStackItem s) (reverse (S.getStack $ getStack s))))
+            , iIndent $ iInterleave iNewline items
             , iStr "]"
             ]
+    where
+      items = map (showStackItem s) (reverse (S.getStack $ getStack s))
 
 showStackItem :: GmState -> Addr -> IseqRep
 showStackItem s a
@@ -251,16 +254,15 @@ showStackItem s a
             ]
 
 showNode :: GmState -> Addr -> Node -> IseqRep
-showNode s a (NNum n) = iNum n
+showNode s a (NNum n)      = iNum n
 showNode s a (NGlobal n g) = iConcat [iStr "Global ", iStr v]
   where v = head [n | (n, b) <- getGlobals s, a == b]
-showNode s a (NAp a1 a2) = iConcat [ iStr "Ap ", iStr (showaddr a1)
-                                   , iStr " ", iStr (showaddr a2)
-                                   ]
+showNode s a (NAp a1 a2)   = iConcat [ iStr "Ap ", iStr (showaddr a1)
+                                     , iStr " ", iStr (showaddr a2)
+                                     ]
 
 showStats :: GmState -> IseqRep
-showStats s
-  = iConcat [ iStr "Steps taken = ", iNum (statGetSteps (getStats s))]
+showStats s = iConcat [ iStr "Steps taken = ", iNum (statGetSteps (getStats s))]
 
 {- |
 >>> test1
