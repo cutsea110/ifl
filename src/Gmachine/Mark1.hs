@@ -6,6 +6,7 @@ import Language
 import Parser
 import qualified Stack as S
 import Utils
+import Data.List (mapAccumL)
 
 runProg :: String -> String
 runProg = showResults . eval . compile . parse
@@ -32,7 +33,7 @@ data Instruction
   | Mkap
   | Push Int -- push offset
   | Slide Int
-  deriving (Eq)
+  deriving (Eq, Show)
 
 type GmStack = S.Stack Addr
 
@@ -147,6 +148,51 @@ unwind state = newState (hLookup heap a)
           | S.getDepth s1 < n = error "Unwinding with too few arguments"
           | otherwise         = putCode c state
 
+compile :: CoreProgram -> GmState
+compile program = GmState { code = initialCode
+                          , stack = S.emptyStack
+                          , heap = heap
+                          , globals = globals
+                          , stats = statInitial
+                          }
+  where (heap, globals) = buildInitialHeap program
+
+buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
+buildInitialHeap program = mapAccumL allocateSc hInitial compiled
+  where
+    -- TODO: compiled = map compileSc (preludeDefs ++ program) ++ compiledPrimitives
+    compiled = map compileSc program
+
+type GmCompiledSC = (Name, Int, GmCode)
+
+allocateSc :: GmHeap -> GmCompiledSC -> (GmHeap, (Name, Addr))
+allocateSc heap (name, nargs, instns) = (heap', (name, addr))
+  where (heap', addr) = hAlloc heap (NGlobal nargs instns)
+
+initialCode :: GmCode
+initialCode = [Pushglobal "main", Unwind]
+
+compileSc :: (Name, [Name], CoreExpr) -> GmCompiledSC
+compileSc (name, env, body) = (name, length env, compileR body (zip env [0..]))
+
+-- maybe Reduction's R
+compileR :: GmCompiler
+compileR e env = compileC e env ++ [Slide (length env + 1), Unwind]
+
+type GmCompiler = CoreExpr  -> GmEnvironment -> GmCode
+type GmEnvironment = Assoc Name Int
+
+-- to Code
+compileC :: GmCompiler
+compileC (EVar v) env
+  | v `elem` (aDomain env) = [Push n]
+  | otherwise              = [Pushglobal v]
+  where n = aLookup env v (error "Can't happen")
+compileC (ENum n)    env   = [Pushint n]
+compileC (EAp e1 e2) env   = compileC e2 env ++ compileC e1 (argOffset 1 env) ++ [Mkap]
+
+argOffset :: Int -> GmEnvironment -> GmEnvironment
+argOffset n env = [(v, n+m) | (v, m) <- env]
+
 showResults = undefined
-compile = undefined
 
