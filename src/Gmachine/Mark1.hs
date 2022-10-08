@@ -277,7 +277,15 @@ showNode s a (NAp a1 a2)   = iConcat [ iStr "Ap ", iStr (showaddr a1)
                                      ]
 
 showStats :: GmState -> IseqRep
-showStats s = iConcat [ iStr "Steps taken = ", iNum (statGetSteps (getStats s))]
+showStats s = iConcat [ iStr "---------------"
+                      , iNewline
+                      , iNewline, iStr "Total number of steps = "
+                      , iNum (statGetSteps (getStats s))
+                      , iNewline, iStr "            Heap size = "
+                      , iNum (hSize (heap s))
+                      , iNewline, iStr "           Stack size = "
+                      , iNum (S.getHighWaterMark (getStack s))
+                      ]
 
 {- |
 >>> test1
