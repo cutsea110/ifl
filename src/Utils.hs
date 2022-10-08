@@ -3,7 +3,8 @@ module Utils
   , Assoc
   , aLookup
   , aDomain
-  , aRange,
+  , aRange
+  , aInsert
   ) where
 
 {- |
@@ -45,3 +46,6 @@ aDomain = map fst
 
 aRange :: Assoc k v -> [v]
 aRange = map snd 
+
+aInsert :: Eq k => Assoc k v -> k -> v -> Assoc k v
+aInsert m k v = (k, v):m

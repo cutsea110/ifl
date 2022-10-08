@@ -122,8 +122,15 @@ pushglobal f state = putStack (S.push a $ getStack state) state
   where a = aLookup (getGlobals state) f (error $ "Undeclared global " ++ f)
 
 pushint :: Int -> GmState -> GmState
-pushint n state = putHeap heap' (putStack (S.push a $ getStack state) state)
-  where (heap', a) = hAlloc (getHeap state) (NNum n)
+pushint n state = case aLookup (getGlobals state) name (-1) of
+  a' | a' < 0    -> state { stack = S.push a (getStack state)
+                          , heap = heap'
+                          , globals = aInsert (getGlobals state) name a'
+                          }
+     | otherwise -> state { stack = S.push a' (getStack state)
+                          }
+  where name = show n
+        (heap', a) = hAlloc (getHeap state) (NNum n)
 
 mkap :: GmState -> GmState
 mkap state = putHeap heap' (putStack (S.push a s2) state)
