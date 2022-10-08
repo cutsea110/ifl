@@ -24,6 +24,7 @@ library
                        Heap
                        Stack
                        Gmachine.Mark1
+                       Gmachine.Mark2
                        Template.MultMachine
                        Template.Mark1
                        Template.Mark2
