@@ -144,7 +144,7 @@ mkap state = putHeap heap' (putStack (S.push a s2) state)
 push :: Int -> GmState -> GmState
 push n state = putStack (S.push a s) state
   where s = getStack state
-        a = getArg (hLookup (getHeap state) (S.getStack s !! (n+1)))
+        a = S.getStack s !! n
 
 pop :: Int -> GmState -> GmState
 pop n state = putStack (S.discard n s) state
@@ -162,6 +162,12 @@ getArg :: Node -> Addr
 getArg (NAp _ a2) = a2
 getArg _          = error "not application Node"
 
+rearrange :: Int -> GmHeap -> GmStack -> GmStack
+rearrange n heap as = foldr S.push (S.discard n as) $ take n as'
+  where
+    (_, s) = S.pop as
+    as' = map (getArg . hLookup heap) (S.getStack s)
+
 unwind :: GmState -> GmState
 unwind state = newState (hLookup heap a)
   where s = getStack state
@@ -171,7 +177,7 @@ unwind state = newState (hLookup heap a)
         newState (NAp a1 a2) = putCode [Unwind] (putStack (S.push a1 s) state)
         newState (NGlobal n c)
           | S.getDepth s1 < n = error "Unwinding with too few arguments"
-          | otherwise         = putCode c state
+          | otherwise         = putCode c (putStack (rearrange n (getHeap state) (getStack state)) state)
         newState (NInd a1) = putCode [Unwind] (putStack (S.push a1 s1) state)
 
 compile :: CoreProgram -> GmState
