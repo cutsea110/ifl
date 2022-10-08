@@ -1,0 +1,5 @@
+-- test program 1
+
+id = S K K ;
+twic f x = f (f x) ;
+main = twic twic twic id 3
