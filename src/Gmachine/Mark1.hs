@@ -1,4 +1,9 @@
-module Gmachine.Mark1 where
+module Gmachine.Mark1
+  ( parse
+  , compile
+  , eval
+  , showResults
+  ) where
 
 import Heap
 import Iseq
