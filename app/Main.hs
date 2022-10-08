@@ -67,7 +67,8 @@ data Compiler = Noco String
               | Mark5Cp
               | Mark5Cpcnv
               | GMark1
-              | GMark2 deriving Show
+              | GMark2
+              deriving Show
 
 data Options = Options
   { optVerbose     :: Bool -- TODO
