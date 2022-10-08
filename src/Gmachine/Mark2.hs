@@ -1,4 +1,4 @@
-module Gmachine.Mark1
+module Gmachine.Mark2
   ( parse
   , compile
   , eval
@@ -38,7 +38,8 @@ data Instruction
   | Pushint Int
   | Mkap
   | Push Int -- push offset
-  | Slide Int
+  | Pop Int  -- pop offset
+  | Update Int -- update offset by stack top
   deriving (Eq, Show)
 
 type GmStack = S.Stack Addr
@@ -61,6 +62,7 @@ data Node
   = NNum Int           -- Numbers
   | NAp Addr Addr      -- Applications
   | NGlobal Int GmCode -- Globals
+  | NInd Addr          -- Indirections
   deriving Show
 
 
@@ -114,7 +116,8 @@ dispatch (Pushglobal f) = pushglobal f
 dispatch (Pushint n)    = pushint n
 dispatch Mkap           = mkap
 dispatch (Push n)       = push n
-dispatch (Slide n)      = slide n
+dispatch (Pop n)        = pop n
+dispatch (Update n)     = update n
 dispatch Unwind         = unwind
 
 pushglobal :: Name -> GmState -> GmState
@@ -143,13 +146,21 @@ push n state = putStack (S.push a s) state
   where s = getStack state
         a = getArg (hLookup (getHeap state) (S.getStack s !! (n+1)))
 
+pop :: Int -> GmState -> GmState
+pop n state = putStack (S.discard n s) state
+  where s = getStack state
+
+update :: Int -> GmState -> GmState
+update n state = putHeap heap' (putStack s' state)
+  where s = getStack state
+        (a, s') = S.pop s
+        a' = S.getStack s' !! n
+        heap' = hUpdate (getHeap state) a' (NInd a)
+
+
 getArg :: Node -> Addr
 getArg (NAp _ a2) = a2
 getArg _          = error "not application Node"
-
-slide :: Int -> GmState -> GmState
-slide n state = putStack (S.push a $ S.discard n s) state
-  where (a, s) = S.pop $ getStack state
 
 unwind :: GmState -> GmState
 unwind state = newState (hLookup heap a)
@@ -161,6 +172,7 @@ unwind state = newState (hLookup heap a)
         newState (NGlobal n c)
           | S.getDepth s1 < n = error "Unwinding with too few arguments"
           | otherwise         = putCode c state
+        newState (NInd a1) = putCode [Unwind] (putStack (S.push a1 s1) state)
 
 compile :: CoreProgram -> GmState
 compile program = GmState { code = initialCode
@@ -194,7 +206,8 @@ compileSc (name, env, body) = (name, length env, compileR body (zip env [0..]))
 
 -- maybe Reduction's R
 compileR :: GmCompiler
-compileR e env = compileC e env ++ [Slide (length env + 1), Unwind]
+compileR e env = compileC e env ++ [Update n, Pop n, Unwind]
+  where n = length env
 
 type GmCompiler = CoreExpr  -> GmEnvironment -> GmCode
 type GmEnvironment = Assoc Name Int
@@ -245,7 +258,8 @@ showInstruction (Pushglobal f) = iStr "Pushglobal " `iAppend` iStr f
 showInstruction (Push n)       = iStr "Push " `iAppend` iNum n
 showInstruction (Pushint n)    = iStr "Pushint " `iAppend` iNum n
 showInstruction Mkap           = iStr "Mkap"
-showInstruction (Slide n)      = iStr "Slide " `iAppend` iNum n
+showInstruction (Pop n)        = iStr "Pop " `iAppend` iNum n
+showInstruction (Update n)     = iStr "Update " `iAppend` iNum n
 
 showState :: GmState -> IseqRep
 showState s
@@ -275,6 +289,8 @@ showNode s a (NGlobal n g) = iConcat [iStr "Global ", iStr v]
 showNode s a (NAp a1 a2)   = iConcat [ iStr "Ap ", iStr (showaddr a1)
                                      , iStr " ", iStr (showaddr a2)
                                      ]
+showNode s a (NInd a1) = iConcat [ iStr "NInd ", iStr (showaddr a1)
+                                 ]
 
 showStats :: GmState -> IseqRep
 showStats s = iConcat [ iStr "---------------"
