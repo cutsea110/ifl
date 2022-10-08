@@ -176,6 +176,7 @@ unwind state = newState (hLookup heap a)
         newState (NGlobal n c)
           | S.getDepth s1 < n = error "Unwinding with too few arguments"
           | otherwise         = putCode c state
+        newState (NInd a1) = putCode [Unwind] (putStack (S.push a1 s1) state)
 
 compile :: CoreProgram -> GmState
 compile program = GmState { code = initialCode
@@ -210,7 +211,7 @@ compileSc (name, env, body) = (name, length env, compileR body (zip env [0..]))
 -- maybe Reduction's R
 compileR :: GmCompiler
 compileR e env = compileC e env ++ [Update n, Pop n, Unwind]
-  where n = length env + 1
+  where n = length env
 
 type GmCompiler = CoreExpr  -> GmEnvironment -> GmCode
 type GmEnvironment = Assoc Name Int
@@ -292,6 +293,8 @@ showNode s a (NGlobal n g) = iConcat [iStr "Global ", iStr v]
 showNode s a (NAp a1 a2)   = iConcat [ iStr "Ap ", iStr (showaddr a1)
                                      , iStr " ", iStr (showaddr a2)
                                      ]
+showNode s a (NInd a1) = iConcat [ iStr "NInd ", iStr (showaddr a1)
+                                 ]
 
 showStats :: GmState -> IseqRep
 showStats s = iConcat [ iStr "---------------"
