@@ -162,10 +162,6 @@ getArg :: Node -> Addr
 getArg (NAp _ a2) = a2
 getArg _          = error "not application Node"
 
-slide :: Int -> GmState -> GmState
-slide n state = putStack (S.push a $ S.discard n s) state
-  where (a, s) = S.pop $ getStack state
-
 unwind :: GmState -> GmState
 unwind state = newState (hLookup heap a)
   where s = getStack state
