@@ -271,7 +271,15 @@ compileArgs defs env
   where n = length defs
 
 compileLetrec :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
-compileLetrec = undefined
+compileLetrec comp defs expr env
+  = [Alloc n] ++ compileLetrec' defs env' ++ comp expr env' ++ [Slide n]
+  where n = length defs
+        env' = compileArgs defs env
+
+compileLetrec' :: [(Name, CoreExpr)] -> GmEnvironment -> GmCode
+compileLetrec' []                  env = []
+compileLetrec' ((name, expr):defs) env
+  = compileC expr env ++ [Slide (length defs)]
 
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v, m) <- env]
