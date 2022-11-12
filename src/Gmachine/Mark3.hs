@@ -1,3 +1,4 @@
+{-# LANGUAGE NPlusKPatterns  #-}
 module Gmachine.Mark3
   ( parse
   , compile
@@ -41,6 +42,7 @@ data Instruction
   | Pop Int  -- pop offset
   | Update Int -- update offset by stack top
   | Slide Int
+  | Alloc Int
   deriving (Eq, Show)
 
 type GmStack = S.Stack Addr
@@ -121,6 +123,7 @@ dispatch (Pop n)        = pop n
 dispatch (Update n)     = update n
 dispatch Unwind         = unwind
 dispatch (Slide n)      = slide n
+dispatch (Alloc n)      = alloc n
 
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state = putStack (S.push a $ getStack state) state
@@ -162,6 +165,22 @@ update n state = putHeap heap' (putStack s' state)
 slide :: Int -> GmState -> GmState
 slide n state = putStack (S.push a $ S.discard n s) state
   where (a, s) = S.pop $ getStack state
+
+alloc :: Int -> GmState -> GmState
+alloc n state = state { stack = stack2
+                      , heap  = heap2
+                      }
+  where heap1 = getHeap state
+        (heap2, addrs) = allocNodes n heap1
+        stack1 = getStack state
+        stack2 = foldr S.push stack1 addrs
+        
+allocNodes :: Int -> GmHeap -> (GmHeap, [Addr])
+allocNodes 0     heap = (heap, [])
+allocNodes (n+1) heap = (heap2, a:as)
+  where (heap1, as) = allocNodes n heap
+        (heap2, a ) = hAlloc heap1 (NInd hNull)
+allocNodes _ _        = error "allocNodes: negative"
 
 getArg :: Node -> Addr
 getArg (NAp _ a2) = a2
@@ -272,6 +291,7 @@ showInstruction Mkap           = iStr "Mkap"
 showInstruction (Pop n)        = iStr "Pop " `iAppend` iNum n
 showInstruction (Update n)     = iStr "Update " `iAppend` iNum n
 showInstruction (Slide n)      = iStr "Slide " `iAppend` iNum n
+showInstruction (Alloc n)      = iStr "Alloc " `iAppend` iNum n
 
 showState :: GmState -> IseqRep
 showState s
