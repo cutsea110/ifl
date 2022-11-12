@@ -9,11 +9,9 @@ module Gmachine.Mark4
 import Heap
 import Iseq
 import Language
-import Parser
 import qualified Stack as S
 import Utils
 import Data.List (mapAccumL)
-import Numeric (showInt)
 
 runProg :: String -> String
 runProg = showResults . eval . compile . parse
