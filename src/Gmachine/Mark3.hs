@@ -14,6 +14,7 @@ import qualified Stack as S
 import Utils
 import Data.List (mapAccumL)
 import Numeric (showInt)
+import Foreign.C (eINVAL)
 
 runProg :: String -> String
 runProg = showResults . eval . compile . parse
@@ -250,6 +251,27 @@ compileC (EVar v) env
   where n = aLookup env v (error "Can't happen")
 compileC (ENum n)    env = [Pushint n]
 compileC (EAp e1 e2) env = compileC e2 env ++ compileC e1 (argOffset 1 env) ++ [Mkap]
+compileC (ELet recursive defs e) env
+  | recursive            = compileLetrec compileC defs e env
+  | otherwise            = compileLet    compileC defs e env
+
+compileLet :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
+compileLet comp defs expr env
+  = compileLet' defs env ++ comp expr env' ++ [Slide (length defs)]
+  where env' = compileArgs defs env
+
+compileLet' :: [(Name, CoreExpr)] -> GmEnvironment -> GmCode
+compileLet' []                  env = []
+compileLet' ((_, expr):defs) env
+  = compileC expr env ++ compileLet' defs (argOffset 1 env)
+
+compileArgs :: [(Name, CoreExpr)] -> GmEnvironment -> GmEnvironment
+compileArgs defs env
+  = zip (aDomain defs) [n-1, n-2 .. 0] ++ argOffset n env
+  where n = length defs
+
+compileLetrec :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
+compileLetrec = undefined
 
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v, m) <- env]
