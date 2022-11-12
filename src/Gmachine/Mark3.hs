@@ -279,7 +279,7 @@ compileLetrec comp defs expr env
 compileLetrec' :: [(Name, CoreExpr)] -> GmEnvironment -> GmCode
 compileLetrec' []                  env = []
 compileLetrec' ((name, expr):defs) env
-  = compileC expr env ++ [Slide (length defs)]
+  = compileC expr env ++ [Update (length defs)]
 
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v, m) <- env]
