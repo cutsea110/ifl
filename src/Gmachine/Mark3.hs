@@ -262,7 +262,7 @@ compileLet comp defs expr env
 
 compileLet' :: [(Name, CoreExpr)] -> GmEnvironment -> GmCode
 compileLet' []                  env = []
-compileLet' ((_, expr):defs) env
+compileLet' ((name, expr):defs) env
   = compileC expr env ++ compileLet' defs (argOffset 1 env)
 
 compileArgs :: [(Name, CoreExpr)] -> GmEnvironment -> GmEnvironment
