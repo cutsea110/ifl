@@ -40,6 +40,7 @@ data Instruction
   | Push Int -- push offset
   | Pop Int  -- pop offset
   | Update Int -- update offset by stack top
+  | Slide Int
   deriving (Eq, Show)
 
 type GmStack = S.Stack Addr
@@ -119,6 +120,7 @@ dispatch (Push n)       = push n
 dispatch (Pop n)        = pop n
 dispatch (Update n)     = update n
 dispatch Unwind         = unwind
+dispatch (Slide n)      = slide n
 
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state = putStack (S.push a $ getStack state) state
@@ -157,6 +159,9 @@ update n state = putHeap heap' (putStack s' state)
         a' = S.getStack s' !! n
         heap' = hUpdate (getHeap state) a' (NInd a)
 
+slide :: Int -> GmState -> GmState
+slide n state = putStack (S.push a $ S.discard n s) state
+  where (a, s) = S.pop $ getStack state
 
 getArg :: Node -> Addr
 getArg (NAp _ a2) = a2
@@ -266,6 +271,7 @@ showInstruction (Pushint n)    = iStr "Pushint " `iAppend` iNum n
 showInstruction Mkap           = iStr "Mkap"
 showInstruction (Pop n)        = iStr "Pop " `iAppend` iNum n
 showInstruction (Update n)     = iStr "Update " `iAppend` iNum n
+showInstruction (Slide n)      = iStr "Slide " `iAppend` iNum n
 
 showState :: GmState -> IseqRep
 showState s
