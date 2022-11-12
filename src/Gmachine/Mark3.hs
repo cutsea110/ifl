@@ -270,6 +270,10 @@ compileArgs defs env
   = zip (aDomain defs) [n-1, n-2 .. 0] ++ argOffset n env
   where n = length defs
 
+{- |
+>>> compileSc . head . parse $ "Y f = letrec x = f x in x"
+("Y",1,[Alloc 1,Push 0,Push 2,Mkap,Update 0,Push 0,Slide 1,Update 1,Pop 1,Unwind])
+-}
 compileLetrec :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLetrec comp defs expr env
   = [Alloc n] ++ compileLetrec' defs env' ++ comp expr env' ++ [Slide n]
@@ -367,14 +371,14 @@ showStats s = iConcat [ iStr "---------------"
 
 {- |
 >>> test1
-("K",2,[Push 0,Slide 3,Unwind])
+("K",2,[Push 0,Update 2,Pop 2,Unwind])
 -}
 test1 :: GmCompiledSC
 test1 = compileSc ("K", ["x", "y"], EVar "x")
 
 {- |
 >>> test2
-("S",3,[Push 2,Push 2,Mkap,Push 3,Push 2,Mkap,Mkap,Slide 4,Unwind])
+("S",3,[Push 2,Push 2,Mkap,Push 3,Push 2,Mkap,Mkap,Update 3,Pop 3,Unwind])
 -}
 test2 :: GmCompiledSC
 test2 = compileSc ("S", ["f", "g", "x"], EAp (EAp (EVar "f") (EVar "x")) (EAp (EVar "g") (EVar "x")))
