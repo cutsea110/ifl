@@ -14,7 +14,6 @@ import qualified Stack as S
 import Utils
 import Data.List (mapAccumL)
 import Numeric (showInt)
-import Foreign.C (eINVAL)
 
 runProg :: String -> String
 runProg = showResults . eval . compile . parse
