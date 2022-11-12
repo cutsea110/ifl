@@ -44,6 +44,10 @@ data Instruction
   | Update Int -- update offset by stack top
   | Slide Int
   | Alloc Int
+  | Eval
+  | Add | Sub | Mul | Div | Neg
+  | Eq | Ne | Lt | Le | Gt | Ge
+  | Cond GmCode GmCode
   deriving (Eq, Show)
 
 type GmStack = S.Stack Addr
@@ -134,6 +138,19 @@ dispatch (Update n)     = update n
 dispatch Unwind         = unwind
 dispatch (Slide n)      = slide n
 dispatch (Alloc n)      = alloc n
+dispatch Eval           = undefined
+dispatch Add            = undefined
+dispatch Sub            = undefined
+dispatch Mul            = undefined
+dispatch Div            = undefined
+dispatch Neg            = undefined
+dispatch Eq             = undefined
+dispatch Ne             = undefined
+dispatch Lt             = undefined
+dispatch Le             = undefined
+dispatch Gt             = undefined
+dispatch Ge             = undefined
+dispatch (Cond t e)     = undefined
 
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state = putStack (S.push a $ getStack state) state
@@ -335,6 +352,21 @@ showInstruction (Pop n)        = iStr "Pop " `iAppend` iNum n
 showInstruction (Update n)     = iStr "Update " `iAppend` iNum n
 showInstruction (Slide n)      = iStr "Slide " `iAppend` iNum n
 showInstruction (Alloc n)      = iStr "Alloc " `iAppend` iNum n
+showInstruction Eval           = iStr "Eval"
+showInstruction Add            = iStr "Add"
+showInstruction Sub            = iStr "Sub"
+showInstruction Mul            = iStr "Mul"
+showInstruction Div            = iStr "Div"
+showInstruction Neg            = iStr "Neg"
+showInstruction Eq             = iStr "Eq"
+showInstruction Ne             = iStr "Ne"
+showInstruction Lt             = iStr "Lt"
+showInstruction Le             = iStr "Le"
+showInstruction Gt             = iStr "Gt"
+showInstruction Ge             = iStr "Ge"
+showInstruction (Cond t e)     = iStr "Cond " `iAppend` t' `iAppend` e'
+  where t' = iStr "[ " `iAppend` showInstruction (head t) `iAppend` iStr ".. ]"
+        e' = iStr "[ " `iAppend` showInstruction (head e) `iAppend` iStr ".. ]"
 
 showState :: GmState -> IseqRep
 showState s
