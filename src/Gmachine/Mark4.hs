@@ -364,9 +364,9 @@ showInstruction Lt             = iStr "Lt"
 showInstruction Le             = iStr "Le"
 showInstruction Gt             = iStr "Gt"
 showInstruction Ge             = iStr "Ge"
-showInstruction (Cond t e)     = iStr "Cond " `iAppend` t' `iAppend` e'
-  where t' = iStr "[ " `iAppend` showInstruction (head t) `iAppend` iStr ".. ]"
-        e' = iStr "[ " `iAppend` showInstruction (head e) `iAppend` iStr ".. ]"
+showInstruction (Cond t e)     = iStr "Cond " `iAppend` showCodes t `iAppend` showCodes e
+  where showCodes [] = iStr "[]"
+        showCodes (x:xs) = iConcat [iStr "[ ", showInstruction x, iStr ".. ]"]
 
 showState :: GmState -> IseqRep
 showState s
