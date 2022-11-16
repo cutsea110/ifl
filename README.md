@@ -14,7 +14,7 @@ $ cabal run -- ifl
 
 > cabal v2-run ifl -- [OPTION...] <program-file>
 OPTION
-  -c Compiler  --compiler=Compiler  compiler name (mark1 | mark2 | mark3 | mark4 | mark5 | mark5cnv | mark5alt | mark5altcnv | mark5gc | mark5gccnv | mark5revgc | mark5revgccnv)
+  -c Compiler  --compiler=Compiler  compiler name (mark1 | mark2 | mark3 | mark4 | mark5 | mark5cnv | mark5alt | mark5altcnv | mark5gc | mark5gccnv | mark5revgc | mark5revgccnv | mark5cp | gmark1 | gmark2 | gmark3 | gmark4)
   -v           --verbose            chatty output on stderr
   -V, -?       --version            show version
 ```
