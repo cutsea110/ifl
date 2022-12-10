@@ -415,6 +415,7 @@ showResults states
     where s:ss = states
 
 
+-- | show dump list
 showSC :: GmState -> (Name, Addr) -> IseqRep 
 showSC s (name, addr)
   = iConcat [ iStr "Code for ", iStr name, iNewline
