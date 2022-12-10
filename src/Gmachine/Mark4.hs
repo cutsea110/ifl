@@ -136,7 +136,7 @@ dispatch (Update n)     = update n
 dispatch Unwind         = unwind
 dispatch (Slide n)      = slide n
 dispatch (Alloc n)      = alloc n
-dispatch Eval           = undefined
+dispatch Eval           = evalop
 dispatch Add            = arithmetic2 (+)
 dispatch Sub            = arithmetic2 (-)
 dispatch Mul            = arithmetic2 (*)
@@ -149,6 +149,15 @@ dispatch Le             = undefined
 dispatch Gt             = undefined
 dispatch Ge             = undefined
 dispatch (Cond t e)     = undefined
+
+evalop :: GmState -> GmState
+evalop state = state { code = [Unwind]
+                     , stack = S.push a S.emptyStack
+                     , dump = S.push (i, s) d
+                     }
+  where d = getDump state
+        (a, s) = S.pop (getStack state)
+        _:i = getCode state
 
 boxInteger :: Int -> GmState -> GmState
 boxInteger n state
