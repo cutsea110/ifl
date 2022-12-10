@@ -157,7 +157,8 @@ evalop state = state { code = [Unwind]
                      }
   where d = getDump state
         (a, s) = S.pop (getStack state)
-        _:i = getCode state
+        i = getCode state
+
 
 boxInteger :: Int -> GmState -> GmState
 boxInteger n state
@@ -214,7 +215,7 @@ cond i1 i2 state = case hLookup heap a of
   NNum 0 -> putCode (i2 ++ i) $ putStack stack' state
   where heap = getHeap state
         stack = getStack state
-        _:i = getCode state
+        i = getCode state
         (a, stack') = S.pop stack
 
 pushglobal :: Name -> GmState -> GmState
