@@ -142,13 +142,13 @@ dispatch Sub            = arithmetic2 (-)
 dispatch Mul            = arithmetic2 (*)
 dispatch Div            = arithmetic2 div
 dispatch Neg            = arithmetic1 negate
-dispatch Eq             = undefined
-dispatch Ne             = undefined
-dispatch Lt             = undefined
-dispatch Le             = undefined
-dispatch Gt             = undefined
-dispatch Ge             = undefined
-dispatch (Cond t e)     = undefined
+dispatch Eq             = comparison (==)
+dispatch Ne             = comparison (/=)
+dispatch Lt             = comparison (<)
+dispatch Le             = comparison (<=)
+dispatch Gt             = comparison (>)
+dispatch Ge             = comparison (>=)
+dispatch (Cond t e)     = cond t e
 
 evalop :: GmState -> GmState
 evalop state = state { code = [Unwind]
@@ -196,6 +196,26 @@ arithmetic1 = primitive1 boxInteger unboxInteger
 arithmetic2 :: (Int -> Int -> Int)  -- arithmetic operator
             -> (GmState -> GmState) -- state transition
 arithmetic2 = primitive2 boxInteger unboxInteger
+
+boxBoolean :: Bool -> GmState -> GmState
+boxBoolean b state
+  = putStack (S.push a stack) (putHeap h' state)
+  where stack = getStack state
+        (h', a) = hAlloc (getHeap state) (NNum b')
+        b' | b         = 1
+           | otherwise = 0
+
+comparison :: (Int -> Int -> Bool) -> GmState -> GmState
+comparison = primitive2 boxBoolean unboxInteger
+
+cond :: GmCode -> GmCode -> GmState -> GmState
+cond i1 i2 state = case hLookup heap a of
+  NNum 1 -> putCode (i1 ++ i) $ putStack stack' state
+  NNum 0 -> putCode (i2 ++ i) $ putStack stack' state
+  where heap = getHeap state
+        stack = getStack state
+        _:i = getCode state
+        (a, stack') = S.pop stack
 
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state = putStack (S.push a $ getStack state) state
