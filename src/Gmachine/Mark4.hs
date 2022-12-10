@@ -150,6 +150,44 @@ dispatch Gt             = undefined
 dispatch Ge             = undefined
 dispatch (Cond t e)     = undefined
 
+boxInteger :: Int -> GmState -> GmState
+boxInteger n state
+  = putStack (S.push a stack) (putHeap h' state)
+  where stack = getStack state
+        (h', a) = hAlloc (getHeap state) (NNum n)
+
+unboxInteger :: Addr -> GmState -> Int
+unboxInteger a state
+  = ub (hLookup (getHeap state) a)
+  where ub (NNum i) = i
+        ub n        = error "Unboxing a non-integer"
+
+primitive1 :: (b -> GmState -> GmState) -- boxing function
+           -> (Addr -> GmState -> a)    -- unboxing function
+           -> (a -> b)                  -- operator
+           -> (GmState -> GmState)      -- state transition
+primitive1 box unbox op state
+  = box (op (unbox a state)) (putStack as state)
+  where (a, as) = S.pop $ getStack state
+
+primitive2 :: (b -> GmState -> GmState) -- boxing function
+           -> (Addr -> GmState -> a)    -- unboxing function
+           -> (a -> a -> b)             -- operator
+           -> (GmState -> GmState)      -- state transition
+primitive2 box unbox op state
+  = box (op (unbox a0 state) (unbox a1 state)) (putStack as1 state)
+    where stack = getStack state
+          (a0, as0) = S.pop stack
+          (a1, as1) = S.pop as0
+
+arithmetic1 :: (Int -> Int)         -- arithmetic operator
+            -> (GmState -> GmState) -- state transition
+arithmetic1 = primitive1 boxInteger unboxInteger
+
+arithmetic2 :: (Int -> Int -> Int)  -- arithmetic operator
+            -> (GmState -> GmState) -- state transition
+arithmetic2 = primitive2 boxInteger unboxInteger
+
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state = putStack (S.push a $ getStack state) state
   where a = aLookup (getGlobals state) f (error $ "Undeclared global " ++ f)
@@ -369,7 +407,41 @@ showInstruction (Cond t e)     = iStr "Cond " `iAppend` showCodes t `iAppend` sh
 showState :: GmState -> IseqRep
 showState s
   = iConcat [ showStack s, iNewline
+            , showDump s, iNewline
             , showInstructions (getCode s), iNewline 
+            ]
+
+showDump :: GmState -> IseqRep
+showDump s
+  = iConcat [ iStr "  Dump: ["
+            , iIndent (iInterleave iNewline
+                      (map showDumpItem (reverse (S.getStack $ getDump s))))
+            , iStr "]"
+            ]
+
+showDumpItem :: GmDumpItem -> IseqRep
+showDumpItem (code, stack)
+  = iConcat [ iStr "<"
+            , shortShowInstructions 3 code, iStr ", "
+            , shortShowStack stack
+            , iStr ">"
+            ]
+
+shortShowInstructions :: Int -> GmCode -> IseqRep
+shortShowInstructions number code
+  = iConcat [ iStr "{"
+            , iInterleave (iStr "; ") dotcodes
+            , iStr "}"
+            ]
+    where codes = map showInstruction (take number code)
+          dotcodes | length code > number = codes ++ [iStr "..."]
+                   | otherwise            = codes
+
+shortShowStack :: GmStack -> IseqRep
+shortShowStack stack
+  = iConcat [ iStr "["
+            , iInterleave (iStr ", ") (map (iStr . showaddr) $ S.getStack stack)
+            , iStr "]"
             ]
 
 showStack :: GmState -> IseqRep
