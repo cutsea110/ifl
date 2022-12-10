@@ -260,7 +260,13 @@ unwind state = newState (hLookup heap a)
   where s = getStack state
         (a, s1) = S.pop s
         heap   = getHeap state
-        newState (NNum n) = state
+        dump   = getDump state
+        newState (NNum n) | S.isEmpty dump = putCode [] state
+                          | otherwise      = state { code = i'
+                                                   , stack = S.push a s'
+                                                   , dump = d
+                                                   }
+          where ((i', s'), d) = S.pop $ getDump state
         newState (NAp a1 a2) = putCode [Unwind] (putStack (S.push a1 s) state)
         newState (NGlobal n c)
           | S.getDepth s1 < n = error "Unwinding with too few arguments"
