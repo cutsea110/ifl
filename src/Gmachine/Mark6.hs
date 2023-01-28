@@ -87,8 +87,12 @@ data Node
   | NAp Addr Addr      -- Applications
   | NGlobal Int GmCode -- Globals
   | NInd Addr          -- Indirections
+  | NConstr Int [Addr]
   deriving Show
 
+instance Eq Node where
+  NNum a == NNum b = a == b
+  _      == _      = error "undefined comparison"
 
 type GmGlobals = Assoc Name Addr
 
@@ -504,10 +508,15 @@ showInstruction (Cond t e)     = iStr "Cond " `iAppend` showCodes t `iAppend` sh
 
 showState :: GmState -> IseqRep
 showState s
-  = iConcat [ showStack s, iNewline
+  = iConcat [ showOutput s, iNewline
+            , showStack s, iNewline
             , showDump s, iNewline
             , showInstructions (getCode s), iNewline 
             ]
+
+showOutput :: GmState -> IseqRep
+showOutput s
+  = iConcat [iStr "Output:\"", iStr (getOutput s), iStr "\""]
 
 showDump :: GmState -> IseqRep
 showDump s
@@ -558,14 +567,19 @@ showStackItem s a
             ]
 
 showNode :: GmState -> Addr -> Node -> IseqRep
-showNode s a (NNum n)      = iNum n
+showNode s a (NNum n) = iNum n
 showNode s a (NGlobal n g) = iConcat [iStr "Global ", iStr v]
   where v = head [n | (n, b) <- getGlobals s, a == b]
-showNode s a (NAp a1 a2)   = iConcat [ iStr "Ap ", iStr (showaddr a1)
-                                     , iStr " ", iStr (showaddr a2)
-                                     ]
-showNode s a (NInd a1) = iConcat [ iStr "NInd ", iStr (showaddr a1)
-                                 ]
+showNode s a (NAp a1 a2)
+  = iConcat [ iStr "Ap ", iStr (showaddr a1)
+            , iStr " ", iStr (showaddr a2)
+            ]
+showNode s a (NInd a1) = iConcat [ iStr "NInd ", iStr (showaddr a1) ]
+showNode s a (NConstr t as)
+  = iConcat [ iStr "Cons ", iNum t, iStr " ["
+            , iInterleave (iStr ", ") (map (iStr . showaddr) as)
+            , iStr "]"
+            ]
 
 showStats :: GmState -> IseqRep
 showStats s = iConcat [ iStr "---------------"
