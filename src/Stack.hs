@@ -14,6 +14,7 @@ module Stack
     -- operator
   , push
   , pop
+  , nPop
   , discard
   , restore
   ) where
@@ -169,6 +170,17 @@ pop s = case stack s of
   (x:stack') -> (x, s { stack = stack', depth = depth' })
     where depth' = depth s - 1
 
+{- |
+>>> let s0 = fromList [1..5]
+>>> let (xs, s1) = nPop 3 s0
+>>> xs
+[1,2,3]
+-}
+nPop :: Int -> Stack a -> ([a], Stack a)
+nPop 0 s = ([], s)
+nPop n s = case pop s of
+  (a, s') -> case nPop (n-1) s' of
+    (as, s'') -> (a:as, s'')
 
 {- |
 >>> let s0 = fromList [1..10]

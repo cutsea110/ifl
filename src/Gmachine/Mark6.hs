@@ -166,6 +166,10 @@ dispatch Le             = comparison (<=)
 dispatch Gt             = comparison (>)
 dispatch Ge             = comparison (>=)
 dispatch (Cond t e)     = cond t e
+dispatch (Pack t n)     = pack t n
+dispatch (Casejump bs)  = casejump bs
+dispatch (Split n)      = split n
+dispatch Print          = gmPrint
 
 evalop :: GmState -> GmState
 evalop state = state { code = [Unwind]
@@ -234,6 +238,33 @@ cond i1 i2 state = case hLookup heap a of
         stack = getStack state
         i = getCode state
         (a, stack') = S.pop stack
+
+pack :: Tag -> Arity -> GmState -> GmState
+pack t n state
+  = state { stack = S.push a s'
+          , heap  = h'
+          }
+  where (as, s') = S.nPop n (getStack state)
+        d = NConstr t as
+        h = getHeap state
+        (h', a) = hAlloc h d
+
+casejump :: [(Int, GmCode)] -> GmState -> GmState
+casejump = undefined
+
+split :: Int -> GmState -> GmState
+split n state = state { stack = s''
+                      }
+  where (a, s') = S.pop (getStack state)
+        d = hLookup (getHeap state) a
+        s'' = case d of
+          NConstr t as
+            | length as == n -> foldr S.push s' as
+            | otherwise -> error "non-saturated"
+          _ -> error "not data structure"
+
+gmPrint :: GmState -> GmState
+gmPrint = undefined
 
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state = putStack (S.push a $ getStack state) state
