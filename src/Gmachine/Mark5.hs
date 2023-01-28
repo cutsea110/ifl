@@ -422,7 +422,7 @@ compileArgs defs env
 
 {- |
 >>> compileSc . head . parse $ "Y f = letrec x = f x in x"
-("Y",1,[Alloc 1,Push 0,Push 2,Mkap,Update 0,Push 0,Slide 1,Update 1,Pop 1,Unwind])
+("Y",1,[Alloc 1,Push 0,Push 2,Mkap,Update 0,Push 0,Eval,Slide 1,Update 1,Pop 1,Unwind])
 -}
 compileLetrec :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLetrec comp defs expr env
@@ -571,14 +571,14 @@ showStats s = iConcat [ iStr "---------------"
 
 {- |
 >>> test1
-("K",2,[Push 0,Update 2,Pop 2,Unwind])
+("K",2,[Push 0,Eval,Update 2,Pop 2,Unwind])
 -}
 test1 :: GmCompiledSC
 test1 = compileSc ("K", ["x", "y"], EVar "x")
 
 {- |
 >>> test2
-("S",3,[Push 2,Push 2,Mkap,Push 3,Push 2,Mkap,Mkap,Update 3,Pop 3,Unwind])
+("S",3,[Push 2,Push 2,Mkap,Push 3,Push 2,Mkap,Mkap,Eval,Update 3,Pop 3,Unwind])
 -}
 test2 :: GmCompiledSC
 test2 = compileSc ("S", ["f", "g", "x"], EAp (EAp (EVar "f") (EVar "x")) (EAp (EVar "g") (EVar "x")))
