@@ -56,8 +56,8 @@ data Instruction
   | Eq | Ne | Lt | Le | Gt | Ge
   | Cond GmCode GmCode
   | Pack Tag Arity
-  | Casejump [(Int, GmCode)]
-  | Split Int
+  | Casejump [(Tag, GmCode)]
+  | Split Arity
   | Print
   deriving (Eq, Show)
 
@@ -249,8 +249,17 @@ pack t n state
         h = getHeap state
         (h', a) = hAlloc h d
 
-casejump :: [(Int, GmCode)] -> GmState -> GmState
-casejump = undefined
+casejump :: [(Tag, GmCode)] -> GmState -> GmState
+casejump bs state = state { code = i' ++ i
+                          }
+  where (a, _) = S.pop (getStack state)
+        i = getCode state
+        h = getHeap state
+        d = hLookup h a
+        i' = case d of
+          NConstr t _
+            -> aLookup bs t (error "unknown tag")
+          _ -> error "not data structure"
 
 split :: Int -> GmState -> GmState
 split n state = state { stack = s''
