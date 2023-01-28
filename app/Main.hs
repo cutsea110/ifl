@@ -22,6 +22,7 @@ import qualified Gmachine.Mark2 as GMark2 (parse, compile, eval, showResults)
 import qualified Gmachine.Mark3 as GMark3 (parse, compile, eval, showResults)
 import qualified Gmachine.Mark4 as GMark4 (parse, compile, eval, showResults)
 import qualified Gmachine.Mark5 as GMark5 (parse, compile, eval, showResults)
+import qualified Gmachine.Mark6 as GMark6 (parse, compile, eval, showResults)
 
 
 ---------------------------------------------------------------
@@ -49,6 +50,7 @@ executer GMark2 = putStrLn . GMark2.showResults . GMark2.eval . GMark2.compile .
 executer GMark3 = putStrLn . GMark3.showResults . GMark3.eval . GMark3.compile . GMark3.parse
 executer GMark4 = putStrLn . GMark4.showResults . GMark4.eval . GMark4.compile . GMark4.parse
 executer GMark5 = putStrLn . GMark5.showResults . GMark5.eval . GMark5.compile . GMark5.parse
+executer GMark6 = putStrLn . GMark6.showResults . GMark6.eval . GMark6.compile . GMark6.parse
 executer (Noco name) = \_ -> do
   putStrLn $ "Error: Unknown compiler = " ++ name
   printHelp
@@ -77,6 +79,7 @@ data Compiler = Noco String
               | GMark3
               | GMark4
               | GMark5
+              | GMark6
               deriving Show
 
 data Options = Options
@@ -89,7 +92,7 @@ defaultOptions :: Options
 defaultOptions = Options
   { optVerbose     = False
   , optShowVersion = False
-  , optCompiler    = GMark5
+  , optCompiler    = GMark6
   }
 
 name2Compiler :: [(String, Compiler)]
@@ -111,6 +114,7 @@ name2Compiler = [ ("mark1", Mark1)
                 , ("gmark3", GMark3)               -- Gmachine
                 , ("gmark4", GMark4)               -- Gmachine
                 , ("gmark5", GMark5)               -- Gmachine
+                , ("gmark6", GMark6)               -- Gmachine
                 ]
 
 compilerNames :: [String]
