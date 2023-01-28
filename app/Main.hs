@@ -86,7 +86,7 @@ defaultOptions :: Options
 defaultOptions = Options
   { optVerbose     = False
   , optShowVersion = False
-  , optCompiler    = Mark5Cp
+  , optCompiler    = GMark4
   }
 
 name2Compiler :: [(String, Compiler)]
