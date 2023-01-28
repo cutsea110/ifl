@@ -291,16 +291,20 @@ unwind state = newState (hLookup heap a)
         (a, s1) = S.pop s
         heap   = getHeap state
         dump   = getDump state
-        newState (NNum n) | S.isEmpty dump = putCode [] state
-                          | otherwise      = state { code = i'
-                                                   , stack = S.push a s'
-                                                   , dump = d
-                                                   }
-          where ((i', s'), d) = S.pop $ getDump state
+        newState (NNum n)
+          | S.isEmpty dump = putCode [] state
+          | otherwise      = state { code = i'
+                                   , stack = S.push a s'
+                                   , dump = d
+                                   }
+          where ((i', s'), d) = S.pop dump
         newState (NAp a1 a2) = putCode [Unwind] (putStack (S.push a1 s) state)
         newState (NGlobal n c)
-          | S.getDepth s1 < n = error "Unwinding with too few arguments"
-          | otherwise         = putCode c (putStack (rearrange n (getHeap state) (getStack state)) state)
+          | k < n     = putCode i' (putStack (S.push ak s') (putDump d state))
+          | otherwise = putCode c (putStack (rearrange n heap s) state)
+          where ((i', s'), d) = S.pop dump
+                k             = S.getDepth s1
+                (ak, _)       = S.pop (S.discard k s)
         newState (NInd a1) = putCode [Unwind] (putStack (S.push a1 s1) state)
 
 compile :: CoreProgram -> GmState
