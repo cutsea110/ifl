@@ -350,11 +350,44 @@ compileSc (name, env, body) = (name, length env, compileR body (zip env [0..]))
 
 -- maybe Reduction's R
 compileR :: GmCompiler
-compileR e env = compileC e env ++ [Update n, Pop n, Unwind]
+compileR e env = compileE e env ++ [Update n, Pop n, Unwind]
   where n = length env
 
 type GmCompiler = CoreExpr  -> GmEnvironment -> GmCode
 type GmEnvironment = Assoc Name Int
+
+-- Strict scheme
+compileE :: GmCompiler
+compileE e env = case e of
+  ENum i -> [Pushint i]
+  ELet recursive defs e
+    | recursive -> compileLetrec compileE defs e env
+    | otherwise -> compileLet    compileE defs e env
+  EAp (EAp (EVar op) e0) e1
+    | op `elem` aDomain builtInDyadic
+      -> compileE e1 env ++
+         compileE e0 (argOffset 1 env) ++
+         [dyadic]
+    where dyadic = aLookup builtInDyadic op (error "unknown dyadic")
+  EAp (EVar "negate") e0 -> compileE e0 env ++ [Neg]
+  EAp (EAp (EAp (EVar "if") e0) e1) e2
+    -> compileE e0 env ++
+       [Cond (compileE e1 env) (compileE e2 env)]
+  _ -> compileC e env ++ [Eval]
+
+builtInDyadic :: Assoc Name Instruction
+builtInDyadic
+  = [ ("+",  Add)
+    , ("-",  Sub)
+    , ("*",  Mul)
+    , ("/",  Div)
+    , ("==", Eq)
+    , ("/=", Ne)
+    , (">=", Ge)
+    , (">",  Gt)
+    , ("<=", Le)
+    , ("<",  Lt)
+    ]
 
 -- to Code
 compileC :: GmCompiler
