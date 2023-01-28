@@ -55,6 +55,10 @@ data Instruction
   | Add | Sub | Mul | Div | Neg
   | Eq | Ne | Lt | Le | Gt | Ge
   | Cond GmCode GmCode
+  | Pack Tag Arity
+  | Casejump [(Int, GmCode)]
+  | Split Int
+  | Print
   deriving (Eq, Show)
 
 type GmStack = S.Stack Addr
@@ -502,9 +506,26 @@ showInstruction Lt             = iStr "Lt"
 showInstruction Le             = iStr "Le"
 showInstruction Gt             = iStr "Gt"
 showInstruction Ge             = iStr "Ge"
-showInstruction (Cond t e)     = iStr "Cond " `iAppend` showCodes t `iAppend` showCodes e
-  where showCodes [] = iStr "[]"
-        showCodes (x:xs) = iConcat [iStr "[ ", showInstruction x, iStr ".. ]"]
+showInstruction (Cond t e)     = iConcat [iStr "Cond "
+                                         , shortShowInstructions 3 t
+                                         , shortShowInstructions 3 e
+                                         ]
+showInstruction (Pack t a)     = iConcat [iStr "Pack " , iNum t , iNum a]
+showInstruction (Casejump bs)  = iConcat [ iStr "Casejump ", showAlts bs]
+showInstruction (Split n)      = iStr "Split " `iAppend` iNum n
+showInstruction Print          = iStr "Print"
+
+showCodes :: [Instruction] -> IseqRep
+showCodes []     = iStr "[]"
+showCodes (x:xs) = iConcat [iStr "[ ", showInstruction x, iStr ".. ]"]
+
+showAlts :: [(Int, GmCode)] -> IseqRep
+showAlts bs = iConcat [ iStr "{"
+                      , iInterleave (iStr ",") (map showLabels bs)
+                      , iStr "}"
+                      ]
+  where showLabels (t, c)
+          = iConcat [iNum t, iStr ":", shortShowInstructions 2 c]
 
 showState :: GmState -> IseqRep
 showState s
