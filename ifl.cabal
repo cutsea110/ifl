@@ -27,6 +27,7 @@ library
                        Gmachine.Mark2
                        Gmachine.Mark3
                        Gmachine.Mark4
+                       Gmachine.Mark5
                        Template.MultMachine
                        Template.Mark1
                        Template.Mark2
