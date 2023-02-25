@@ -25,7 +25,7 @@ data GmState = GmState { output  :: GmOutput
                        , stats   :: GmStats
                        }
 
-type GmOutput = String
+type GmOutput = [String]
 getOutput :: GmState -> GmOutput
 getOutput state = output state
 
@@ -273,7 +273,22 @@ split n state = state { stack = s''
           _ -> error "not data structure"
 
 gmPrint :: GmState -> GmState
-gmPrint = undefined
+gmPrint state = case hLookup h a of
+          NNum n -> state { output = o ++ [show n]
+                          , stack = s
+                          }
+          NConstr _t as -> state { code = mkInstr as ++ i
+                                 , stack = foldr S.push s as
+                                 }
+          _ -> error "can not print"
+  where (a, s) = S.pop (getStack state)
+        h = getHeap state
+        o = getOutput state
+        i = getCode state
+        mkInstr = concat . zipWith const (cycle [[Eval, Print]])
+
+
+
 
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state = putStack (S.push a $ getStack state) state
@@ -577,7 +592,7 @@ showState s
 
 showOutput :: GmState -> IseqRep
 showOutput s
-  = iConcat [iStr "Output:\"", iStr (getOutput s), iStr "\""]
+  = iConcat [iStr "Output:\"", iStr (unwords (getOutput s)), iStr "\""]
 
 showDump :: GmState -> IseqRep
 showDump s
