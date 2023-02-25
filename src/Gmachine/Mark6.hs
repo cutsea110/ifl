@@ -723,7 +723,6 @@ test2 :: GmCompiledSC
 test2 = compileSc ("S", ["f", "g", "x"], EAp (EAp (EVar "f") (EVar "x")) (EAp (EVar "g") (EVar "x")))
 
 {- |
->>> let i = head $ S.getStack $ getStack $ last $ eval $ compile $ parse "main = S K K 3"
->>> hLookup (getHeap $ last $ eval $ compile $ parse "main = S K K 3") i
-NNum 3
+>>> head $ getOutput $ last $ eval $ compile $ parse "main = S K K 3"
+"3"
 -}
