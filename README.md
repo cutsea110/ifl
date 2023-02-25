@@ -18,3 +18,13 @@ OPTION
   -v           --verbose            chatty output on stderr
   -V, -?       --version            show version
 ```
+
+# Tips
+
+How to confirm compiled code of any program for debug on Gmachine.Mark6.
+
+```
+ghci> let p = "fib n = if (n<2) 1 (fib (n-1) + fib (n-2))"
+ghci> compileSc . head . parse $ p
+```
+
