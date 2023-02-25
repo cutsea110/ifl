@@ -400,8 +400,22 @@ compile program = GmState { output = []
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
   where
-    compiled = map compileSc (preludeDefs ++ program) ++ compiledPrimitives
+    compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program) ++ compiledPrimitives
     -- compiled = map compileSc program
+
+extraPreludeCode :: String
+extraPreludeCode
+  = unlines [ "False = Pack{1,0} ;"
+            , "True  = Pack{2,0} ;"
+            , "if c t f = case c of"
+            , "               <1> -> f ;"
+            , "               <2> -> t ;"
+            , "nil = Pack{1,0} ;"
+            , "cons x xs = Pack{2,2} x xs"
+            ]
+
+extraPreludeDefs :: CoreProgram
+extraPreludeDefs = parse extraPreludeCode
 
 compiledPrimitives :: [GmCompiledSC]
 compiledPrimitives
@@ -417,13 +431,6 @@ compiledPrimitives
     , ("<=", 2, [Push 1, Eval, Push 1, Eval, Le, Update 2, Pop 2, Unwind])
     , (">",  2, [Push 1, Eval, Push 1, Eval, Gt, Update 2, Pop 2, Unwind])
     , (">=", 2, [Push 1, Eval, Push 1, Eval, Ge, Update 2, Pop 2, Unwind])
-
-    , ("True",  0, [Pack 2 0, Eval, Update 0, Pop 0, Unwind])
-    , ("False", 0, [Pack 1 0, Eval, Update 0, Pop 0, Unwind])
-    , ("if", 3, [Push 0,Eval,Casejump [(1,[Split 0,Push 2,Eval,Slide 0])
-                                      ,(2,[Split 0,Push 1,Eval,Slide 0])
-                                      ]
-                ,Update 3,Pop 3,Unwind])
     ]
 
 type GmCompiledSC = (Name, Int, GmCode)
