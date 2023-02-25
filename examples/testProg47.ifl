@@ -1,0 +1,8 @@
+if c t f = case c of
+  <1> -> f ;
+  <2> -> t ;
+fib n = if (n < 2)
+      	1
+	(fib (n - 1) + fib (n - 2)) ;
+
+main = fib 10

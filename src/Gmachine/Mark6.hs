@@ -223,9 +223,9 @@ boxBoolean :: Bool -> GmState -> GmState
 boxBoolean b state
   = putStack (S.push a stack) (putHeap h' state)
   where stack = getStack state
-        (h', a) = hAlloc (getHeap state) (NNum b')
-        b' | b         = 1
-           | otherwise = 0
+        (h', a) = hAlloc (getHeap state) (NConstr b' [])
+        b' | b         = 2 -- tag of True
+           | otherwise = 1 -- tag of False
 
 comparison :: (Int -> Int -> Bool) -> GmState -> GmState
 comparison = primitive2 boxBoolean unboxInteger
@@ -234,6 +234,7 @@ cond :: GmCode -> GmCode -> GmState -> GmState
 cond i1 i2 state = case hLookup heap a of
   NNum 1 -> putCode (i1 ++ i) $ putStack stack' state
   NNum 0 -> putCode (i2 ++ i) $ putStack stack' state
+  e      -> error ("Error: " ++ show e)
   where heap = getHeap state
         stack = getStack state
         i = getCode state
@@ -416,7 +417,13 @@ compiledPrimitives
     , ("<=", 2, [Push 1, Eval, Push 1, Eval, Le, Update 2, Pop 2, Unwind])
     , (">",  2, [Push 1, Eval, Push 1, Eval, Gt, Update 2, Pop 2, Unwind])
     , (">=", 2, [Push 1, Eval, Push 1, Eval, Ge, Update 2, Pop 2, Unwind])
-    , ("if", 3, [Push 0, Eval, Cond [Push 1] [Push 2], Update 3, Pop 3, Unwind])
+
+    , ("True",  0, [Pack 2 0, Eval, Update 0, Pop 0, Unwind])
+    , ("False", 0, [Pack 1 0, Eval, Update 0, Pop 0, Unwind])
+    , ("if", 3, [Push 0,Eval,Casejump [(1,[Split 0,Push 2,Eval,Slide 0])
+                                      ,(2,[Split 0,Push 1,Eval,Slide 0])
+                                      ]
+                ,Update 3,Pop 3,Unwind])
     ]
 
 type GmCompiledSC = (Name, Int, GmCode)
@@ -453,9 +460,6 @@ compileE e env = case e of
          [dyadic]
     where dyadic = aLookup builtInDyadic op (error "unknown dyadic")
   EAp (EVar "negate") e0 -> compileE e0 env ++ [Neg]
-  EAp (EAp (EAp (EVar "if") e0) e1) e2
-    -> compileE e0 env ++
-       [Cond (compileE e1 env) (compileE e2 env)]
   EAp (EConstr t a) _ -> compileC e env
   ECase expr alts
     -> compileE expr env ++
@@ -496,12 +500,14 @@ compileC (EVar v) env
   | otherwise            = [Pushglobal v]
   where n = aLookup env v (error "Can't happen")
 compileC (ENum n)    env = [Pushint n]
+compileC (EConstr t a) env = [Pack t a]
 compileC (EAp e1 e2) env = case e1 of
   (EConstr t a) -> compileC e2 env ++ [Pack t a]
   _ -> compileC e2 env ++ compileC e1 (argOffset 1 env) ++ [Mkap]
 compileC (ELet recursive defs e) env
   | recursive            = compileLetrec compileC defs e env
   | otherwise            = compileLet    compileC defs e env
+compileC e _ = error ("ERROR: " ++ show e)
 
 compileLet :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLet comp defs expr env

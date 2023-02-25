@@ -1,0 +1,7 @@
+True  = Pack{2,0} ;
+False = Pack{1,0} ;
+if c t f = case c of
+  <1> -> f ;
+  <2> -> t ;
+isThree x = if True x (x + 1) ;
+main = isThree 3
