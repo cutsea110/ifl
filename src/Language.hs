@@ -2,6 +2,7 @@
 module Language
   ( Expr (..)
   , Name
+  , CoreAlt
   , CoreExpr
   , CoreScDefn
   , CoreProgram

@@ -458,6 +458,19 @@ compileE e env = case e of
        [Cond (compileE e1 env) (compileE e2 env)]
   _ -> compileC e env ++ [Eval]
 
+compileAlts :: (Tag -> GmCompiler) -- compiler for alternative bodies
+            -> [CoreAlt]           -- the list of alteratives
+            -> GmEnvironment       -- the current environment
+            -> [(Tag, GmCode)]     -- list of alternative code sequences
+compileAlts comp alts env
+  = [(tag, comp len body (zip names [0..] ++ argOffset len env))
+    | (tag, names, body) <- alts
+    , let len = length names]
+
+compileE' :: Int -> GmCompiler
+compileE' offset expr env
+  = [Split offset] ++ compileE expr env ++ [Slide offset]
+
 builtInDyadic :: Assoc Name Instruction
 builtInDyadic
   = [ ("+",  Add)
