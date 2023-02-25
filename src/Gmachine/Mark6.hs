@@ -597,7 +597,7 @@ showInstruction (Cond t e)     = iConcat [iStr "Cond "
                                          , shortShowInstructions 3 t
                                          , shortShowInstructions 3 e
                                          ]
-showInstruction (Pack t a)     = iConcat [iStr "Pack " , iNum t , iNum a]
+showInstruction (Pack t a)     = iConcat [iStr "Pack " , iNum t, iStr " " , iNum a]
 showInstruction (Casejump bs)  = iConcat [ iStr "Casejump ", showAlts bs]
 showInstruction (Split n)      = iStr "Split " `iAppend` iNum n
 showInstruction Print          = iStr "Print"
