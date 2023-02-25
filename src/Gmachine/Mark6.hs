@@ -471,9 +471,10 @@ compileAlts :: (Tag -> GmCompiler) -- compiler for alternative bodies
             -> GmEnvironment       -- the current environment
             -> [(Tag, GmCode)]     -- list of alternative code sequences
 compileAlts comp alts env
-  = [(tag, comp len body (zip names [0..] ++ argOffset len env))
+  = [ (tag, comp len body (zip names [0..] ++ argOffset len env))
     | (tag, names, body) <- alts
-    , let len = length names]
+    , let len = length names
+    ]
 
 compileE' :: Int -> GmCompiler
 compileE' offset expr env
