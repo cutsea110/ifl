@@ -380,7 +380,8 @@ unwind state = newState (hLookup heap a)
         newState (NInd a1) = putCode [Unwind] (putStack (S.push a1 s1) state)
 
 compile :: CoreProgram -> GmState
-compile program = GmState { code = initialCode
+compile program = GmState { output = []
+                          , code = initialCode
                           , stack = S.emptyStack
                           , dump = S.emptyStack
                           , heap = heap
@@ -419,7 +420,7 @@ allocateSc heap (name, nargs, instns) = (heap', (name, addr))
   where (heap', addr) = hAlloc heap (NGlobal nargs instns)
 
 initialCode :: GmCode
-initialCode = [Pushglobal "main", Eval]
+initialCode = [Pushglobal "main", Eval, Print]
 
 compileSc :: (Name, [Name], CoreExpr) -> GmCompiledSC
 compileSc (name, env, body) = (name, length env, compileR body (zip env [0..]))
