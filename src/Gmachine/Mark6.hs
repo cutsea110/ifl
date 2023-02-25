@@ -378,6 +378,12 @@ unwind state = newState (hLookup heap a)
                 k             = S.getDepth s1
                 (ak, _)       = S.pop (S.discard k s)
         newState (NInd a1) = putCode [Unwind] (putStack (S.push a1 s1) state)
+        newState (NConstr _ _) = state { code = i'
+                                        , stack = S.push a s'
+                                        , dump = d
+                                        }
+          where ((i', s'), d) = S.pop dump
+
 
 compile :: CoreProgram -> GmState
 compile program = GmState { output = []
