@@ -456,6 +456,10 @@ compileE e env = case e of
   EAp (EAp (EAp (EVar "if") e0) e1) e2
     -> compileE e0 env ++
        [Cond (compileE e1 env) (compileE e2 env)]
+  EAp (EConstr t a) _ -> compileC e env
+  ECase expr alts
+    -> compileE expr env ++
+       [Casejump (compileAlts compileE' alts env)]
   _ -> compileC e env ++ [Eval]
 
 compileAlts :: (Tag -> GmCompiler) -- compiler for alternative bodies
@@ -492,7 +496,9 @@ compileC (EVar v) env
   | otherwise            = [Pushglobal v]
   where n = aLookup env v (error "Can't happen")
 compileC (ENum n)    env = [Pushint n]
-compileC (EAp e1 e2) env = compileC e2 env ++ compileC e1 (argOffset 1 env) ++ [Mkap]
+compileC (EAp e1 e2) env = case e1 of
+  (EConstr t a) -> compileC e2 env ++ [Pack t a]
+  _ -> compileC e2 env ++ compileC e1 (argOffset 1 env) ++ [Mkap]
 compileC (ELet recursive defs e) env
   | recursive            = compileLetrec compileC defs e env
   | otherwise            = compileLet    compileC defs e env
