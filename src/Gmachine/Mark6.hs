@@ -234,7 +234,7 @@ cond :: GmCode -> GmCode -> GmState -> GmState
 cond i1 i2 state = case hLookup heap a of
   NNum 1 -> putCode (i1 ++ i) $ putStack stack' state
   NNum 0 -> putCode (i2 ++ i) $ putStack stack' state
-  e      -> error ("Error: " ++ show e)
+  e      -> error ("ERROR: " ++ show e)
   where heap = getHeap state
         stack = getStack state
         i = getCode state
@@ -684,7 +684,7 @@ showNode s a (NAp a1 a2)
             ]
 showNode s a (NInd a1) = iConcat [ iStr "NInd ", iStr (showaddr a1) ]
 showNode s a (NConstr t as)
-  = iConcat [ iStr "Cons ", iNum t, iStr " ["
+  = iConcat [ iStr "Constr ", iNum t, iStr " ["
             , iInterleave (iStr ", ") (map (iStr . showaddr) as)
             , iStr "]"
             ]
