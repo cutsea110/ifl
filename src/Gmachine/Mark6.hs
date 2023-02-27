@@ -59,6 +59,7 @@ data Instruction
   | Casejump [(Tag, GmCode)]
   | Split Arity
   | Print
+  | PrintClose String
   deriving (Eq, Show)
 
 type GmStack = S.Stack Addr
@@ -170,6 +171,7 @@ dispatch (Pack t n)     = pack t n
 dispatch (Casejump bs)  = casejump bs
 dispatch (Split n)      = split n
 dispatch Print          = gmprint
+dispatch (PrintClose s) = printclose s
 
 evalop :: GmState -> GmState
 evalop state = state { code = [Unwind]
@@ -278,16 +280,30 @@ gmprint state = case hLookup h a of
           NNum n -> state { output = o ++ [show n]
                           , stack = s
                           }
-          NConstr t as -> state { output = o ++ [showConstr t (length as)]
-                                , code = printcode as ++ i
+          NConstr t as -> state { output = o ++ [lparen ++ showConstr t (length as)]
+                                , code = printcode as ++ rparen ++ i
                                 , stack = foldr S.push s as
                                 }
+            where len = length as
+                  needParen = len > 0
+                  (lparen, rparen) = if needParen
+                                     then ("(", [PrintClose ")"])
+                                     else ("", [])
           _ -> error "can not print"
   where (a, s) = S.pop (getStack state)
         h = getHeap state
         o = getOutput state
         i = getCode state
         printcode = foldr (\_ xs -> Eval:Print:xs) []
+
+printclose :: String -> GmState -> GmState
+printclose rparen state = state { output = safeInit o ++ [safeLast o ++ rparen]
+                                }
+  where  o = getOutput state
+         safeInit [] = []
+         safeInit xs = init xs
+         safeLast [] = ""
+         safeLast xs = last xs
 
 
 showConstr :: Tag -> Arity -> String
@@ -701,6 +717,7 @@ showInstruction (Pack t a)     = iConcat [iStr "Pack " , iNum t, iStr " " , iNum
 showInstruction (Casejump bs)  = iConcat [ iStr "Casejump ", showAlts bs]
 showInstruction (Split n)      = iStr "Split " `iAppend` iNum n
 showInstruction Print          = iStr "Print"
+showInstruction (PrintClose s) = iStr "PrintClose " `iAppend` iStr s
 
 showCodes :: [Instruction] -> IseqRep
 showCodes []     = iStr "[]"
