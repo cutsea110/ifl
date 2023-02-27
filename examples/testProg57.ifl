@@ -1,0 +1,15 @@
+mod x y = let d = x / y in x - (d * y) ;
+gcd a b = let d = mod a b
+          in if (d == 0) b (gcd b d) ;
+lcm a b = let d = gcd a b
+          in let xa = a / d;
+                 xb = b / d
+	     in d * xa * xb ;
+Pair a b = Pack{1,2} a b ;
+fst p = case p of
+  <1> a b -> a ;
+snd p = case p of
+  <1> a b -> b ;
+main = let a = 2*3*5  *11;
+           b =   3*5*7
+       in Pair (gcd a b) (lcm a b)

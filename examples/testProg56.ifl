@@ -1,0 +1,8 @@
+stream n = cons n (stream (n+1)) ;
+foldr f seed xs = case xs of
+  <1> -> seed ;
+  <2> a b -> f a (foldr f seed b) ;
+take n xs = case xs of
+  <1> -> nil ;
+  <2> y ys -> if (n == 0) nil (cons y (take (n-1) ys)) ;
+main = take 10 (stream 1)
