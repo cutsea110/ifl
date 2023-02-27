@@ -585,8 +585,8 @@ compileC (ENum n)    env = [Pushint n]
 compileC (EConstr t a) env
   | a == 0    = [Pack t a]
   | otherwise = error $ "found invalid Pack arity: " ++ show a
-compileC (EAp e1 e2) env = compiled ++ unwrap trailer
-  where (compiled, trailer) = compileSC (EAp e1 e2) env (Right [])
+compileC e@(EAp _ _) env = compiled ++ unwrap trailer
+  where (compiled, trailer) = compileSC e env (Right [])
         unwrap = either id id
 compileC (ELet recursive defs e) env
   | recursive            = compileLetrec compileC defs e env
