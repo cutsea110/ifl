@@ -279,7 +279,7 @@ gmPrint state = case hLookup h a of
                           , stack = s
                           }
           NConstr t as -> state { output = o ++ [showConstr t (length as)]
-                                , code = mkInstr as ++ i
+                                , code = printcode as ++ i
                                 , stack = foldr S.push s as
                                 }
           _ -> error "can not print"
@@ -287,7 +287,8 @@ gmPrint state = case hLookup h a of
         h = getHeap state
         o = getOutput state
         i = getCode state
-        mkInstr = concat . zipWith const (cycle [[Eval, Print]])
+        printcode = foldr (\_ xs -> Eval:Print:xs) []
+
 
 showConstr :: Tag -> Arity -> String
 showConstr t a = "Pack{" ++ show t ++ "," ++ show a ++ "}"
@@ -381,10 +382,12 @@ unwind state = newState (hLookup heap a)
                 k             = S.getDepth s1
                 (ak, _)       = S.pop (S.discard k s)
         newState (NInd a1) = putCode [Unwind] (putStack (S.push a1 s1) state)
-        newState (NConstr _ _) = state { code = i'
-                                        , stack = S.push a s'
-                                        , dump = d
-                                        }
+        newState (NConstr _ _)
+          | S.isEmpty dump = putCode [] state
+          | otherwise      = state { code = i'
+                                   , stack = S.push a s'
+                                   , dump = d
+                                   }
           where ((i', s'), d) = S.pop dump
 
 
