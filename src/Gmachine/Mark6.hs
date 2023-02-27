@@ -587,23 +587,30 @@ compileC (EConstr t a) env
   | otherwise = error $ "found invalid Pack arity: " ++ show a
 compileC (EAp e1 e2) env = compiled ++ unwrap trailer
   where (compiled, trailer) = compileSC (EAp e1 e2) env (Right [])
-        -- In the case of normal function application, the trailer is [Mkap, Mkap, ...].
-        -- On the other hand, for data constructor, the trailer is [], except for the case of unsatisified.
-        -- If data constructor doesn't be saturated, the trailer is [Mkap, Mkap, ...],
-        -- which length is the missing arguments length.
-        compileSC (EConstr t a) _  tl = ([Pack t a], Left (replicate a Mkap) `joint` tl)
-        compileSC (EAp e1' e2') ev tl = (compileC e2' ev ++ compiled1, tl')
-          where (compiled1, tl') = compileSC e1' (argOffset 1 ev) (Right [Mkap] `joint` tl)
-        compileSC e             ev tl = (compileC e ev, tl)
-        joint (Left  xs) (Right ys) = Left (xs \\ ys)
-        joint (Right xs) (Right ys) = Right (xs ++ ys)
-        joint x          y          = error $ "unexpected error: " ++ show x ++ " " ++ show y
         unwrap = either id id
 compileC (ELet recursive defs e) env
   | recursive            = compileLetrec compileC defs e env
   | otherwise            = compileLet    compileC defs e env
 compileC e _ = error ("ERROR: " ++ show e)
 
+-- In the case of normal function application, the trailer is [Mkap, Mkap, ...].
+-- On the other hand, for data constructor, the trailer is [], except for the case of unsatisified.
+-- If data constructor doesn't be saturated, the trailer is [Mkap, Mkap, ...],
+-- which length is the missing arguments length.
+compileSC :: CoreExpr
+          -> GmEnvironment
+          -> Either [Instruction] [Instruction]
+          -> ([Instruction], Either [Instruction] [Instruction])
+compileSC e env tl = case e of
+  (EConstr t a) -> ([Pack t a], Left (replicate a Mkap) `joint` tl)
+  (EAp e1' e2') -> (compileC e2' env ++ compiled1, tl')
+    where (compiled1, tl') = compileSC e1' (argOffset 1 env) (Right [Mkap] `joint` tl)
+  _             -> (compileC e env, tl)
+
+  where 
+    joint (Left  xs) (Right ys) = Left (xs \\ ys)
+    joint (Right xs) (Right ys) = Right (xs ++ ys)
+    joint x          y          = error $ "unexpected error: " ++ show x ++ " " ++ show y
 
 
 compileLet :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler

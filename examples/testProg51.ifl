@@ -1,0 +1,4 @@
+Nil = Pack{1,0} ;
+Cons x xs = Pack{2,2} x xs;
+main = Cons 1 Nil
+

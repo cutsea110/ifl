@@ -1,0 +1,5 @@
+Nil = Pack{1,0} ;
+Cons x xs = Pack{2,2} x xs;
+iota x y s = if (x > y) Nil (Cons x (iota (x+s) y s)) ;
+main = iota 5 100 3
+
