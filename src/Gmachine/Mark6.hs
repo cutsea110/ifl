@@ -278,9 +278,10 @@ gmPrint state = case hLookup h a of
           NNum n -> state { output = o ++ [show n]
                           , stack = s
                           }
-          NConstr _t as -> state { code = mkInstr as ++ i
-                                 , stack = foldr S.push s as
-                                 }
+          NConstr t as -> state { output = o ++ [showConstr t (length as)]
+                                , code = mkInstr as ++ i
+                                , stack = foldr S.push s as
+                                }
           _ -> error "can not print"
   where (a, s) = S.pop (getStack state)
         h = getHeap state
@@ -288,7 +289,8 @@ gmPrint state = case hLookup h a of
         i = getCode state
         mkInstr = concat . zipWith const (cycle [[Eval, Print]])
 
-
+showConstr :: Tag -> Arity -> String
+showConstr t a = "Pack{" ++ show t ++ "," ++ show a ++ "}"
 
 
 pushglobal :: Name -> GmState -> GmState
@@ -501,6 +503,54 @@ builtInDyadic
     , ("<",  Lt)
     ]
 
+{- |
+-- f
+>>> compileC (EVar "f") []
+[Pushglobal "f"]
+
+-- f 1
+>>> compileC (EAp (EVar "f") (ENum 1)) []
+[Pushint 1,Pushglobal "f",Mkap]
+
+-- f 1 2
+>>> compileC (EAp (EAp (EVar "f") (ENum 1)) (ENum 2)) []
+[Pushint 2,Pushint 1,Pushglobal "f",Mkap,Mkap]
+
+-- f 1 2 a
+>>> compileC (EAp (EAp (EAp (EVar "f") (ENum 1)) (ENum 2)) (EVar "a")) []
+[Pushglobal "a",Pushint 2,Pushint 1,Pushglobal "f",Mkap,Mkap,Mkap]
+
+-- f (g 1)
+>>> compileC (EAp (EVar "f") (EAp (EVar "g") (ENum 1))) []
+[Pushint 1,Pushglobal "g",Mkap,Pushglobal "f",Mkap]
+
+-- Pack{1,0}
+>>> compileC (EConstr 1 0) []
+[Pack 1 0]
+
+-- Pack{1,1} 1
+>>> compileC (EAp (EConstr 1 1) (ENum 1)) []
+[Pushint 1,Pack 1 1]
+
+-- Pack{1,2} 1 a
+>>> compileC (EAp (EAp (EConstr 1 2) (ENum 1)) (EVar "a"))  []
+[Pushglobal "a",Pushint 1,Pack 1 2]
+
+-- f (Pack{1,2} 1 a)
+>>> compileC (EAp (EVar "f") (EAp (EAp (EConstr 1 2) (ENum 1)) (EVar "a"))) []
+[Pushglobal "a",Pushint 1,Pack 1 2,Pushglobal "f",Mkap]
+
+-- f (Pack{1,2} (g 2) a)
+>>> compileC (EAp (EVar "f") (EAp (EAp (EConstr 1 2) (EAp (EVar "g") (ENum 2))) (EVar "a"))) []
+[Pushglobal "a",Pushint 2,Pushglobal "g",Mkap,Pack 1 2,Pushglobal "f",Mkap]
+
+-- f 0 (Pack{1,2} (g 2) (h 3)) 4
+>>> let g2 = EAp (EVar "g") (ENum 2)
+>>> let h3 = (EAp (EVar "h") (ENum 3))
+>>> compileC (EAp (EAp (EAp (EVar "f") (ENum 0)) (EAp (EAp (EConstr 1 2) g2) h3)) (ENum 4)) []
+[Pushint 4,Pushint 3,Pushglobal "h",Mkap,Pushint 2,Pushglobal "g",Mkap,Pack 1 2,Pushint 0,Pushglobal "f",Mkap,Mkap,Mkap]
+
+-}
 -- to Code
 compileC :: GmCompiler
 compileC (EVar v) env
@@ -509,9 +559,16 @@ compileC (EVar v) env
   where n = aLookup env v (error "Can't happen")
 compileC (ENum n)    env = [Pushint n]
 compileC (EConstr t a) env = [Pack t a]
-compileC (EAp e1 e2) env = case e1 of
-  (EConstr t a) -> compileC e2 env ++ [Pack t a]
-  _ -> compileC e2 env ++ compileC e1 (argOffset 1 env) ++ [Mkap]
+compileC (EAp e1 e2) env = compileC e2 env ++ compiled ++ unwrap trailer
+  where (compiled, trailer) = sub e1 (argOffset 1 env) (Right [Mkap])
+        sub (EConstr t a) _  tl = ([Pack t a], Left [] `joint` tl)
+        sub (EAp e1' e2') ev tl = let (c', t') = sub e1' (argOffset 1 ev) (Right [Mkap] `joint` tl)
+                                  in (compileC e2' ev ++ c', t')
+        sub e             ev tl = (compileC e ev, tl)
+        joint x@(Left  _)   _          = x
+        joint   (Right xs)  (Right ys) = Right (xs ++ ys)
+        joint x@(Right _ )  y          = error $ "unexpected error: " ++ show x ++ " " ++ show y
+        unwrap = either id id
 compileC (ELet recursive defs e) env
   | recursive            = compileLetrec compileC defs e env
   | otherwise            = compileLet    compileC defs e env
