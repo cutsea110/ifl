@@ -1,0 +1,11 @@
+foldr f seed xs = case xs of
+  <1> -> seed ;
+  <2> a b -> f a (foldr f seed b) ;
+map f xs = case xs of
+  <1> -> nil ;
+  <2> a b -> cons (f a) (map f b) ;
+plus x y = x + y ;
+sum xs = foldr plus 0 xs ;
+iota x y = if (x > y) nil (cons x (iota (x+1) y)) ;
+double x = 2 * x ;
+main = sum (map double (iota 1 10))

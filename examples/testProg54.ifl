@@ -1,0 +1,5 @@
+ones = cons 1 ones ;
+head xs = case xs of
+  <1> -> Pack{1,0} ;
+  <2> a b -> Pack{2,1} a ;
+main = head ones
