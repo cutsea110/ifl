@@ -169,7 +169,7 @@ dispatch (Cond t e)     = cond t e
 dispatch (Pack t n)     = pack t n
 dispatch (Casejump bs)  = casejump bs
 dispatch (Split n)      = split n
-dispatch Print          = gmPrint
+dispatch Print          = gmprint
 
 evalop :: GmState -> GmState
 evalop state = state { code = [Unwind]
@@ -273,8 +273,8 @@ split n state = state { stack = s''
             | otherwise -> error "non-saturated"
           _ -> error "not data structure"
 
-gmPrint :: GmState -> GmState
-gmPrint state = case hLookup h a of
+gmprint :: GmState -> GmState
+gmprint state = case hLookup h a of
           NNum n -> state { output = o ++ [show n]
                           , stack = s
                           }
