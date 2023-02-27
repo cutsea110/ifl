@@ -577,37 +577,33 @@ builtInDyadic
 -}
 -- to Code
 compileC :: GmCompiler
-compileC (EVar v) env
-  | v `elem` aDomain env = [Push n]
-  | otherwise            = [Pushglobal v]
-  where n = aLookup env v (error "Can't happen")
-compileC (ENum n)    env = [Pushint n]
-compileC (EConstr t a) env
-  | a == 0    = [Pack t a]
-  | otherwise = error $ "found invalid Pack arity: " ++ show a
-compileC e@(EAp _ _) env = compiled ++ unwrap trailer
-  where (compiled, trailer) = compileSC e env (Right [])
-        unwrap = either id id
-compileC (ELet recursive defs e) env
-  | recursive            = compileLetrec compileC defs e env
-  | otherwise            = compileLet    compileC defs e env
-compileC e _ = error ("ERROR: " ++ show e)
+compileC expr env = case expr of
+  (EVar v)
+    | v `elem` aDomain env -> [Push n]
+    | otherwise            -> [Pushglobal v]
+    where n = aLookup env v (error "Can't happen")
+  (ENum n)                 -> [Pushint n]
+  (EConstr t a)
+    | a == 0               -> [Pack t a]
+    | otherwise            -> error $ "found invalid Pack arity: " ++ show a
+  (EAp _ _)                -> compiled ++ unwrap trailer
+    where (compiled, trailer) = compileSC expr env (Right [])
+          unwrap = either id id
+  (ELet recursive defs e)
+    | recursive            -> compileLetrec compileC defs e env
+    | otherwise            -> compileLet    compileC defs e env
+  _                        -> error ("ERROR: " ++ show expr)
+  where
+    -- In the case of normal function application, the trailer is [Mkap, Mkap, ...].
+    -- On the other hand, for data constructor, the trailer is [], except for the case of unsatisified.
+    -- If data constructor doesn't be saturated, the trailer is [Mkap, Mkap, ...],
+    -- which length is the missing arguments length.
+    compileSC e ev tl = case e of
+      (EConstr t a) -> ([Pack t a], Left (replicate a Mkap) `joint` tl)
+      (EAp e1 e2)   -> (compileC e2 ev ++ compiled1, tl')
+        where (compiled1, tl') = compileSC e1 (argOffset 1 ev) (Right [Mkap] `joint` tl)
+      _             -> (compileC e ev, tl)
 
--- In the case of normal function application, the trailer is [Mkap, Mkap, ...].
--- On the other hand, for data constructor, the trailer is [], except for the case of unsatisified.
--- If data constructor doesn't be saturated, the trailer is [Mkap, Mkap, ...],
--- which length is the missing arguments length.
-compileSC :: CoreExpr
-          -> GmEnvironment
-          -> Either [Instruction] [Instruction]
-          -> ([Instruction], Either [Instruction] [Instruction])
-compileSC e env tl = case e of
-  (EConstr t a) -> ([Pack t a], Left (replicate a Mkap) `joint` tl)
-  (EAp e1' e2') -> (compileC e2' env ++ compiled1, tl')
-    where (compiled1, tl') = compileSC e1' (argOffset 1 env) (Right [Mkap] `joint` tl)
-  _             -> (compileC e env, tl)
-
-  where 
     joint (Left  xs) (Right ys) = Left (xs \\ ys)
     joint (Right xs) (Right ys) = Right (xs ++ ys)
     joint x          y          = error $ "unexpected error: " ++ show x ++ " " ++ show y
