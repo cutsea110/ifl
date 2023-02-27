@@ -11,7 +11,7 @@ import Iseq
 import Language
 import qualified Stack as S
 import Utils
-import Data.List (mapAccumL)
+import Data.List (mapAccumL, (\\))
 
 runProg :: String -> String
 runProg = showResults . eval . compile . parse
@@ -553,6 +553,27 @@ builtInDyadic
 >>> compileC (EAp (EAp (EAp (EVar "f") (ENum 0)) (EAp (EAp (EConstr 1 2) g2) h3)) (ENum 4)) []
 [Pushint 4,Pushint 3,Pushglobal "h",Mkap,Pushint 2,Pushglobal "g",Mkap,Pack 1 2,Pushint 0,Pushglobal "f",Mkap,Mkap,Mkap]
 
+-- Pack{1,2} 4
+>>> compileC (EAp (EConstr 1 2) (ENum 4)) []
+[Pushint 4,Pack 1 2,Mkap]
+
+-- Pack{1,2} 4 2
+>>> compileC (EAp (EAp (EConstr 1 2) (ENum 4)) (ENum 2)) []
+[Pushint 2,Pushint 4,Pack 1 2]
+
+-- Pack{1,5} 4
+>>> compileC (EAp (EConstr 1 5) (ENum 4)) []
+[Pushint 4,Pack 1 5,Mkap,Mkap,Mkap,Mkap]
+
+-- Pack{1,5} 4 a
+>>> compileC (EAp (EAp (EConstr 1 5) (ENum 4)) (EVar "a")) []
+[Pushglobal "a",Pushint 4,Pack 1 5,Mkap,Mkap,Mkap]
+
+-- Pack{1,4} 4 a 2 b
+>>> let constr4a = EAp (EAp (EConstr 1 4) (ENum 4)) (EVar "a")
+>>> compileC (EAp (EAp constr4a (ENum 2)) (EVar "b")) []
+[Pushglobal "b",Pushint 2,Pushglobal "a",Pushint 4,Pack 1 4]
+
 -}
 -- to Code
 compileC :: GmCompiler
@@ -561,21 +582,29 @@ compileC (EVar v) env
   | otherwise            = [Pushglobal v]
   where n = aLookup env v (error "Can't happen")
 compileC (ENum n)    env = [Pushint n]
-compileC (EConstr t a) env = [Pack t a]
-compileC (EAp e1 e2) env = compileC e2 env ++ compiled ++ unwrap trailer
-  where (compiled, trailer) = sub e1 (argOffset 1 env) (Right [Mkap])
-        sub (EConstr t a) _  tl = ([Pack t a], Left [] `joint` tl)
-        sub (EAp e1' e2') ev tl = let (c', t') = sub e1' (argOffset 1 ev) (Right [Mkap] `joint` tl)
-                                  in (compileC e2' ev ++ c', t')
-        sub e             ev tl = (compileC e ev, tl)
-        joint x@(Left  _)   _          = x
-        joint   (Right xs)  (Right ys) = Right (xs ++ ys)
-        joint x@(Right _ )  y          = error $ "unexpected error: " ++ show x ++ " " ++ show y
+compileC (EConstr t a) env
+  | a == 0    = [Pack t a]
+  | otherwise = error $ "found invalid Pack arity: " ++ show a
+compileC (EAp e1 e2) env = compiled ++ unwrap trailer
+  where (compiled, trailer) = compileSC (EAp e1 e2) env (Right [])
+        -- In the case of normal function application, the trailer is [Mkap, Mkap, ...].
+        -- On the other hand, for data constructor, the trailer is [], except for the case of unsatisified.
+        -- If data constructor doesn't be saturated, the trailer is [Mkap, Mkap, ...],
+        -- which length is the missing arguments length.
+        compileSC (EConstr t a) _  tl = ([Pack t a], Left (replicate a Mkap) `joint` tl)
+        compileSC (EAp e1' e2') ev tl = (compileC e2' ev ++ compiled1, tl')
+          where (compiled1, tl') = compileSC e1' (argOffset 1 ev) (Right [Mkap] `joint` tl)
+        compileSC e             ev tl = (compileC e ev, tl)
+        joint (Left  xs) (Right ys) = Left (xs \\ ys)
+        joint (Right xs) (Right ys) = Right (xs ++ ys)
+        joint x          y          = error $ "unexpected error: " ++ show x ++ " " ++ show y
         unwrap = either id id
 compileC (ELet recursive defs e) env
   | recursive            = compileLetrec compileC defs e env
   | otherwise            = compileLet    compileC defs e env
 compileC e _ = error ("ERROR: " ++ show e)
+
+
 
 compileLet :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLet comp defs expr env
