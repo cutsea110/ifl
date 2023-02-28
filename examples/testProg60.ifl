@@ -1,0 +1,22 @@
+ch x xs = cons x xs ;
+n = nil ;
+
+H = 72 ;
+e = 101 ;
+l = 108 ;
+o = 111 ;
+comma = 44 ;
+W = 87 ;
+r = 114 ;
+d = 100 ;
+ban = 33 ;
+
+hello = ch H (ch e (ch l (ch l (ch o (ch comma (ch W (ch o (ch r (ch l (ch d (ch ban n))))))))))) ;
+
+foldr f seed xs = case xs of
+  <1> -> seed ;
+  <2> y ys -> f y (foldr f seed ys) ;
+
+pr c cs = cs * 0 + putChar c ;
+
+main = foldr pr (putChar 10) hello

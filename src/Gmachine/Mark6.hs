@@ -11,6 +11,7 @@ import Iseq
 import Language
 import qualified Stack as S
 import Utils
+import Data.Char (chr)
 import Data.List (mapAccumL, (\\))
 
 runProg :: String -> String
@@ -59,6 +60,7 @@ data Instruction
   | Casejump [(Tag, GmCode)]
   | Split Arity
   | Print
+  | PutChar
   deriving (Eq, Show)
 
 type GmStack = S.Stack Addr
@@ -170,6 +172,7 @@ dispatch (Pack t n)     = pack t n
 dispatch (Casejump bs)  = casejump bs
 dispatch (Split n)      = split n
 dispatch Print          = gmprint
+dispatch PutChar        = putchar
 
 evalop :: GmState -> GmState
 evalop state = state { code = [Unwind]
@@ -289,6 +292,14 @@ gmprint state = case hLookup h a of
         i = getCode state
         printcode = foldr (\_ xs -> Eval:Print:xs) []
 
+putchar :: GmState -> GmState
+putchar state = case hLookup h a of
+  NNum n -> state { output = o ++ [[chr n]]
+                  }
+  _ -> error "can not putchar"
+  where (a, _) = S.pop (getStack state)
+        h = getHeap state
+        o = getOutput state
 
 showConstr :: Tag -> Arity -> String
 showConstr t a = "Pack{" ++ show t ++ "," ++ show a ++ "}"
@@ -436,6 +447,8 @@ compiledPrimitives
     , ("<=", 2, [Push 1, Eval, Push 1, Eval, Le, Update 2, Pop 2, Unwind])
     , (">",  2, [Push 1, Eval, Push 1, Eval, Gt, Update 2, Pop 2, Unwind])
     , (">=", 2, [Push 1, Eval, Push 1, Eval, Ge, Update 2, Pop 2, Unwind])
+
+    , ("putChar", 1, [Push 0, Eval, PutChar, Update 1, Pop 1, Unwind])
     ]
 
 type GmCompiledSC = (Name, Int, GmCode)
@@ -701,6 +714,7 @@ showInstruction (Pack t a)     = iConcat [iStr "Pack " , iNum t, iStr " " , iNum
 showInstruction (Casejump bs)  = iConcat [ iStr "Casejump ", showAlts bs]
 showInstruction (Split n)      = iStr "Split " `iAppend` iNum n
 showInstruction Print          = iStr "Print"
+showInstruction PutChar        = iStr "PutChar"
 
 showCodes :: [Instruction] -> IseqRep
 showCodes []     = iStr "[]"
