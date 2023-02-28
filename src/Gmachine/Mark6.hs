@@ -437,7 +437,12 @@ extraPreludeCode
             , "unfoldr psi xs = case psi xs of"
             , "  <0> -> Nil ;"
             , "  <1> p -> case p of"
-            , "      <2> a b -> Cons a (unfoldr psi b)"
+            , "      <2> a b -> Cons a (unfoldr psi b) ;"
+            , "gpr p c cs = 0 * cs + p c ;"
+            , "prc c cs = gpr putChar c cs ;"
+            , "prn c cs = gpr putNum c cs ;"
+            , "putStr cs = foldr prc 0 cs ;"
+            , "putStrLn cs = foldr prc (putChar 10) cs"
             ]
 
 extraPreludeDefs :: CoreProgram
