@@ -1,0 +1,6 @@
+inf x = letrec xs = Cons x xs
+        in xs;
+	
+plus2 x = x + 2;
+
+main = putList putChar (map (twice plus2) (inf 42))
