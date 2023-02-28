@@ -1,0 +1,26 @@
+append xs ys = foldr Cons ys xs ;
+bracket l xs r = Cons l (append xs (Cons r Nil)) ;
+nr = putChar 10 ;
+lparen = putChar 91 ;
+rparen = putChar 93 ;
+null xs = case xs of
+  <1> -> True ;
+  <2> a b -> False ;
+
+badIntersperse sep xxs = case xxs of
+  <1> -> Nil ;
+  <2> x xs -> if (null xs) (Cons x xs) (Cons x (Cons sep xs)) ;
+
+intersperse sep xxs = foldr (withSep sep) Nil xxs ;
+withSep sep a b = if (null b) (Cons a b) (Cons a (Cons sep b)) ;
+
+iota x y = if (x > y) Nil (Cons x (iota (x+1) y)) ;
+body = intersperse (putChar 44) (map putNumber (iota 1 10)) ;
+
+rep n = Cons n (rep n) ;
+take n xxs = case xxs of
+  <1> -> Nil ;
+  <2> x xs -> if (n == 0) Nil (Cons x (take (n-1) xs)) ;
+test = foldr seq nr (take 10 (rep (putChar 44))) ;
+
+main = foldr seq nr (bracket lparen body rparen)

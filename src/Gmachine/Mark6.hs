@@ -288,20 +288,21 @@ gmprint state = case hLookup h a of
             where len = length as
                   needParen = len > 0
                   (lparen, rparen) = if not needParen then ("", [])
-                                     else ("(", [Pushint (ord ')'), PutChar, Pop 1])
+                                     else ("(", [Pushint (ord ')'), PutChar])
           _ -> error "can not print"
   where (a, s) = S.pop (getStack state)
         h = getHeap state
         o = getOutput state
         i = getCode state
-        printcode = foldr (\_ xs -> Pushint (ord ' '):PutChar:Pop 1:Eval:Print:xs) []
+        printcode = foldr (\_ xs -> Pushint (ord ' '):PutChar:Eval:Print:xs) []
 
 putchar :: GmState -> GmState
 putchar state = case hLookup h a of
   NNum n -> state { output = o ++ [[chr n]]
+                  , stack = s
                   }
   _ -> error "can not putchar"
-  where (a, _) = S.pop (getStack state)
+  where (a, s) = S.pop (getStack state)
         h = getHeap state
         o = getOutput state
 
@@ -448,7 +449,7 @@ extraPreludeCode
             , "  <0> -> Nil ;"
             , "  <1> p -> case p of"
             , "      <2> a b -> Cons a (unfoldr psi b) ;"
-            , "seq x y = 0 * y + x ;"
+            , "seq x y = 0 * y + x ;" -- means 'x >> y' but just kidding.
             , "putStr cs = foldr seq 0 (map putChar cs) ;"
             , "putStrLn cs = foldr seq (putChar 10) (map putChar cs)"
             ]
@@ -472,7 +473,7 @@ compiledPrimitives
     , (">=", 2, [Push 1, Eval, Push 1, Eval, Ge, Update 2, Pop 2, Unwind])
 
     , ("putNumber", 1, [Push 0, Eval, Print, Unwind])
-    , ("putChar", 1, [Push 0, Eval, PutChar, Update 1, Pop 1, Unwind])
+    , ("putChar", 1, [Push 0, Eval, PutChar, Unwind])
     ]
 
 type GmCompiledSC = (Name, Int, GmCode)

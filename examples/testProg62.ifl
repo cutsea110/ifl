@@ -1,0 +1,8 @@
+showPair p = case p of
+  <2> f s -> let io = Cons (putChar 40)
+                     (Cons (putNumber f)
+		     (Cons (putChar 44)
+		     (Cons (putNumber s)
+		     (Cons (putChar 41) Nil))))
+             in foldr seq (putChar 10) io ;
+main = showPair (Pair 42 28)
