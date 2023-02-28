@@ -1,0 +1,6 @@
+psi n = Just (Pair n (n+1)) ;
+take n xs = case xs of
+  <1> -> Nil ;
+  <2> y ys -> if (n == 0) Nil (Cons y (take (n-1) ys)) ;
+
+main = take 10 (unfoldr psi 1)

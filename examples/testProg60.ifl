@@ -1,5 +1,5 @@
-ch x xs = cons x xs ;
-n = nil ;
+ch x xs = Cons x xs ;
+n = Nil ;
 
 H = 72 ;
 e = 101 ;

@@ -426,8 +426,18 @@ extraPreludeCode
             , "if c t f = case c of"
             , "               <1> -> f ;"
             , "               <2> -> t ;"
-            , "nil = Pack{1,0} ;"
-            , "cons x xs = Pack{2,2} x xs"
+            , "Nil = Pack{1,0} ;"
+            , "Cons x xs = Pack{2,2} x xs ;"
+            , "foldr f seed xs = case xs of"
+            , "  <1> -> seed ;"
+            , "  <2> y ys -> f y (foldr f seed ys) ;"
+            , "Nothing = Pack{0,0} ;"
+            , "Just x = Pack{1,1} x ;"
+            , "Pair l r = Pack{2,2} l r ;"
+            , "unfoldr psi xs = case psi xs of"
+            , "  <0> -> Nil ;"
+            , "  <1> p -> case p of"
+            , "      <2> a b -> Cons a (unfoldr psi b)"
             ]
 
 extraPreludeDefs :: CoreProgram
