@@ -3,4 +3,6 @@ take n xxs = case xxs of
   <1> -> Nil ;
   <2> x xs -> if (n == 0) Nil (Cons x (take (n-1) xs)) ;
 
-main  = putList (take 10 (from 1))
+infMain = putList (from 1) ;
+
+main = putList (take 10 (from 1))
