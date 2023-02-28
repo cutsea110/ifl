@@ -3,5 +3,9 @@ False = Pack{1,0} ;
 if c t f = case c of
   <1> -> f ;
   <2> -> t ;
+showBool b = case b of
+  <1> -> Cons 70 (Cons 97 (Cons 108 (Cons 115 (Cons 101 Nil)))) ;
+  <2> -> Cons 84 (Cons 114 (Cons 117 (Cons 101 Nil))) ;
+
 not x = if True False True ;
-main = not True
+main = putStrLn (showBool (not True))

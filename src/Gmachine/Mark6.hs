@@ -423,6 +423,9 @@ extraPreludeCode :: String
 extraPreludeCode
   = unlines [ "False = Pack{1,0} ;"
             , "True  = Pack{2,0} ;"
+            , "showBool b = case b of"
+            , "  <1> -> Cons 70 (Cons 97 (Cons 108 (Cons 115 (Cons 101 Nil)))) ;"
+            , "  <2> -> Cons 84 (Cons 114 (Cons 117 (Cons 101 Nil))) ;"
             , "if c t f = case c of"
             , "               <1> -> f ;"
             , "               <2> -> t ;"
@@ -431,6 +434,9 @@ extraPreludeCode
             , "foldr f seed xs = case xs of"
             , "  <1> -> seed ;"
             , "  <2> y ys -> f y (foldr f seed ys) ;"
+            , "map f xs = case xs of"
+            , "  <1> -> Nil ;"
+            , "  <2> y ys -> Cons (f y) (map f ys) ;"
             , "Nothing = Pack{0,0} ;"
             , "Just x = Pack{1,1} x ;"
             , "Pair l r = Pack{2,2} l r ;"
@@ -438,11 +444,9 @@ extraPreludeCode
             , "  <0> -> Nil ;"
             , "  <1> p -> case p of"
             , "      <2> a b -> Cons a (unfoldr psi b) ;"
-            , "gpr p c cs = 0 * cs + p c ;"
-            , "prc c cs = gpr putChar c cs ;"
-            , "prn c cs = gpr putNum c cs ;"
-            , "putStr cs = foldr prc 0 cs ;"
-            , "putStrLn cs = foldr prc (putChar 10) cs"
+            , "ioSeq io1 io2 = 0 * io2 + io1 ;"
+            , "putStr cs = foldr ioSeq 0 (map putChar cs) ;"
+            , "putStrLn cs = foldr ioSeq (putChar 10) (map putChar cs)"
             ]
 
 extraPreludeDefs :: CoreProgram
@@ -463,6 +467,7 @@ compiledPrimitives
     , (">",  2, [Push 1, Eval, Push 1, Eval, Gt, Update 2, Pop 2, Unwind])
     , (">=", 2, [Push 1, Eval, Push 1, Eval, Ge, Update 2, Pop 2, Unwind])
 
+    , ("putNumber", 1, [Push 0, Eval, Print, Update 1, Pop 1, Unwind])
     , ("putChar", 1, [Push 0, Eval, PutChar, Update 1, Pop 1, Unwind])
     ]
 
@@ -753,7 +758,7 @@ showState s
 
 showOutput :: GmState -> IseqRep
 showOutput s
-  = iConcat [iStr "Output:\"", iStr (unwords (getOutput s)), iStr "\""]
+  = iConcat [iStr "Output:\"", iStr (concat (getOutput s)), iStr "\""]
 
 showDump :: GmState -> IseqRep
 showDump s
