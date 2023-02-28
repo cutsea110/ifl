@@ -11,7 +11,7 @@ import Iseq
 import Language
 import qualified Stack as S
 import Utils
-import Data.Char (chr)
+import Data.Char (chr, ord)
 import Data.List (mapAccumL, (\\))
 
 runProg :: String -> String
@@ -281,16 +281,20 @@ gmprint state = case hLookup h a of
           NNum n -> state { output = o ++ [show n]
                           , stack = s
                           }
-          NConstr t as -> state { output = o ++ [showConstr t (length as)]
-                                , code = printcode as ++ i
+          NConstr t as -> state { output = o ++ [lparen ++ showConstr t (length as)]
+                                , code = printcode as ++ rparen ++ i
                                 , stack = foldr S.push s as
                                 }
+            where len = length as
+                  needParen = len > 0
+                  (lparen, rparen) = if not needParen then ("", [])
+                                     else ("(", [Pushint (ord ')'), PutChar, Pop 1])
           _ -> error "can not print"
   where (a, s) = S.pop (getStack state)
         h = getHeap state
         o = getOutput state
         i = getCode state
-        printcode = foldr (\_ xs -> Eval:Print:xs) []
+        printcode = foldr (\_ xs -> Pushint (ord ' '):PutChar:Pop 1:Eval:Print:xs) []
 
 putchar :: GmState -> GmState
 putchar state = case hLookup h a of
@@ -444,9 +448,9 @@ extraPreludeCode
             , "  <0> -> Nil ;"
             , "  <1> p -> case p of"
             , "      <2> a b -> Cons a (unfoldr psi b) ;"
-            , "ioSeq io1 io2 = 0 * io2 + io1 ;"
-            , "putStr cs = foldr ioSeq 0 (map putChar cs) ;"
-            , "putStrLn cs = foldr ioSeq (putChar 10) (map putChar cs)"
+            , "seq x y = 0 * y + x ;"
+            , "putStr cs = foldr seq 0 (map putChar cs) ;"
+            , "putStrLn cs = foldr seq (putChar 10) (map putChar cs)"
             ]
 
 extraPreludeDefs :: CoreProgram
@@ -467,7 +471,7 @@ compiledPrimitives
     , (">",  2, [Push 1, Eval, Push 1, Eval, Gt, Update 2, Pop 2, Unwind])
     , (">=", 2, [Push 1, Eval, Push 1, Eval, Ge, Update 2, Pop 2, Unwind])
 
-    , ("putNumber", 1, [Push 0, Eval, Print, Update 1, Pop 1, Unwind])
+    , ("putNumber", 1, [Push 0, Eval, Print, Unwind])
     , ("putChar", 1, [Push 0, Eval, PutChar, Update 1, Pop 1, Unwind])
     ]
 
