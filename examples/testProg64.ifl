@@ -1,0 +1,6 @@
+from n = Cons n (from (n+1)) ;
+take n xxs = case xxs of
+  <1> -> Nil ;
+  <2> x xs -> if (n == 0) Nil (Cons x (take (n-1) xs)) ;
+
+main  = putList (take 10 (from 1))
