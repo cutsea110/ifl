@@ -1,0 +1,2 @@
+cycle xs = append xs (cycle xs);
+main = putStr (cycle (Cons 98 (Cons 121 (Cons 101 (Cons 33 Nil)))))
