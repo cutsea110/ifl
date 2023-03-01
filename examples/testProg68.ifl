@@ -1,5 +1,7 @@
 num2chr n = unfoldr psi n;
 psi n = if (n == 0) Nothing (Just (swap (divMod n 10)));
-showNum n = foldr (flip seq) 0 (map (compose putChar (plus 48)) (num2chr n));
+revchr xs = foldr phi I xs Nil;
+phi b g x = g (Cons (plus 48 b) x);
+showNum n = revchr (num2chr n);
 
-main = seq (showNum 257) (putChar 10)
+main = putStrLn (showNum 257)
