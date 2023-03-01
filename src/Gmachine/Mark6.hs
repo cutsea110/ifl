@@ -427,11 +427,14 @@ buildInitialHeap program = mapAccumL allocateSc hInitial compiled
 
 extraPreludeCode :: String
 extraPreludeCode
-  = unlines [ "False = Pack{1,0};"
+  = unlines [ "flip f x y = f y x;"
+            , "plus x y = x + y;"
+            , "divMod x y = let d = x / y in Pair d (x-d*y);"
+            , "False = Pack{1,0};"
             , "True  = Pack{2,0};"
-            , "putBool b = case b of"
-            , "  <1> -> putStr (Cons 70 (Cons 97 (Cons 108 (Cons 115 (Cons 101 Nil)))));"
-            , "  <2> -> putStr (Cons 84 (Cons 114 (Cons 117 (Cons 101 Nil))));"
+            , "showBool b = case b of"
+            , "  <1> -> Cons 70 (Cons 97 (Cons 108 (Cons 115 (Cons 101 Nil))));"
+            , "  <2> -> Cons 84 (Cons 114 (Cons 117 (Cons 101 Nil)));"
             , "if c t f = case c of"
             , "               <1> -> f;"
             , "               <2> -> t;"
@@ -453,6 +456,8 @@ extraPreludeCode
             , "  <2> a b -> a;"
             , "snd p = case p of"
             , "  <2> a b -> b;"
+            , "swap p = case p of"
+            , "  <2> x y -> Pair y x;"
             , "putPair p1 p2 x = case x of"
             , "  <2> a b -> let tpl = Cons (p1 a) (Cons (putChar 44) (Cons (p2 b) Nil))"
             , "             in foldr seq 0 (bracket (putChar 40) tpl (putChar 41));"
