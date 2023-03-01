@@ -428,9 +428,9 @@ extraPreludeCode :: String
 extraPreludeCode
   = unlines [ "False = Pack{1,0};"
             , "True  = Pack{2,0};"
-            , "showBool b = case b of"
-            , "  <1> -> Cons 70 (Cons 97 (Cons 108 (Cons 115 (Cons 101 Nil))));"
-            , "  <2> -> Cons 84 (Cons 114 (Cons 117 (Cons 101 Nil)));"
+            , "putBool b = case b of"
+            , "  <1> -> putStr (Cons 70 (Cons 97 (Cons 108 (Cons 115 (Cons 101 Nil)))));"
+            , "  <2> -> putStr (Cons 84 (Cons 114 (Cons 117 (Cons 101 Nil))));"
             , "if c t f = case c of"
             , "               <1> -> f;"
             , "               <2> -> t;"
