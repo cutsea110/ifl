@@ -8,4 +8,4 @@ showBool b = case b of
   <2> -> Cons 84 (Cons 114 (Cons 117 (Cons 101 Nil))) ;
 
 not x = if True False True ;
-main = putBool (not True)
+main = seq (putBool (not True)) (putChar 10)
