@@ -4,6 +4,8 @@ module Template.Mark5Cp
   , compile
   , cnv
   , showResults
+  , runProg
+  , runProgWithConv
   ) where
 
 import Data.Bool (bool)
@@ -15,6 +17,13 @@ import Language
 import Heap
 import Stack
 import Utils
+
+
+runProg :: String -> String
+runProg = showResults . eval . compile . parse
+
+runProgWithConv :: String -> String
+runProgWithConv = showResults . eval . cnv . compile . parse
 
 debug :: Bool
 debug = True

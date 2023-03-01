@@ -4,6 +4,8 @@ module Template.Mark5
   , compile
   , cnv
   , showResults
+  , runProg
+  , runProgWithConv
   ) where
 
 import Data.List (mapAccumL)
@@ -13,6 +15,13 @@ import Language
 import Heap
 import Stack
 import Utils
+
+
+runProg :: String -> String
+runProg = showResults . eval . compile . parse
+
+runProgWithConv :: String -> String
+runProgWithConv = showResults . eval . cnv . compile . parse
 
 data Primitive
   = Neg

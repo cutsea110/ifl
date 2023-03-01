@@ -3,6 +3,7 @@ module Gmachine.Mark1
   , compile
   , eval
   , showResults
+  , runProg
   ) where
 
 import Heap

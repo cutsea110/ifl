@@ -4,6 +4,7 @@ module Gmachine.Mark5
   , compile
   , eval
   , showResults
+  , runProg
   ) where
 
 import Heap

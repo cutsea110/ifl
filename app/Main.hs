@@ -7,22 +7,22 @@ import System.Console.GetOpt
 import System.Environment (getArgs)
 import System.IO (getContents, hPutStr, hPutStrLn, stdout, stderr)
 
-import qualified Template.Mark1 as Mark1 (parse, compile, eval, showResults)
-import qualified Template.Mark2 as Mark2 (parse, compile, eval, showResults)
-import qualified Template.Mark3 as Mark3 (parse, compile, eval, showResults)
-import qualified Template.Mark4 as Mark4 (parse, compile, eval, showResults)
-import qualified Template.Mark5 as Mark5 (parse, compile, eval, showResults, cnv)
-import qualified Template.Mark5Alt as Mark5Alt (parse, compile, eval, showResults, cnv)
-import qualified Template.Mark5GC as Mark5GC (parse, compile, eval, showResults, cnv)
-import qualified Template.Mark5RevGC as Mark5RevGC (parse, compile, eval, showResults, cnv)
-import qualified Template.Mark5Cp as Mark5Cp (parse, compile, eval, showResults, cnv)
+import qualified Template.Mark1 as Mark1 (runProg)
+import qualified Template.Mark2 as Mark2 (runProg)
+import qualified Template.Mark3 as Mark3 (runProg)
+import qualified Template.Mark4 as Mark4 (runProg)
+import qualified Template.Mark5 as Mark5 (runProg, runProgWithConv)
+import qualified Template.Mark5Alt as Mark5Alt (runProg, runProgWithConv)
+import qualified Template.Mark5GC as Mark5GC (runProg, runProgWithConv)
+import qualified Template.Mark5RevGC as Mark5RevGC (runProg, runProgWithConv)
+import qualified Template.Mark5Cp as Mark5Cp (runProg, runProgWithConv)
 
-import qualified Gmachine.Mark1 as GMark1 (parse, compile, eval, showResults)
-import qualified Gmachine.Mark2 as GMark2 (parse, compile, eval, showResults)
-import qualified Gmachine.Mark3 as GMark3 (parse, compile, eval, showResults)
-import qualified Gmachine.Mark4 as GMark4 (parse, compile, eval, showResults)
-import qualified Gmachine.Mark5 as GMark5 (parse, compile, eval, showResults)
-import qualified Gmachine.Mark6 as GMark6 (parse, compile, eval, showResults)
+import qualified Gmachine.Mark1 as GMark1 (runProg)
+import qualified Gmachine.Mark2 as GMark2 (runProg)
+import qualified Gmachine.Mark3 as GMark3 (runProg)
+import qualified Gmachine.Mark4 as GMark4 (runProg)
+import qualified Gmachine.Mark5 as GMark5 (runProg)
+import qualified Gmachine.Mark6 as GMark6 (runProg)
 
 
 ---------------------------------------------------------------
@@ -31,26 +31,26 @@ import qualified Gmachine.Mark6 as GMark6 (parse, compile, eval, showResults)
 type Executer = String -> IO ()
 
 executer :: Compiler -> Executer
-executer Mark1 = putStrLn . Mark1.showResults . Mark1.eval . Mark1.compile . Mark1.parse
-executer Mark2 = putStrLn . Mark2.showResults . Mark2.eval . Mark2.compile . Mark2.parse
-executer Mark3 = putStrLn . Mark3.showResults . Mark3.eval . Mark3.compile . Mark3.parse
-executer Mark4 = putStrLn . Mark4.showResults . Mark4.eval . Mark4.compile . Mark4.parse
-executer Mark5 = putStrLn . Mark5.showResults . Mark5.eval . Mark5.compile . Mark5.parse
-executer Mark5cnv = putStrLn . Mark5.showResults . Mark5.eval . Mark5.cnv . Mark5.compile . Mark5.parse
-executer Mark5Alt = putStrLn . Mark5Alt.showResults . Mark5Alt.eval . Mark5Alt.compile . Mark5Alt.parse
-executer Mark5Altcnv = putStrLn . Mark5Alt.showResults . Mark5Alt.eval . Mark5Alt.cnv . Mark5Alt.compile . Mark5Alt.parse
-executer Mark5GC = putStrLn . Mark5GC.showResults . Mark5GC.eval . Mark5GC.compile . Mark5GC.parse
-executer Mark5GCcnv = putStrLn . Mark5GC.showResults . Mark5GC.eval . Mark5GC.cnv . Mark5GC.compile . Mark5GC.parse
-executer Mark5RevGC = putStrLn . Mark5RevGC.showResults . Mark5RevGC.eval . Mark5RevGC.compile . Mark5RevGC.parse
-executer Mark5RevGCcnv = putStrLn . Mark5RevGC.showResults . Mark5RevGC.eval . Mark5RevGC.cnv . Mark5RevGC.compile . Mark5RevGC.parse
-executer Mark5Cp = putStrLn . Mark5Cp.showResults . Mark5Cp.eval . Mark5Cp.compile . Mark5Cp.parse
-executer Mark5Cpcnv = putStrLn . Mark5Cp.showResults . Mark5Cp.eval . Mark5Cp.cnv . Mark5Cp.compile . Mark5Cp.parse
-executer GMark1 = putStrLn . GMark1.showResults . GMark1.eval . GMark1.compile . GMark1.parse
-executer GMark2 = putStrLn . GMark2.showResults . GMark2.eval . GMark2.compile . GMark2.parse
-executer GMark3 = putStrLn . GMark3.showResults . GMark3.eval . GMark3.compile . GMark3.parse
-executer GMark4 = putStrLn . GMark4.showResults . GMark4.eval . GMark4.compile . GMark4.parse
-executer GMark5 = putStrLn . GMark5.showResults . GMark5.eval . GMark5.compile . GMark5.parse
-executer GMark6 = putStrLn . GMark6.showResults . GMark6.eval . GMark6.compile . GMark6.parse
+executer Mark1 = putStrLn . Mark1.runProg
+executer Mark2 = putStrLn . Mark2.runProg
+executer Mark3 = putStrLn . Mark3.runProg
+executer Mark4 = putStrLn . Mark4.runProg
+executer Mark5 = putStrLn . Mark5.runProg
+executer Mark5cnv = putStrLn . Mark5.runProgWithConv
+executer Mark5Alt = putStrLn . Mark5Alt.runProg
+executer Mark5Altcnv = putStrLn . Mark5Alt.runProgWithConv
+executer Mark5GC = putStrLn . Mark5GC.runProg
+executer Mark5GCcnv = putStrLn . Mark5GC.runProgWithConv
+executer Mark5RevGC = putStrLn . Mark5RevGC.runProg
+executer Mark5RevGCcnv = putStrLn . Mark5RevGC.runProgWithConv
+executer Mark5Cp = putStrLn . Mark5Cp.runProg
+executer Mark5Cpcnv = putStrLn . Mark5Cp.runProgWithConv
+executer GMark1 = putStrLn . GMark1.runProg
+executer GMark2 = putStrLn . GMark2.runProg
+executer GMark3 = putStrLn . GMark3.runProg
+executer GMark4 = putStrLn . GMark4.runProg
+executer GMark5 = putStrLn . GMark5.runProg
+executer GMark6 = putStrLn . GMark6.runProg
 executer (Noco name) = \_ -> do
   putStrLn $ "Error: Unknown compiler = " ++ name
   printHelp

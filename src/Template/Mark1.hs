@@ -3,6 +3,7 @@ module Template.Mark1
   , eval
   , compile
   , showResults
+  , runProg
   ) where
 
 import Data.List (mapAccumL)
@@ -12,6 +13,9 @@ import Language
 import Heap
 import Stack
 import Utils
+
+runProg :: String -> String
+runProg = showResults . eval . compile . parse
 
 data Node
   = NAp Addr Addr
