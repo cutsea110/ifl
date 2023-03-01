@@ -17,6 +17,6 @@ foldr f seed xs = case xs of
   <1> -> seed ;
   <2> y ys -> f y (foldr f seed ys) ;
 
-pr c cs = cs * 0 + putChar c ;
+pr c cs = cs + 0 * putChar c ;
 
 main = foldr pr (putChar 10) hello

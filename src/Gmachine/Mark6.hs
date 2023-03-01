@@ -448,6 +448,13 @@ extraPreludeCode
             , "Nothing = Pack{0,0};"
             , "Just x = Pack{1,1} x;"
             , "Pair l r = Pack{2,2} l r;"
+            , "fst p = case p of"
+            , "  <2> a b -> a;"
+            , "snd p = case p of"
+            , "  <2> a b -> b;"
+            , "putPair p1 p2 x = case x of"
+            , "  <2> a b -> let tpl = Cons (p1 a) (Cons (putChar 44) (Cons (p2 b) Nil))"
+            , "             in foldr seq 0 (bracket (putChar 40) tpl (putChar 41));"
             , "unfoldr psi xs = case psi xs of"
             , "  <0>   -> Nil;"
             , "  <1> p -> case p of"
@@ -460,7 +467,7 @@ extraPreludeCode
             , "  <1> -> putChar 93;"
             , "  <2> y ys -> seq (p y) (if (null ys) (putChar 93) (seq (putChar 44) (pLsub p ys)));"
             , "putList p xs = seq (putChar 91) (pLsub p xs);"
-            , "seq x y = 0 * y + x;" -- means 'x >> y' but just kidding.
+            , "seq x y = y + 0 * x;" -- means 'x >> y' but just kidding.
             , "putStr cs = foldr seq 0 (map putChar cs);"
             , "putStrLn cs = foldr seq (putChar 10) (map putChar cs)"
             ]
