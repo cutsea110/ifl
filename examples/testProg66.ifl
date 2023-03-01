@@ -1,0 +1,3 @@
+iota s e = if (s>e) Nil (Cons s (iota (s+1) e));
+dup x = Pair x x;
+main = putList (putPair putChar putNumber) (map dup (iota 32 127))
