@@ -454,6 +454,7 @@ extraPreludeCode
             , "  <2> a b -> a;"
             , "snd p = case p of"
             , "  <2> a b -> b;"
+            , "dup x = Pair x x;"
             , "swap p = case p of"
             , "  <2> x y -> Pair y x;"
             , "putPair p1 p2 x = case x of"
