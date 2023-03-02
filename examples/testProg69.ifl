@@ -1,0 +1,8 @@
+x1 = Pair Nothing (Just 42);
+x2 = let xs = Cons 65 (Cons 66 (Cons 67 Nil))
+     in Pair (Left xs) (Right xs);
+t1 = let p = putMaybe putNumber
+     in putPair p p x1;
+t2 = let p = putEither (putList putNumber) (putList putChar)
+     in putPair p p x2;
+main = seq t1 t2
