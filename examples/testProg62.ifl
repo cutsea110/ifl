@@ -1,5 +1,5 @@
 showPair p = case p of
-  <2> f s -> let nr     = putChar 10;
+  <0> f s -> let nr     = putChar 10;
                  lparen = putChar 40;
                  rparen = putChar 41;
                  comma  = putChar 44
