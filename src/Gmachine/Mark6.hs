@@ -734,7 +734,8 @@ argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v, m) <- env]
 
 showResults :: [GmState] -> String
-showResults states
+showResults [] = error "no GmState"
+showResults states@(s:ss)
   = unlines (map iDisplay
               ([ iStr "Supercombinator definitions", iNewline
                , iInterleave iNewline (map (showSC s) (getGlobals s))
@@ -744,8 +745,6 @@ showResults states
                [ showStats (last states)
                ])
             )
-    where s:ss = states
-
 
 -- | show dump list
 showSC :: GmState -> (Name, Addr) -> IseqRep 
