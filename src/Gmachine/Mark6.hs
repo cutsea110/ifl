@@ -590,6 +590,14 @@ builtInDyadic
     ]
 
 {- |
+-- 42
+>>> compileC (ENum 42) []
+[Pushint 42]
+
+-- let x = 3 in x + x
+>>> compileC (ELet False [("x", ENum 3)] (EAp (EAp (EVar "+") (EVar "x")) (EVar "x"))) []
+[Pushint 3,Push 0,Push 1,Pushglobal "+",Mkap,Mkap,Slide 1]
+
 -- f
 >>> compileC (EVar "f") []
 [Pushglobal "f"]
