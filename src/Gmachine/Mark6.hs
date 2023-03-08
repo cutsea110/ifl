@@ -695,8 +695,8 @@ compileC expr env = case expr of
         where (compiled1, tl') = compileSC e1 (argOffset 1 ev) (Right [Mkap] `joint` tl)
       _             -> (compileC e ev, tl)
 
-    joint (Left  xs) (Right ys) = Left (xs \\ ys)
-    joint (Right xs) (Right ys) = Right (xs ++ ys)
+    joint (Left  xs) (Right ys) = Left (xs \\ ys)   -- consume Mkap
+    joint (Right xs) (Right ys) = Right (xs ++ ys)  -- accumulate Mkap
     joint x          y          = error $ "unexpected error: " ++ show x ++ " " ++ show y
 
 
