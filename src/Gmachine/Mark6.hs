@@ -530,6 +530,13 @@ allocateSc heap (name, nargs, instns) = (heap', (name, addr))
 initialCode :: GmCode
 initialCode = [Pushglobal "main", Eval, Print]
 
+{- |
+>>> compileSc ("K", ["x", "y"], EVar "x")
+("K",2,[Push 0,Eval,Update 2,Pop 2,Unwind])
+
+>>> compileSc ("S", ["f", "g", "x"], EAp (EAp (EVar "f") (EVar "x")) (EAp (EVar "g") (EVar "x")))
+("S",3,[Push 2,Push 2,Mkap,Push 3,Push 2,Mkap,Mkap,Eval,Update 3,Pop 3,Unwind])
+-}
 compileSc :: (Name, [Name], CoreExpr) -> GmCompiledSC
 compileSc (name, env, body) = (name, length env, compileR body (zip env [0..]))
 
@@ -890,20 +897,6 @@ showStats s = iConcat [ iStr "---------------"
                       , iNewline, iStr "           Stack size = "
                       , iNum (S.getHighWaterMark (getStack s))
                       ]
-
-{- |
->>> test1
-("K",2,[Push 0,Eval,Update 2,Pop 2,Unwind])
--}
-test1 :: GmCompiledSC
-test1 = compileSc ("K", ["x", "y"], EVar "x")
-
-{- |
->>> test2
-("S",3,[Push 2,Push 2,Mkap,Push 3,Push 2,Mkap,Mkap,Eval,Update 3,Pop 3,Unwind])
--}
-test2 :: GmCompiledSC
-test2 = compileSc ("S", ["f", "g", "x"], EAp (EAp (EVar "f") (EVar "x")) (EAp (EVar "g") (EVar "x")))
 
 {- |
 >>> head $ getOutput $ last $ eval $ compile $ parse "main = S K K 3"
