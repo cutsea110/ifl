@@ -1,0 +1,2 @@
+prefix p xs = map (Pack{2,2} p) xs;
+main = prefix 42 (Cons 1 (Cons 2 (Cons 3 Nil)))

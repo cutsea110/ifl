@@ -1,0 +1,3 @@
+prefix p xs = map (f p) xs;
+f p x = Pack{2,2} p x;
+main = prefix 42 (Cons 1 Nil)

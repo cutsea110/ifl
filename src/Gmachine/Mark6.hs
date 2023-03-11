@@ -682,7 +682,7 @@ builtInDyadic
 
 -- Pack{1,2} 4
 >>> compileC (EAp (EConstr 1 2) (ENum 4)) []
-[Pushint 4,Pack 1 2,Mkap]
+[Pushint 4,Pushglobal "Pack{1,2}",Mkap]
 
 -- Pack{1,2} 4 2
 >>> compileC (EAp (EAp (EConstr 1 2) (ENum 4)) (ENum 2)) []
@@ -690,11 +690,11 @@ builtInDyadic
 
 -- Pack{1,5} 4
 >>> compileC (EAp (EConstr 1 5) (ENum 4)) []
-[Pushint 4,Pack 1 5,Mkap,Mkap,Mkap,Mkap]
+[Pushint 4,Pushglobal "Pack{1,5}",Mkap,Mkap,Mkap,Mkap]
 
 -- Pack{1,5} 4 a
 >>> compileC (EAp (EAp (EConstr 1 5) (ENum 4)) (EVar "a")) []
-[Pushglobal "a",Pushint 4,Pack 1 5,Mkap,Mkap,Mkap]
+[Pushglobal "a",Pushint 4,Pushglobal "Pack{1,5}",Mkap,Mkap,Mkap]
 
 -- Pack{1,4} 4 a 2 b
 >>> let constr4a = EAp (EAp (EConstr 1 4) (ENum 4)) (EVar "a")
@@ -715,18 +715,22 @@ compileC expr env = case expr of
     | otherwise            -> error $ "found invalid Pack arity: " ++ show a
   (EAp _ _)                -> compiled ++ unwrap trailer
     where (compiled, trailer) = compileCS expr env (Right [])
-          unwrap = either id id
   (ELet recursive defs e)
     | recursive            -> compileLetrec compileC defs e env
     | otherwise            -> compileLet    compileC defs e env
   _                        -> error ("ERROR: " ++ show expr)
   where
+    unwrap = either id id
     -- In the case of normal function application, the trailer is [Mkap, Mkap, ...].
     -- On the other hand, for data constructor, the trailer is [], except for the case of unsatisified.
     -- If data constructor doesn't be saturated, the trailer is [Mkap, Mkap, ...],
     -- which length is the missing arguments length.
     compileCS e ev tl = case e of
-      (EConstr t a) -> ([Pushglobal (showConstr t a)], Left (replicate a Mkap) `joint` tl)
+      (EConstr t a)
+        | saturated -> ([Pack t a], tl')
+        | otherwise -> ([Pushglobal (showConstr t a)], tl')
+        where tl' = Left (replicate a Mkap) `joint` tl
+              saturated = null $ unwrap tl'
       (EAp e1 e2)   -> (compileC e2 ev ++ compiled1, tl')
         where (compiled1, tl') = compileCS e1 (argOffset 1 ev) (Right [Mkap] `joint` tl)
       _             -> (compileC e ev, tl)
