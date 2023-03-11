@@ -11,6 +11,9 @@ module Language
   , Arity
   , parse
   , preludeDefs
+  -- ?
+  , pConstr
+  , clex
   ) where
 
 import Data.Char (isAlpha, isDigit, isSpace)

@@ -7,9 +7,11 @@ module Gmachine.Mark6
   , runProg
   ) where
 
+import Data.Maybe
 import Heap
 import Iseq
 import Language
+import qualified Parser as P (runParser)
 import qualified Stack as S
 import Utils
 import Data.Char (chr, ord)
@@ -310,10 +312,37 @@ putchar state = case hLookup h a of
 showConstr :: Tag -> Arity -> String
 showConstr t a = "Pack{" ++ show t ++ "," ++ show a ++ "}"
 
+readPack :: String -> Maybe Instruction
+readPack s = case res of
+  [] -> Nothing
+  ((t, a), []):_ -> Just (Pack t a)
+  _ -> error "failed to parse for Pack"
+  where res = P.runParser pConstr (clex 1 s)
+
 
 pushglobal :: Name -> GmState -> GmState
-pushglobal f state = putStack (S.push a $ getStack state) state
-  where a = aLookup (getGlobals state) f (error $ "Undeclared global " ++ f)
+pushglobal f state = case readPack f of
+  Nothing
+    -> state { stack = S.push a stack
+             }
+
+  Just (Pack tag arity)
+    | f `elem` aDomain globals
+      -> state { stack = S.push a stack
+               }
+    | otherwise
+      -> state { stack = S.push a stack
+               , heap = h'
+               , globals = aInsert globals (showConstr tag arity) a
+               }
+    where a = aLookup globals f a'
+          (h', a') = hAlloc heap gNode
+          gNode = NGlobal arity [Pack tag arity, Update 0, Unwind]
+  Just _ -> error "pushglobal: not Pack"
+  where stack = getStack state
+        heap = getHeap state
+        globals = getGlobals state
+        a = aLookup globals f (error $ "Undeclared global " ++ f)
 
 pushint :: Int -> GmState -> GmState
 pushint n state = case aLookup (getGlobals state) name (-1) of
@@ -697,7 +726,7 @@ compileC expr env = case expr of
     -- If data constructor doesn't be saturated, the trailer is [Mkap, Mkap, ...],
     -- which length is the missing arguments length.
     compileCS e ev tl = case e of
-      (EConstr t a) -> ([Pack t a], Left (replicate a Mkap) `joint` tl)
+      (EConstr t a) -> ([Pushglobal (showConstr t a)], Left (replicate a Mkap) `joint` tl)
       (EAp e1 e2)   -> (compileC e2 ev ++ compiled1, tl')
         where (compiled1, tl') = compileCS e1 (argOffset 1 ev) (Right [Mkap] `joint` tl)
       _             -> (compileC e ev, tl)
