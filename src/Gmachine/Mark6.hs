@@ -685,7 +685,7 @@ compileC expr env = case expr of
     | a == 0               -> [Pack t a]
     | otherwise            -> error $ "found invalid Pack arity: " ++ show a
   (EAp _ _)                -> compiled ++ unwrap trailer
-    where (compiled, trailer) = compileSC expr env (Right [])
+    where (compiled, trailer) = compileCS expr env (Right [])
           unwrap = either id id
   (ELet recursive defs e)
     | recursive            -> compileLetrec compileC defs e env
@@ -696,10 +696,10 @@ compileC expr env = case expr of
     -- On the other hand, for data constructor, the trailer is [], except for the case of unsatisified.
     -- If data constructor doesn't be saturated, the trailer is [Mkap, Mkap, ...],
     -- which length is the missing arguments length.
-    compileSC e ev tl = case e of
+    compileCS e ev tl = case e of
       (EConstr t a) -> ([Pack t a], Left (replicate a Mkap) `joint` tl)
       (EAp e1 e2)   -> (compileC e2 ev ++ compiled1, tl')
-        where (compiled1, tl') = compileSC e1 (argOffset 1 ev) (Right [Mkap] `joint` tl)
+        where (compiled1, tl') = compileCS e1 (argOffset 1 ev) (Right [Mkap] `joint` tl)
       _             -> (compileC e ev, tl)
 
     joint (Left  xs) (Right ys) = Left (xs \\ ys)   -- consume Mkap
