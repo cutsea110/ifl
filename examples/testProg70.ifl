@@ -1,0 +1,3 @@
+apply f x = f x;
+test x = apply (Pack{2,2} 42) x;
+main = test 4
