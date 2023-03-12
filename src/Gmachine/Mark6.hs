@@ -240,7 +240,7 @@ cond :: GmCode -> GmCode -> GmState -> GmState
 cond i1 i2 state = case hLookup heap a of
   NNum 1 -> putCode (i1 ++ i) $ putStack stack' state
   NNum 0 -> putCode (i2 ++ i) $ putStack stack' state
-  e      -> error ("ERROR: " ++ show e)
+  e      -> error $ "unexpected non-integer in heap: " ++ show e
   where heap = getHeap state
         stack = getStack state
         i = getCode state
@@ -718,7 +718,7 @@ compileC expr env = case expr of
   (ELet recursive defs e)
     | recursive            -> compileLetrec compileC defs e env
     | otherwise            -> compileLet    compileC defs e env
-  _                        -> error ("ERROR: " ++ show expr)
+  _                        -> error $ "support this expr: " ++ show expr
   where
     unwrap = either id id
     -- In the case of normal function application, the trailer is [Mkap, Mkap, ...].
