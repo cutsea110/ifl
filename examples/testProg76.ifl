@@ -1,4 +1,6 @@
-F f n = if (n == 0) 1 (n * f (n-1));
+F f n = if (n == 0)
+           1
+	   (n * f (n-1));
 fac = F fac;
 
 main = fac 10
