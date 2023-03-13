@@ -1038,8 +1038,8 @@ in runTest (unlines prog)
 >>> runTest "main = if (or (1 > 2) (2 >= 1)) 1 2"
 "1"
 
->>> runTest "fac n = if (n==0) 1 (n*fac (n-1)); main = fac 3"
-"6"
+>>> runTest "fac n = if (n==0) 1 (n*fac (n-1)); main = fac 5"
+"120"
 
 >>> runTest "main = fst (snd (fst (Pair (Pair 1 (Pair 2 3)) 4)))"
 "2"
@@ -1099,6 +1099,270 @@ let prog = [ "cons a b cc cn = cc a b;"
            , "length xs = xs length1 0;"
            , "length1 x xs = 1 + length xs;"
            , "main = length (cons 42 (cons 42 (cons 42 nil)))"
+           ]
+in runTest (unlines prog)
+:}
+"3"
+
+>>> :{
+let prog = [ "gcd2 a b = if (a == b)"
+           , "              a"
+           , "              if (a < b) (gcd2 b a) (gcd2 b (a - b));"
+           , "main = gcd2 485 1261"
+           ]
+in runTest (unlines prog)
+:}
+"97"
+
+let prog = [ "fib n = if (n < 2)"
+           , "           1"
+           , "           (fib (n - 1) + fib (n - 2)) ;"
+           , "main = fib 10"
+           ]
+in runTest (unlines prog)
+:}
+"89"
+
+>>> runTest "f = negate; main = f 5"
+"-5"
+
+>>> :{
+let prog = [ "myIf c t f = case c of"
+           , "  <1> -> f;"
+           , "  <2> -> t;"
+           , "fib n = myIf (n < 2)"
+           , "             1"
+           , "             (fib (n - 1) + fib (n - 2));"
+           , "main = fib 10"
+           ]
+in runTest (unlines prog)
+:}
+"89"
+
+>>> :{
+let prog = [ "T = Pack{2,0};"
+           , "F = Pack{1,0};"
+           , "myIf c t f = case c of"
+           , "  <1> -> f;"
+           , "  <2> -> t;"
+           , "isThree x = myIf True x (x + 1);"
+           , "main = isThree 3"
+           ]
+in runTest (unlines prog)
+:}
+"3"
+
+>>> runTest "main = Pack{2,2} 1 Pack{1,0}"
+"(Pack{2,2} 1 Pack{1,0})"
+
+>>> runTest "main = (Pack{2,2} 1 (Pack{2,2} 2 (Pack{2,2} 3 Pack{1,0})))"
+"(Pack{2,2} 1 (Pack{2,2} 2 (Pack{2,2} 3 Pack{1,0})))"
+
+>>> runTest "nil = Pack{1,0}; cons x xs = Pack{2,2} x xs; main = cons 1 nil"
+"(Pack{2,2} 1 Pack{1,0})"
+
+>>> runTest "nil = Pack{1,0}; cons x xs = Pack{2,2} x xs; main = cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil))))"
+"(Pack{2,2} 1 (Pack{2,2} 2 (Pack{2,2} 3 (Pack{2,2} 4 (Pack{2,2} 5 Pack{1,0})))))"
+
+>>> runTest "iota x y s = if (x > y) Nil (Cons x (iota (x+s) y s)); main = iota 5 100 3"
+"(Pack{2,2} 5 (Pack{2,2} 8 (Pack{2,2} 11 (Pack{2,2} 14 (Pack{2,2} 17 (Pack{2,2} 20 (Pack{2,2} 23 (Pack{2,2} 26 (Pack{2,2} 29 (Pack{2,2} 32 (Pack{2,2} 35 (Pack{2,2} 38 (Pack{2,2} 41 (Pack{2,2} 44 (Pack{2,2} 47 (Pack{2,2} 50 (Pack{2,2} 53 (Pack{2,2} 56 (Pack{2,2} 59 (Pack{2,2} 62 (Pack{2,2} 65 (Pack{2,2} 68 (Pack{2,2} 71 (Pack{2,2} 74 (Pack{2,2} 77 (Pack{2,2} 80 (Pack{2,2} 83 (Pack{2,2} 86 (Pack{2,2} 89 (Pack{2,2} 92 (Pack{2,2} 95 (Pack{2,2} 98 Pack{1,0}))))))))))))))))))))))))))))))))"
+
+>>> :{
+let prog = [ "ones = Cons 1 ones;"
+           , "head xs = case xs of"
+           , "  <1> -> Pack{1,0};"
+           , "  <2> a b -> Pack{2,1} a;"
+           , "main = head ones"
+           ]
+in runTest (unlines prog)
+:}
+"(Pack{2,1} 1)"
+
+>>> :{
+let prog = [ "plus x y = x + y;"
+           , "sum xs = foldr plus 0 xs;"
+           , "iota x y = if (x > y) Nil (Cons x (iota (x+1) y));"
+           , "double x = 2 * x;"
+           , "main = sum (map double (iota 1 10))"
+           ]
+in runTest (unlines prog)
+:}
+"110"
+
+>>> :{
+let prog = [ "stream n = Cons n (stream (n + 1));"
+           , "take n xs = case xs of"
+           , "  <1> -> Nil;"
+           , "  <2> y ys -> if (n == 0) Nil (Cons y (take (n-1) ys));"
+           , "main = take 10 (stream 1)"
+           ]
+in runTest (unlines prog)
+:}
+"(Pack{2,2} 1 (Pack{2,2} 2 (Pack{2,2} 3 (Pack{2,2} 4 (Pack{2,2} 5 (Pack{2,2} 6 (Pack{2,2} 7 (Pack{2,2} 8 (Pack{2,2} 9 (Pack{2,2} 10 Pack{1,0}))))))))))"
+
+>>> :{
+let prog = [ "mod x y = let d = x / y in x - (d * y);"
+           , "gcd a b = let d = mod a b"
+           , "          in if (d == 0) b (gcd b d);"
+           , "lcm a b = let d = gcd a b"
+           , "          in let xa = a / d;"
+           , "                 xb = b / d"
+           , "             in d * xa * xb;"
+           , "main = let a = 2*3*5  *11;"
+           , "           b =   3*5*7"
+           , "       in Pair (gcd a b) (lcm a b)"
+           ]
+in runTest (unlines prog)
+:}
+"(Pack{0,2} 15 2310)"
+
+>>> :{
+let prog = [ "tak x y z = if (x <= y)"
+           , "               y"
+           , "               (tak (tak (x-1) y z) (tak (y-1) z x) (tak (z-1) x y));"
+           , "main = tak 12 6 0"
+           ]
+in runTest (unlines prog)
+:}
+"12"
+
+>>> runTest "main = seq (putStr (showBool (not True))) (putChar 10)"
+"False\n10"
+
+>>> :{
+let prog = [ "ch x xs = Cons x xs;"
+           , "n = Nil;"
+           , "H = 72;"
+           , "e = 101;"
+           , "l = 108;"
+           , "o = 111;"
+           , "comma = 44;"
+           , "W = 87;"
+           , "r = 114;"
+           , "d = 100;"
+           , "ban = 33;"
+           , "hello = ch H (ch e (ch l (ch l (ch o (ch comma (ch W (ch o (ch r (ch l (ch d (ch ban n)))))))))));"
+           , "main = putStrLn hello"
+           ]
+in runTest (unlines prog)
+:}
+"Hello,World!\n10"
+
+>>> :{
+let prog = [ "psi n = Just (Pair n (n+1));"
+           , "take n xs = case xs of"
+           , "  <1> -> Nil;"
+           , "  <2> y ys -> if (n == 0) Nil (Cons y (take (n-1) ys));"
+           , "main = take 10 (unfoldr psi 1)"
+           ]
+in runTest (unlines prog)
+:}
+"(Pack{2,2} 1 (Pack{2,2} 2 (Pack{2,2} 3 (Pack{2,2} 4 (Pack{2,2} 5 (Pack{2,2} 6 (Pack{2,2} 7 (Pack{2,2} 8 (Pack{2,2} 9 (Pack{2,2} 10 Pack{1,0}))))))))))"
+
+>>> :{
+let prog = [ "showPair p = case p of"
+           , "  <0> f s -> let nr     = putChar 10;"
+           , "                 lparen = putChar 40;"
+           , "                 rparen = putChar 41;"
+           , "                 comma  = putChar 44"
+           , "             in let body = Cons (putNumber f) (Cons comma (Cons (putNumber s) Nil))"
+           , "                in foldr seq nr (bracket lparen body rparen);"
+           , "main = showPair (Pair 42 28)"
+           ]
+in runTest (unlines prog)
+:}
+"(42,28)\n10"
+
+>>> :{
+let prog = [ "nr = putChar 10;"
+           , "lparen = putChar 91;"
+           , "rparen = putChar 93;"
+           , "iota x y = if (x > y) Nil (Cons x (iota (x+1) y));"
+           , "body = intersperse (putChar 44) (map putNumber (iota 1 10));"
+           , "main = foldr seq nr (bracket lparen body rparen)"
+           ]
+in runTest (unlines prog)
+:}
+"[1,2,3,4,5,6,7,8,9,10]\n10"
+
+>>> :{
+let prog = [ "from n = Cons n (from (n+1));"
+           , "take n xxs = case xxs of"
+           , "  <1> -> Nil;"
+           , "  <2> x xs -> if (n == 0) Nil (Cons x (take (n-1) xs));"
+           , "main = putList putNumber (take 10 (from 1))"
+           ]
+in runTest (unlines prog)
+:}
+"[1,2,3,4,5,6,7,8,9,10]93"
+
+>>> :{
+let prog = [ "iota s e = if (s>e) Nil (Cons s (iota (s+1) e));"
+           , "main = putList (putPair putChar putNumber) (map dup (iota 32 127))"
+           ]
+in runTest (unlines prog)
+:}
+"[( ,32),(!,33),(\",34),(#,35),($,36),(%,37),(&,38),(',39),((,40),(),41),(*,42),(+,43),(,,44),(-,45),(.,46),(/,47),(0,48),(1,49),(2,50),(3,51),(4,52),(5,53),(6,54),(7,55),(8,56),(9,57),(:,58),(;,59),(<,60),(=,61),(>,62),(?,63),(@,64),(A,65),(B,66),(C,67),(D,68),(E,69),(F,70),(G,71),(H,72),(I,73),(J,74),(K,75),(L,76),(M,77),(N,78),(O,79),(P,80),(Q,81),(R,82),(S,83),(T,84),(U,85),(V,86),(W,87),(X,88),(Y,89),(Z,90),([,91),(\\,92),(],93),(^,94),(_,95),(`,96),(a,97),(b,98),(c,99),(d,100),(e,101),(f,102),(g,103),(h,104),(i,105),(j,106),(k,107),(l,108),(m,109),(n,110),(o,111),(p,112),(q,113),(r,114),(s,115),(t,116),(u,117),(v,118),(w,119),(x,120),(y,121),(z,122),({,123),(|,124),(},125),(~,126),(\DEL,127)]93"
+
+>>> :{
+let prog = [ "num2chr n = unfoldr psi n;"
+           , "psi n = if (n == 0) Nothing (Just (swap (divMod n 10)));"
+           , "revchr xs = foldr phi I xs Nil;"
+           , "phi b g x = g (Cons (48 + b) x);"
+           , "showNum n = revchr (num2chr n);"
+           , "main = putStrLn (showNum 257)"
+           ]
+in runTest (unlines prog)
+:}
+"257\n10"
+
+>>> :{
+let prog = [ "x1 = Pair Nothing (Just 42);"
+           , "x2 = let xs = Cons 65 (Cons 66 (Cons 67 Nil)) in Pair (Left xs) (Right xs);"
+           , "t1 = let p = putMaybe putNumber in putPair p p x1;"
+           , "t2 = let p = putEither (putList putNumber) (putList putChar) in putPair p p x2;"
+           , "main = seq t1 t2"
+           ]
+in runTest (unlines prog)
+:}
+"(Nothing,Just 42)(Left [65,66,67],Right [A,B,C])0"
+
+>>> runTest "apply f x = f x; test x = apply (Pack{2,2} 42) x; main = test 4"
+"(Pack{2,2} 42 4)"
+
+>>> runTest "prefix p xs = map (f p) xs; f p x = Pack{2,2} p x; main = prefix 42 (Cons 1 Nil)"
+"(Pack{2,2} (Pack{2,2} 42 1) Pack{1,0})"
+
+>>> runTest "prefix p xs = map (Pack{2,2} p) xs; main = prefix 42 (Cons 1 (Cons 2 (Cons 3 Nil)))"
+"(Pack{2,2} (Pack{2,2} 42 1) (Pack{2,2} (Pack{2,2} 42 2) (Pack{2,2} (Pack{2,2} 42 3) Pack{1,0})))"
+
+>>> runTest "f x = Pack{2,2} (case x of <1> -> 1; <2> -> 2) Pack{1,0}; main = f Pack{2,0}"
+"(Pack{2,2} 2 Pack{1,0})"
+
+>>> :{
+let prog = [ "pair x y f = f x y;"
+           , "f p = p K;"
+           , "s p = p K1;"
+           , "g x y = letrec"
+           , "          a = pair x b;"
+           , "          b = pair y a"
+           , "        in f (s (s (s a)));"
+           , "main = g 3 4"
+           ]
+in runTest (unlines prog)
+:}
+"4"
+
+>>> :{
+let prog = [ "pair x y f = f x y;"
+           , "f p = p K;"
+           , "s p = p K1;"
+           , "g x y z = letrec"
+           , "            a = pair x b;"
+           , "            b = pair y c;"
+           , "            c = pair z a"
+           , "          in f (s (s (s a)));"
+           , "main = g 3 4 5"
            ]
 in runTest (unlines prog)
 :}
