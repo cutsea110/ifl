@@ -1,0 +1,9 @@
+Y f = letrec x = f x in x;
+
+facF f n = if (n == 0)
+              1
+	      (n * f (n-1));
+
+fac = Y facF;
+
+main = fac 10
