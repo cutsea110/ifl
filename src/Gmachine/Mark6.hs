@@ -576,7 +576,11 @@ compileR e env = compileE e env ++ [Update n, Pop n, Unwind]
 type GmCompiler = CoreExpr  -> GmEnvironment -> GmCode
 type GmEnvironment = Assoc Name Int
 
+--
 -- Strict scheme
+-- E scheme compiles code that evaluates an expression e to WHNF in the environment,
+-- leaving a pointer to the expression on top of the stack.
+--
 compileE :: GmCompiler
 compileE e env = case e of
   ENum i -> [Pushint i]
@@ -590,12 +594,14 @@ compileE e env = case e of
          [dyadic]
     where dyadic = aLookup builtInDyadic op (error "unknown dyadic")
   EAp (EVar "negate") e0 -> compileE e0 env ++ [Neg]
-  EAp (EConstr t a) _ -> compileC e env
+  EAp (EConstr t a) _ -> compileC e env -- in this case, action is as same as compileC's.
   ECase expr alts
-    -> compileE expr env ++
-       [Casejump (compileAlts compileE' alts env)]
+    -> compileE expr env ++ [Casejump (compileAlts compileE' alts env)]
   _ -> compileC e env ++ [Eval]
 
+--
+-- D scheme compiles the code for the alternatives in a case expression.
+--
 compileAlts :: (Tag -> GmCompiler) -- compiler for alternative bodies
             -> [CoreAlt]           -- the list of alteratives
             -> GmEnvironment       -- the current environment
@@ -606,6 +612,9 @@ compileAlts comp alts env
     , let len = length names
     ]
 
+--
+-- A scheme compiles the code for an alternative in a case expression.
+--
 compileE' :: Int -> GmCompiler
 compileE' offset expr env
   = [Split offset] ++ compileE expr env ++ [Slide offset]
@@ -701,7 +710,11 @@ builtInDyadic
 [Pushglobal "b",Pushint 2,Pushglobal "a",Pushint 4,Pack 1 4]
 
 -}
+--
 -- to Code
+-- C scheme generates code which constructs the graph of e in the environment,
+-- leaving a pointer to it on top of the stack.
+--
 compileC :: GmCompiler
 compileC expr env = case expr of
   (EVar v)
@@ -717,6 +730,7 @@ compileC expr env = case expr of
   (ELet recursive defs e)
     | recursive            -> compileLetrec compileC defs e env
     | otherwise            -> compileLet    compileC defs e env
+  (ECase _ _)              -> compileE expr env
   _                        -> error $ "support this expr: " ++ show expr
   where
     unwrap = either id id
