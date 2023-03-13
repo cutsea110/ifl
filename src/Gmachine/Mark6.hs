@@ -467,6 +467,18 @@ extraPreludeCode
             , "if c t f = case c of"
             , "               <1> -> f;"
             , "               <2> -> t;"
+            , "not x = case x of"
+            , "  <1> -> True;"
+            , "  <2> -> False;"
+            , "and x y = case x of"
+            , "  <1> -> False;"
+            , "  <2> -> y;"
+            , "or x y = case x of"
+            , "  <2> -> True;"
+            , "  <1> -> y;"
+            , "xor x y = case x of"
+            , "  <1> -> y;"
+            , "  <2> -> not y;"
 
             , "Nothing = Pack{0,0};"
             , "Just x = Pack{1,1} x;"
@@ -945,6 +957,150 @@ showStats s = iConcat [ iStr "---------------"
                       ]
 
 {- |
->>> head $ getOutput $ last $ eval $ compile $ parse "main = S K K 3"
+>>> let runTest = concat . getOutput . last . eval . compile . parse
+>>> runTest "main = S K K 3"
+"3"
+
+>>> runTest "id = S K K; main = twice twice twice id 3"
+"3"
+
+>>> :{
+let prog = [ "pair x y f = f x y;"
+           , "f p = p K;"
+           , "s p = p K1;"
+           , "g x y = letrec"
+           , "          a = pair x b;"
+           , "          b = pair y a"
+           , "        in f (s (s (s a)));"
+           , "main = g 3 4"
+           ]
+in runTest (unlines prog)
+:}
+"4"
+
+>>> runTest "id x = x; main = twice twice twice id 5"
+"5"
+
+>>> runTest "main = negate 7"
+"-7"
+
+>>> runTest "main = negate (negate 8)"
+"8"
+
+>>> runTest "main = ((6 / 2) * 6) + (4 * (10 - 4))"
+"42"
+
+>>> runTest "double x = x + x; main = S K K double (double 3)"
+"12"
+
+>>> runTest "double x = x + x; main = double (S K K 3)"
+"6"
+
+>>> runTest "double x = x + x; sq x = S K K (x * x); main = double (sq 3)"
+"18"
+
+>>> runTest "double x = x + x; square x = x * x; main = double (square 3)"
+"18"
+
+>>> runTest "main = if True 1 2"
+"1"
+
+>>> runTest "main = if False 1 2"
+"2"
+
+>>> runTest "main = if (not True) 1 2"
+"2"
+
+>>> runTest "main = if (and True False) 1 2"
+"2"
+
+>>> runTest "main = if (or False True) 1 2"
+"1"
+
+>>> runTest "main = if (xor False True) 1 2"
+"1"
+
+>>> runTest "main = if (xor True False) 1 2"
+"1"
+
+>>> runTest "main = if (xor True True) 1 2"
+"2"
+
+>>> runTest "main = if (xor False False) 1 2"
+"2"
+
+>>> runTest "main = if (and (1 == 1) (2 /= 3)) 1 2"
+"1"
+
+>>> runTest "main = if (and (1 < 2) (2 <= 1)) 1 2"
+"2"
+
+>>> runTest "main = if (or (1 > 2) (2 >= 1)) 1 2"
+"1"
+
+>>> runTest "fac n = if (n==0) 1 (n*fac (n-1)); main = fac 3"
+"6"
+
+>>> runTest "main = fst (snd (fst (Pair (Pair 1 (Pair 2 3)) 4)))"
+"2"
+
+>>> runTest "main = Cons (1+2) (Cons (3+4) Nil)"
+"(Pack{2,2} 3 (Pack{2,2} 7 Pack{1,0}))"
+
+>>> :{
+let prog = [ "foo x y z = x + y + z;"
+           , "bar a b c d e f g h i j = a + b + c + d + e + f + g + h + i + j;"
+           , "buz x y z w = x * y * z * w;"
+           , "main = foo 1 2 3 + bar 1 2 3 4 5 6 7 8 9 10 + buz 1 2 3 4"
+           ]
+in runTest (unlines prog)
+:}
+"85"
+
+>>> runTest "double x = x + x; main = Cons (double (double (S K K 3))) Nil"
+"(Pack{2,2} 12 Pack{1,0})"
+
+>>> runTest "main = let id1 = I I I in id1 id1 3"
+"3"
+
+>>> :{
+let prog = [ "oct g x = let h = twice g"
+           , "          in let k = twice h"
+           , "             in k (k x);"
+           , "main = oct I 4"
+           ]
+in runTest (unlines prog)
+:}
+"4"
+
+>>> :{
+let prog = [ "cons a b cc cn = cc a b;"
+           , "nil      cc cn = cn;"
+           , "hd list = list K abort;"
+           , "tl list = list K1 abort;"
+           , "abort = abort;"
+           , "infinite x = letrec xs = cons x xs"
+           , "             in xs;"
+           , "main = hd (tl (tl (infinite 4)))"
+           ]
+in runTest (unlines prog)
+:}
+"4"
+
+>>> runTest "main = 4*5+(2-5)"
+"17"
+
+>>> runTest "inc x = x+1; main = twice twice inc 4"
+"8"
+
+>>> :{
+let prog = [ "cons a b cc cn = cc a b;"
+           , "nil      cc cn = cn;"
+           , "length xs = xs length1 0;"
+           , "length1 x xs = 1 + length xs;"
+           , "main = length (cons 42 (cons 42 (cons 42 nil)))"
+           ]
+in runTest (unlines prog)
+:}
 "3"
 -}
