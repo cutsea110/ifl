@@ -774,12 +774,12 @@ compileArgs defs env
 -}
 compileLetrec :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLetrec comp defs expr env
-  = [Alloc n] ++ compiled defs (n-1) ++ comp expr env' ++ [Slide n]
+  = [Alloc n] ++ compiled (defs ,n-1) ++ comp expr env' ++ [Slide n]
   where n = length defs
         env' = compileArgs defs env
-        compiled dds i = case dds of
-          [] -> []
-          d:ds -> compileC (snd d) env' ++ [Update i] ++ compiled ds (i-1)
+        compiled (dds, i) = case dds of
+          []        -> []
+          (_, e):ds -> compileC e env' ++ [Update i] ++ compiled (ds, i-1)
 
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v, m) <- env]
