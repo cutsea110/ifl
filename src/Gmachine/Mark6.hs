@@ -771,15 +771,17 @@ compileArgs defs env
 {- |
 >>> compileSc . head . parse $ "Y f = letrec x = f x in x"
 ("Y",1,[Alloc 1,Push 0,Push 2,Mkap,Update 0,Push 0,Eval,Slide 1,Update 1,Pop 1,Unwind])
+
+>>> compileSc . head . parse $ "f x y = letrec a = Pack{0,2} x b; b = Pack{0,2} y a in fst (snd (snd a))"
+("f",2,[Alloc 2,Push 0,Push 3,Pack 0 2,Update 1,Push 1,Push 4,Pack 0 2,Update 0,Push 1,Pushglobal "snd",Mkap,Pushglobal "snd",Mkap,Pushglobal "fst",Mkap,Eval,Slide 2,Update 2,Pop 2,Unwind])
 -}
 compileLetrec :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLetrec comp defs expr env
-  = [Alloc n] ++ compiled (defs ,n-1) ++ comp expr env' ++ [Slide n]
+  = [Alloc n] ++ compiled defs ++ comp expr env' ++ [Slide n]
   where n = length defs
         env' = compileArgs defs env
-        compiled (dds, i) = case dds of
-          []        -> []
-          (_, e):ds -> compileC e env' ++ [Update i] ++ compiled (ds, i-1)
+        compiled dds = fst $ foldr phi ([], 0) dds
+          where phi (_, e) (ds, i) = (compileC e env' ++ [Update i] ++ ds, i+1)
 
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v, m) <- env]

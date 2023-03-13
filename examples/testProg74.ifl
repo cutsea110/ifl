@@ -1,0 +1,8 @@
+pair x y f = f x y;
+f p = p K;
+s p = p K1;
+g x y = letrec
+          a = pair x b;
+	  b = pair y a
+	in f (s (s (s a)));
+main = g 3 4
