@@ -814,10 +814,12 @@ showResults states@(s:ss)
 -- | show dump list
 showSC :: GmState -> (Name, Addr) -> IseqRep 
 showSC s (name, addr)
-  = iConcat [ iStr "Code for ", iStr name, iNewline
-            , showInstructions code, iNewline, iNewline
-            ]
-  where (NGlobal arity code) = hLookup (getHeap s) addr
+  = case hLookup (getHeap s) addr of
+      NGlobal arity code
+        -> iConcat [ iStr "Code for ", iStr name, iNewline
+                   , showInstructions code, iNewline, iNewline
+                   ]
+      e -> error $ "no NGlobal: " ++ show e
 
 showInstructions :: GmCode -> IseqRep
 showInstructions is
