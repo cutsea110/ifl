@@ -1369,6 +1369,25 @@ in runTest (unlines prog)
 "3"
 
 >>> :{
+let prog = [ "undefined = undefined;"
+           , "fact0 n = if (n == 0) 1 (n * undefined (n-1));"
+           , "fact1 n = if (n == 0) 1 (n * fact0 (n-1));"
+           , "fact2 n = if (n == 0) 1 (n * fact1 (n-1));"
+           , "fact3 n = if (n == 0) 1 (n * fact2 (n-1));"
+           , "fact4 n = if (n == 0) 1 (n * fact3 (n-1));"
+           , "fact5 n = if (n == 0) 1 (n * fact4 (n-1));"
+           , "fact6 n = if (n == 0) 1 (n * fact5 (n-1));"
+           , "fact7 n = if (n == 0) 1 (n * fact6 (n-1));"
+           , "fact8 n = if (n == 0) 1 (n * fact7 (n-1));"
+           , "fact9 n = if (n == 0) 1 (n * fact8 (n-1));"
+           , "fact  n = if (n == 0) 1 (n * fact9 (n-1));"
+           , "main = fact 10"
+           ]
+in runTest (unlines prog)
+:}
+"3628800"
+
+>>> :{
 let prog = [ "F f n = if (n == 0)"
            , "           1"
            , "           (n * f (n-1));"
