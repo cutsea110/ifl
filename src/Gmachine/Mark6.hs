@@ -7,7 +7,6 @@ module Gmachine.Mark6
   , runProg
   ) where
 
-import Data.Maybe
 import Heap
 import Iseq
 import Language
@@ -317,7 +316,7 @@ readPack s = case res of
   [] -> Nothing
   ((t, a), []):_ -> Just (Pack t a)
   _ -> error "failed to parse for Pack"
-  where res = P.runParser pConstr (clex 1 s)
+  where res = P.runParser pConstr (clex 0 s)
 
 
 pushglobal :: Name -> GmState -> GmState

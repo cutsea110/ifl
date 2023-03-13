@@ -20,7 +20,6 @@ import Data.Char (isAlpha, isDigit, isSpace)
 
 import Iseq
 import Parser
-import Utils
 
 data Expr a
   = EVar Name
