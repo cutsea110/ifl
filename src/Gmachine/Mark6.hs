@@ -16,8 +16,10 @@ import Utils
 import Data.Char (chr, ord)
 import Data.List (mapAccumL, (\\))
 
-runProg :: String -> String
-runProg = showResults . eval . compile . parse
+runProg :: Bool -> String -> String
+runProg verbose = p . eval . compile . parse
+  where p | verbose   = showResults
+          | otherwise = showSimpleResult
 
 data GmState = GmState { output  :: GmOutput
                        , code    :: GmCode
@@ -28,7 +30,19 @@ data GmState = GmState { output  :: GmOutput
                        , stats   :: GmStats
                        }
 
-type GmOutput = [String]
+type GmOutput = ([String], IseqRep)
+initialOutput :: GmOutput
+initialOutput = ([], iNil)
+
+pushOutput :: String -> GmOutput -> GmOutput
+pushOutput s (o, _) = (o ++ [s], iStr s)
+outputAll :: GmOutput -> String
+outputAll (o, _) = concat o
+outputLast :: GmOutput -> IseqRep
+outputLast (_, s) = s
+clearOutputLast :: GmOutput -> GmOutput
+clearOutputLast (o, _) = (o, iNil)
+
 getOutput :: GmState -> GmOutput
 getOutput state = output state
 
@@ -144,8 +158,14 @@ gmFinal :: GmState -> Bool
 gmFinal s = null $ getCode s
 
 step :: GmState -> GmState
-step state = dispatch i (putCode is state)
-  where i:is = getCode state
+step state = case code of
+  [] -> error "no code"
+  (i:is) -> dispatch i
+            . putOutput (clearOutputLast o)
+            . putCode is
+            $ state
+  where code = getCode state
+        o = getOutput state
 
 dispatch :: Instruction -> GmState -> GmState
 dispatch (Pushglobal f) = pushglobal f
@@ -277,10 +297,10 @@ split n state = putStack s'' state
 
 gmprint :: GmState -> GmState
 gmprint state = case hLookup h a of
-          NNum n -> putOutput (o ++ [show n])
+          NNum n -> putOutput (pushOutput (show n) o)
                     . putStack s
                     $ state
-          NConstr t as -> putOutput (o ++ [lparen ++ showConstr t (length as)])
+          NConstr t as -> putOutput (pushOutput (lparen ++ showConstr t (length as)) o)
                           . putCode (printcode as ++ rparen ++ i)
                           . putStack (foldr S.push s as)
                           $ state
@@ -297,7 +317,7 @@ gmprint state = case hLookup h a of
 
 putchar :: GmState -> GmState
 putchar state = case hLookup h a of
-  NNum n -> putOutput (o ++ [[chr n]])
+  NNum n -> putOutput (pushOutput [chr n] o)
             . putStack s
             $ state
   _ -> error "can not putchar"
@@ -428,7 +448,7 @@ unwind state = newState (hLookup heap a)
 
 
 compile :: CoreProgram -> GmState
-compile program = GmState { output  = []
+compile program = GmState { output  = initialOutput
                           , code    = initialCode
                           , stack   = S.emptyStack
                           , dump    = S.emptyStack
@@ -789,6 +809,9 @@ compileLetrec comp defs expr env
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v, m) <- env]
 
+showSimpleResult :: [GmState] -> String
+showSimpleResult states = concatMap (iDisplay . outputLast . getOutput) states
+
 showResults :: [GmState] -> String
 showResults [] = error "no GmState"
 showResults states@(s:ss)
@@ -873,7 +896,7 @@ showState s
 
 showOutput :: GmState -> IseqRep
 showOutput s
-  = iConcat [iStr "Output:\"", iStr (concat (getOutput s)), iStr "\""]
+  = iConcat [iStr "Output:\"", iStr (outputAll (getOutput s)), iStr "\""]
 
 showDump :: GmState -> IseqRep
 showDump s
@@ -950,7 +973,7 @@ showStats s = iConcat [ iStr "---------------"
                       ]
 
 {- |
->>> let runTest = concat . getOutput . last . eval . compile . parse
+>>> let runTest = outputAll . getOutput . last . eval . compile . parse
 >>> runTest "main = S K K 3"
 "3"
 
