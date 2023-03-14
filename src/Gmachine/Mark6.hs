@@ -16,8 +16,10 @@ import Utils
 import Data.Char (chr, ord)
 import Data.List (mapAccumL, (\\))
 
-runProg :: String -> String
-runProg = showResults . eval . compile . parse
+runProg :: Bool -> String -> String
+runProg verbose = p . eval . compile . parse
+  where p | verbose   = showResults
+          | otherwise = showSimpleResult
 
 data GmState = GmState { output  :: GmOutput
                        , code    :: GmCode
@@ -808,8 +810,7 @@ argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v, m) <- env]
 
 showSimpleResult :: [GmState] -> String
-showSimpleResult [] = error "no GmState"
-showSimpleResult states = iDisplay $ iConcat (map (outputLast . getOutput) states)
+showSimpleResult states = concatMap (iDisplay . outputLast . getOutput) states
 
 showResults :: [GmState] -> String
 showResults [] = error "no GmState"

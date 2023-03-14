@@ -6,7 +6,10 @@ import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import System.Console.GetOpt
 import System.Environment (getArgs)
-import System.IO (getContents, hPutStr, hPutStrLn, stdout, stderr)
+import System.IO (getContents, hPutStr, hPutStrLn
+                 , stdout, stderr
+                 , hSetBuffering, BufferMode(..)
+                 )
 
 import qualified Template.Mark1 as Mark1 (runProg)
 import qualified Template.Mark2 as Mark2 (runProg)
@@ -24,7 +27,6 @@ import qualified Gmachine.Mark3 as GMark3 (runProg)
 import qualified Gmachine.Mark4 as GMark4 (runProg)
 import qualified Gmachine.Mark5 as GMark5 (runProg)
 import qualified Gmachine.Mark6 as GMark6 (runProg)
-
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -53,7 +55,7 @@ executer e verbose = hPutStr stdout .
      GMark3        -> GMark3.runProg
      GMark4        -> GMark4.runProg
      GMark5        -> GMark5.runProg
-     GMark6        -> GMark6.runProg
+     GMark6        -> GMark6.runProg verbose
      (Noco name)   -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
   )
 
@@ -70,7 +72,7 @@ data Compiler
   deriving Show
 
 data Options = Options
-  { optVerbose     :: Bool -- TODO
+  { optVerbose     :: Bool
   , optShowVersion :: Bool
   , optCompiler    :: Compiler
   }
@@ -144,5 +146,9 @@ main :: IO ()
 main = do
   args <- getArgs
   (opts, rest) <- compilerOpts args
+
+  when (not (optVerbose opts)) $ do
+    hSetBuffering stdout NoBuffering
+
   if null rest then hPutStr stderr helpMessage
     else forM_ rest (run opts)
