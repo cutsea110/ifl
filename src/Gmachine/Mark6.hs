@@ -177,10 +177,10 @@ dispatch Print          = gmprint
 dispatch PutChar        = putchar
 
 evalop :: GmState -> GmState
-evalop state = state { code  = [Unwind]
-                     , stack = S.push a S.emptyStack
-                     , dump  = S.push (i, s) d
-                     }
+evalop state = putCode    [Unwind]
+               . putStack (S.push a S.emptyStack)
+               . putDump  (S.push (i, s) d)
+               $ state
   where d = getDump state
         (a, s) = S.pop (getStack state)
         i = getCode state
@@ -246,18 +246,16 @@ cond i1 i2 state = case hLookup heap a of
         (a, stack') = S.pop stack
 
 pack :: Tag -> Arity -> GmState -> GmState
-pack t n state
-  = state { stack = S.push a s'
-          , heap  = h'
-          }
+pack t n state = putStack (S.push a s')
+                 . putHeap h'
+                 $ state
   where (as, s') = S.nPop n (getStack state)
         d = NConstr t as
         h = getHeap state
         (h', a) = hAlloc h d
 
 casejump :: [(Tag, GmCode)] -> GmState -> GmState
-casejump bs state = state { code = i' ++ i
-                          }
+casejump bs state = putCode (i' ++ i) state
   where (a, _) = S.pop (getStack state)
         i = getCode state
         h = getHeap state
@@ -268,8 +266,7 @@ casejump bs state = state { code = i' ++ i
           _ -> error "not data structure"
 
 split :: Int -> GmState -> GmState
-split n state = state { stack = s''
-                      }
+split n state = putStack s'' state
   where (a, s') = S.pop (getStack state)
         d = hLookup (getHeap state) a
         s'' = case d of
@@ -280,13 +277,13 @@ split n state = state { stack = s''
 
 gmprint :: GmState -> GmState
 gmprint state = case hLookup h a of
-          NNum n -> state { output = o ++ [show n]
-                          , stack  = s
-                          }
-          NConstr t as -> state { output = o ++ [lparen ++ showConstr t (length as)]
-                                , code   = printcode as ++ rparen ++ i
-                                , stack  = foldr S.push s as
-                                }
+          NNum n -> putOutput (o ++ [show n])
+                    . putStack s
+                    $ state
+          NConstr t as -> putOutput (o ++ [lparen ++ showConstr t (length as)])
+                          . putCode (printcode as ++ rparen ++ i)
+                          . putStack (foldr S.push s as)
+                          $ state
             where len = length as
                   needParen = len > 0
                   (lparen, rparen) = if not needParen then ("", [])
@@ -300,9 +297,9 @@ gmprint state = case hLookup h a of
 
 putchar :: GmState -> GmState
 putchar state = case hLookup h a of
-  NNum n -> state { output = o ++ [[chr n]]
-                  , stack  = s
-                  }
+  NNum n -> putOutput (o ++ [[chr n]])
+            . putStack s
+            $ state
   _ -> error "can not putchar"
   where (a, s) = S.pop (getStack state)
         h = getHeap state
@@ -321,23 +318,18 @@ readPack s = case res of
 
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state = case readPack f of
-  Nothing
-    -> state { stack = S.push a stack
-             }
+  Nothing                      -> putStack (S.push a stack) state
 
   Just (Pack tag arity)
-    | f `elem` aDomain globals
-      -> state { stack = S.push a stack
-               }
-    | otherwise
-      -> state { stack   = S.push a stack
-               , heap    = h'
-               , globals = aInsert globals (showConstr tag arity) a
-               }
+    | f `elem` aDomain globals -> putStack (S.push a stack) state
+    | otherwise                -> putStack (S.push a stack)
+                                  . putHeap h'
+                                  . putGlobals (aInsert globals (showConstr tag arity) a)
+                                  $ state
     where a = aLookup globals f a'
           (h', a') = hAlloc heap gNode
           gNode = NGlobal arity [Pack tag arity, Update 0, Unwind]
-  Just _ -> error "pushglobal: not Pack"
+  Just _                       -> error "pushglobal: not Pack"
   where stack = getStack state
         heap = getHeap state
         globals = getGlobals state
@@ -345,12 +337,11 @@ pushglobal f state = case readPack f of
 
 pushint :: Int -> GmState -> GmState
 pushint n state = case aLookup (getGlobals state) name (-1) of
-  a' | a' < 0    -> state { stack   = S.push a (getStack state)
-                          , heap    = heap'
-                          , globals = aInsert (getGlobals state) name a'
-                          }
-     | otherwise -> state { stack = S.push a' (getStack state)
-                          }
+  a' | a' < 0    -> putStack (S.push a (getStack state))
+                    . putHeap heap'
+                    . putGlobals (aInsert (getGlobals state) name a')
+                    $ state
+     | otherwise -> putStack (S.push a' (getStack state)) state
   where name = show n
         (heap', a) = hAlloc (getHeap state) (NNum n)
 
@@ -381,9 +372,9 @@ slide n state = putStack (S.push a $ S.discard n s) state
   where (a, s) = S.pop $ getStack state
 
 alloc :: Int -> GmState -> GmState
-alloc n state = state { stack = stack2
-                      , heap  = heap2
-                      }
+alloc n state = putStack stack2
+                . putHeap heap2
+                $ state
   where heap1 = getHeap state
         (heap2, addrs) = allocNodes n heap1
         stack1 = getStack state
@@ -414,10 +405,10 @@ unwind state = newState (hLookup heap a)
         dump   = getDump state
         newState (NNum n)
           | S.isEmpty dump = putCode [] state
-          | otherwise      = state { code  = i'
-                                   , stack = S.push a s'
-                                   , dump  = d
-                                   }
+          | otherwise      = putCode i'
+                             . putStack (S.push a s')
+                             . putDump d
+                             $ state
           where ((i', s'), d) = S.pop dump
         newState (NAp a1 a2) = putCode [Unwind] (putStack (S.push a1 s) state)
         newState (NGlobal n c)
@@ -429,10 +420,10 @@ unwind state = newState (hLookup heap a)
         newState (NInd a1) = putCode [Unwind] (putStack (S.push a1 s1) state)
         newState (NConstr _ _)
           | S.isEmpty dump = putCode [] state
-          | otherwise      = state { code  = i'
-                                   , stack = S.push a s'
-                                   , dump  = d
-                                   }
+          | otherwise      = putCode i'
+                             . putStack (S.push a s')
+                             . putDump d
+                             $ state
           where ((i', s'), d) = S.pop dump
 
 
