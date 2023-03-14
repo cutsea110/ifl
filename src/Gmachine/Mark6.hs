@@ -177,9 +177,9 @@ dispatch Print          = gmprint
 dispatch PutChar        = putchar
 
 evalop :: GmState -> GmState
-evalop state = state { code = [Unwind]
+evalop state = state { code  = [Unwind]
                      , stack = S.push a S.emptyStack
-                     , dump = S.push (i, s) d
+                     , dump  = S.push (i, s) d
                      }
   where d = getDump state
         (a, s) = S.pop (getStack state)
@@ -281,11 +281,11 @@ split n state = state { stack = s''
 gmprint :: GmState -> GmState
 gmprint state = case hLookup h a of
           NNum n -> state { output = o ++ [show n]
-                          , stack = s
+                          , stack  = s
                           }
           NConstr t as -> state { output = o ++ [lparen ++ showConstr t (length as)]
-                                , code = printcode as ++ rparen ++ i
-                                , stack = foldr S.push s as
+                                , code   = printcode as ++ rparen ++ i
+                                , stack  = foldr S.push s as
                                 }
             where len = length as
                   needParen = len > 0
@@ -301,7 +301,7 @@ gmprint state = case hLookup h a of
 putchar :: GmState -> GmState
 putchar state = case hLookup h a of
   NNum n -> state { output = o ++ [[chr n]]
-                  , stack = s
+                  , stack  = s
                   }
   _ -> error "can not putchar"
   where (a, s) = S.pop (getStack state)
@@ -330,8 +330,8 @@ pushglobal f state = case readPack f of
       -> state { stack = S.push a stack
                }
     | otherwise
-      -> state { stack = S.push a stack
-               , heap = h'
+      -> state { stack   = S.push a stack
+               , heap    = h'
                , globals = aInsert globals (showConstr tag arity) a
                }
     where a = aLookup globals f a'
@@ -345,8 +345,8 @@ pushglobal f state = case readPack f of
 
 pushint :: Int -> GmState -> GmState
 pushint n state = case aLookup (getGlobals state) name (-1) of
-  a' | a' < 0    -> state { stack = S.push a (getStack state)
-                          , heap = heap'
+  a' | a' < 0    -> state { stack   = S.push a (getStack state)
+                          , heap    = heap'
                           , globals = aInsert (getGlobals state) name a'
                           }
      | otherwise -> state { stack = S.push a' (getStack state)
@@ -414,9 +414,9 @@ unwind state = newState (hLookup heap a)
         dump   = getDump state
         newState (NNum n)
           | S.isEmpty dump = putCode [] state
-          | otherwise      = state { code = i'
+          | otherwise      = state { code  = i'
                                    , stack = S.push a s'
-                                   , dump = d
+                                   , dump  = d
                                    }
           where ((i', s'), d) = S.pop dump
         newState (NAp a1 a2) = putCode [Unwind] (putStack (S.push a1 s) state)
@@ -429,21 +429,21 @@ unwind state = newState (hLookup heap a)
         newState (NInd a1) = putCode [Unwind] (putStack (S.push a1 s1) state)
         newState (NConstr _ _)
           | S.isEmpty dump = putCode [] state
-          | otherwise      = state { code = i'
+          | otherwise      = state { code  = i'
                                    , stack = S.push a s'
-                                   , dump = d
+                                   , dump  = d
                                    }
           where ((i', s'), d) = S.pop dump
 
 
 compile :: CoreProgram -> GmState
-compile program = GmState { output = []
-                          , code = initialCode
-                          , stack = S.emptyStack
-                          , dump = S.emptyStack
-                          , heap = heap
+compile program = GmState { output  = []
+                          , code    = initialCode
+                          , stack   = S.emptyStack
+                          , dump    = S.emptyStack
+                          , heap    = heap
                           , globals = globals
-                          , stats = statInitial
+                          , stats   = statInitial
                           }
   where (heap, globals) = buildInitialHeap program
 
