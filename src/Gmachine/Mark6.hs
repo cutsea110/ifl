@@ -1390,9 +1390,7 @@ in runTest (unlines prog)
 "3628800"
 
 >>> :{
-let prog = [ "F f n = if (n == 0)"
-           , "           1"
-           , "           (n * f (n-1));"
+let prog = [ "F f n = if (n == 0) 1 (n * f (n-1));"
            , "fac = F fac;"
            , "main = fac 10"
            ]
@@ -1402,9 +1400,7 @@ in runTest (unlines prog)
 
 >>> :{
 let prog = [ "Y f = letrec x = f x in x;"
-           , "facF f n = if (n == 0)"
-           , "              1"
-           , "              (n * f (n-1));"
+           , "facF f n = if (n == 0) 1 (n * f (n-1));"
            , "fac = Y facF;"
            , "main = fac 10"
            ]
