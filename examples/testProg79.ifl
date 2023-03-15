@@ -1,0 +1,2 @@
+repeat x = Cons x (repeat x);
+main = repeat 42
