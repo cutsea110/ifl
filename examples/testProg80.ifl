@@ -31,4 +31,14 @@ unfoldrNEL psi x = case psi x of
   <2> p -> case p of
     <2> a b -> NELCons a (unfoldrNEL psi b);
 
+extract x = case x of
+  <1> x   -> x;
+  <2> x y -> x;
+subtract = compose (either (K Nothing) (compose Just snd)) outNEL;
+
+phi x = case x of
+  <0>   -> 0;
+  <1> x -> extract x + maybe 1 extract (subtract x);
+psi n = if (n == 0) Nothing (Just (n-1));
+
 main = NELUnit 3
