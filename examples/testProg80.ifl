@@ -52,4 +52,4 @@ phi x = case x of
   <1> x -> extract x + maybe 1 extract (subtract x);
 psi n = if (n == 0) Nothing (Just (n-1));
 
-main = dyna phi psi 20
+main = dyna phi psi 21
