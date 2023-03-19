@@ -1,3 +1,7 @@
+B f g x = f (g x);
+F a b c = a (b c) c;
+G a b c d = F a b (c d);
+
 mapMaybe f x = case x of
   <0>   -> Nothing;
   <1> y -> Just (f y);
@@ -36,15 +40,12 @@ unfoldrNEL psi x = case psi x of
 extract x = case x of
   <1> x   -> x;
   <2> x y -> x;
-subtract = compose (either (K Nothing) (compose Just snd)) outNEL;
-
-F a b c = a (b c) c;
-G a b c d = F a b (c d);
+subtract = B (either (K Nothing) (B Just snd)) outNEL;
 
 histo phi = letrec
-              u = G (S (compose maybe NELUnit) NELCons) phi (compose (mapMaybe u) out)
-            in compose extract u;
-dyna f g = compose (histo f) (unfoldn g);
+              u = G (S (B maybe NELUnit) NELCons) phi (B (mapMaybe u) out)
+            in B extract u;
+dyna f g = B (histo f) (unfoldn g);
 
 phi x = case x of
   <0>   -> 0;
