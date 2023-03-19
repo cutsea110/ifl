@@ -36,6 +36,9 @@ extract x = case x of
   <2> x y -> x;
 subtract = compose (either (K Nothing) (compose Just snd)) outNEL;
 
+histo phi = undefined;
+dyna f g = compose (histo f) (unfoldn g);
+
 phi x = case x of
   <0>   -> 0;
   <1> x -> extract x + maybe 1 extract (subtract x);
