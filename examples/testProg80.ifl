@@ -1,0 +1,34 @@
+pair f g x = Pair (f x) (g x);
+
+Zero = Pack{0,0};
+Succ n = Pack{1,1} n;
+
+foldn c f n = case n of
+  <0>   -> c;
+  <1> m -> f (foldn c f m);
+
+unfoldn psi x = case (psi x) of
+  <0> -> Zero;
+  <1> y -> Succ (unfoldn psi y);
+
+out n = case n of
+  <0>   -> Nothing;
+  <1> m -> Just m;
+
+NELUnit x = Pack{1,1} x;
+NELCons x y = Pack{2,2} x y;
+
+outNEL nel = case nel of
+  <1> x -> Left x;
+  <2> x xs -> Right (Pair x xs);
+
+foldrNEL c f nel = case nel of
+  <1> x -> c x;
+  <2> x y -> f x (foldrNEL c f y);
+
+unfoldrNEL psi x = case psi x of
+  <1> a -> NELUnit a;
+  <2> p -> case p of
+    <2> a b -> NELCons a (unfoldrNEL psi b);
+
+main = NELUnit 3
