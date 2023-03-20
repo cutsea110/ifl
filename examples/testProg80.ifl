@@ -24,11 +24,11 @@ unit x = Pack{1,1} x;
 cons x y = Pack{2,2} x y;
 
 unwrap nel = case nel of
-  <1> x -> Left x;
+  <1> x    -> Left x;
   <2> x xs -> Right (Pair x xs);
 
 fold c f nel = case nel of
-  <1> x -> c x;
+  <1> x   -> c x;
   <2> x y -> f x (fold c f y);
 
 unfold psi x = case psi x of
