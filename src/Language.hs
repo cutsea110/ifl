@@ -657,9 +657,16 @@ keywords = ["let", "letrec", "in", "case", "of", "Pack"]
 syntax :: [Token] -> CoreProgram
 syntax = takeFirstParse . runParser pProgram
   where
-    takeFirstParse ((prog, []) : others) = prog
-    takeFirstParse (parse      : others) = takeFirstParse others
-    takeFirstParse other                 = error "syntax error"
+    takeFirstParse ((prog, []):other) = prog
+    takeFirstParse ((prog, xs):other) = error msg
+      where (n, w):_ = xs
+            msg = unlines [ "syntax error:"
+                          , "-----------------"
+                          , pprint prog
+                          , "-----------------"
+                          , "source line " ++ show n ++ ": Got " ++ w
+                          ]
+    takeFirstParse other              = error "syntax error"
 
 pProgram :: Parser CoreProgram
 pProgram = pOneOrMoreWithSep pSc (pLit ";")
