@@ -1,6 +1,5 @@
 B f g x = f (g x);
-F a b c = a (b c) c;
-G a b c d = F a b (c d);
+G a b c d = let e = c d in a (b e) e;
 
 fmap f x = case x of
   <0>   -> Nothing;
