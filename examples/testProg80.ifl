@@ -12,7 +12,7 @@ foldn c f n = case n of
   <0>   -> c;
   <1> m -> f (foldn c f m);
 
-unfoldn psi x = case (psi x) of
+unfoldn psi x = case psi x of
   <0> -> Zero;
   <1> y -> Succ (unfoldn psi y);
 
@@ -39,7 +39,7 @@ unfold psi x = case psi x of
 extract x = case x of
   <1> x   -> x;
   <2> x y -> x;
-sub x = case (unwrap x) of
+sub x = case unwrap x of
   <1> x -> Nothing;
   <2> p -> case p of
     <0> a b -> Just b;
