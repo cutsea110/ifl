@@ -150,5 +150,6 @@ main = do
   when (not (optVerbose opts)) $ do
     hSetBuffering stdout NoBuffering
 
-  if null rest then hPutStr stderr helpMessage
-    else forM_ rest (run opts)
+  case rest of
+    [] -> hPutStr stderr helpMessage
+    (src:_) -> run opts src
