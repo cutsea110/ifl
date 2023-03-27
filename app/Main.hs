@@ -100,7 +100,7 @@ options :: [OptDescr (Options -> Options)]
 options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optCompiler = decide e}) "Compiler")
             ("compiler name (" ++ intercalate " | " compilerNames ++ ")")
           , Option ['v']      ["verbose"]   (NoArg (\opts -> opts {optVerbose = True}))
-            "chatty output on stderr"
+            "step output on stderr"
           , Option ['V', '?'] ["version"]   (NoArg (\opts -> opts {optShowVersion = True}))
             "show version"
           ]
