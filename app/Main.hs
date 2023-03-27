@@ -133,7 +133,8 @@ helpMessage =
 
 run :: Options -> FilePath -> IO ()
 run opts fp = do
-  when verbose preprint
+  when verbose $ do
+    preprint
   prog <- readFile fp
   executer compiler verbose prog
   where
