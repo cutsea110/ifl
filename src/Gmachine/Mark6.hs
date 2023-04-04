@@ -1473,4 +1473,20 @@ let prog = [ "B f g x = f (g x);"
 in runTest (unlines prog)
 :}
 "6765"
+
+>>> :{
+let prog = [ "Zero = Pack{0,0};"
+           , "Succ n = Pack{1,1} n;"
+           , "foldn c f n = case n of"
+           , "  <0>   -> c;"
+           , "  <1> m -> f (foldn c f m);"
+           , "tasu x y = foldn x Succ y;"
+           , "next p = case p of"
+           , "  <0> x y -> Pair y (tasu x y);"
+           , "fib n = fst (foldn (Pair Zero (Succ Zero)) next n);"
+           , "main = fib (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero)))))))"
+           ]
+in runTest (unlines prog)
+:}
+"(Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} Pack{0,0})))))))))))))"
 -}
