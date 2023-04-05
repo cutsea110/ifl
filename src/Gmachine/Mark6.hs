@@ -1422,7 +1422,6 @@ in runTest (unlines prog)
 :}
 "3628800"
 
-
 >>> :{
 let prog = [ "B f g x = f (g x);"
            , "G a b c d = let e = c d in a (b e) e;"
