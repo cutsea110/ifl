@@ -3,7 +3,7 @@ Succ n = Pack{1,1} n;
 foldn c f n = case n of
   <0>   -> c;
   <1> m -> f (foldn c f m);
-add x y = foldn x Succ y;
+add x y = foldn y Succ x;
 toNat i = if (i == 0) Zero (Succ (toNat (i-1)));
 fromNat n = case n of
   <0> -> 0;
@@ -13,4 +13,4 @@ next p = case p of
   <0> x y -> Pair y (add x y);
 fib n = fst (foldn (Pair Zero (Succ Zero)) next n);
 
-main = fromNat (fib (toNat 10))
+main = fromNat (fib (toNat 20))
