@@ -112,7 +112,7 @@ compilerOpts argv =
   case getOpt Permute options argv of
     (o, n, []  ) -> return (foldl (flip id) defaultOptions o, n)
     (_, _, errs) -> ioError (userError (concat errs ++ usageInfo header options))
-  where header = "Usage: cabal v2-run ifl -- [OPTION...] <program-file>"
+  where header = "Usage: cabal run ifl -- [OPTION...] <program-file>"
 
 ---------------------------------------------------------------
 -- MAIN
@@ -127,7 +127,7 @@ helpMessage =
           , " _/ // __/ / /___"
           , "/___/_/   /_____/ Implimenting Functional Languages"
           , ""
-          , "> cabal v2-run ifl -- [OPTION...] <program-file>"
+          , "> cabal run ifl -- [OPTION...] <program-file>"
           , usageInfo "OPTION" options
           ]
 
