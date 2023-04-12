@@ -17,9 +17,9 @@ import Data.Char (chr, ord)
 import Data.List (mapAccumL, (\\))
 
 runProg :: Bool -> String -> String
-runProg verbose = p . eval . compile . parse
-  where p | verbose   = showResults
-          | otherwise = showSimpleResult
+runProg verbose = showR . eval . compile . parse
+  where showR | verbose   = showResults
+              | otherwise = showSimpleResult
 
 data GmState = GmState { output  :: GmOutput
                        , code    :: GmCode
