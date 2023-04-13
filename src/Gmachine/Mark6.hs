@@ -63,8 +63,8 @@ data Instruction
   | Pushglobal Name
   | Pushint Int
   | Mkap
-  | Push Int -- push offset
-  | Pop Int  -- pop offset
+  | Push Int   -- push offset
+  | Pop Int    -- pop offset
   | Update Int -- update offset by stack top
   | Slide Int
   | Alloc Int
@@ -462,7 +462,6 @@ buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
   where
     compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program) ++ compiledPrimitives
-    -- compiled = map compileSc program
 
 extraPreludeCode :: String
 extraPreludeCode
