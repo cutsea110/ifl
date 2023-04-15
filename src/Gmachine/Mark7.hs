@@ -24,6 +24,7 @@ runProg verbose = showR . eval . compile . parse
 data GmState = GmState { output  :: GmOutput
                        , code    :: GmCode
                        , stack   :: GmStack
+                       , vstack  :: GmVStack
                        , dump    :: GmDump
                        , heap    :: GmHeap
                        , globals :: GmGlobals
@@ -86,6 +87,14 @@ getStack state = stack state
 
 putStack :: GmStack -> GmState -> GmState
 putStack stack' state = state { stack = stack' }
+
+type GmVStack = S.Stack Int
+
+getVStack :: GmState -> GmVStack
+getVStack state = vstack state
+
+putVStack :: GmVStack -> GmState -> GmState
+putVStack vstack' state = state { vstack = vstack' }
 
 type GmDump = S.Stack GmDumpItem
 type GmDumpItem = (GmCode, GmStack)
