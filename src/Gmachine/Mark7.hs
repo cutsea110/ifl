@@ -518,6 +518,7 @@ compile :: CoreProgram -> GmState
 compile program = GmState { output  = initialOutput
                           , code    = initialCode
                           , stack   = S.emptyStack
+                          , vstack  = S.emptyStack
                           , dump    = S.emptyStack
                           , heap    = heap
                           , globals = globals
@@ -528,7 +529,8 @@ compile program = GmState { output  = initialOutput
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
   where
-    compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program) ++ compiledPrimitives
+    compiled = map compileSc (preludeDefs ++ program ++ primitives)
+    -- compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program ++ primitives)
 
 extraPreludeCode :: String
 extraPreludeCode
@@ -619,6 +621,26 @@ extraPreludeCode
 extraPreludeDefs :: CoreProgram
 extraPreludeDefs = parse extraPreludeCode
 
+primitives :: [CoreScDefn]
+primitives
+  = [ ("+", ["x", "y"], EAp (EAp (EVar "+") (EVar "x")) (EVar "y"))
+    , ("-", ["x", "y"], EAp (EAp (EVar "-") (EVar "x")) (EVar "y"))
+    , ("*", ["x", "y"], EAp (EAp (EVar "*") (EVar "x")) (EVar "y"))
+    , ("/", ["x", "y"], EAp (EAp (EVar "/") (EVar "x")) (EVar "y"))
+    , ("negate", ["x"], EAp (EVar "negate") (EVar "x"))
+    , ("==", ["x", "y"], EAp (EAp (EVar "==") (EVar "x")) (EVar "y"))
+    , ("/=", ["x", "y"], EAp (EAp (EVar "/=") (EVar "x")) (EVar "y"))
+    , ("<", ["x", "y"], EAp (EAp (EVar "<") (EVar "x")) (EVar "y"))
+    , ("<=", ["x", "y"], EAp (EAp (EVar "<=") (EVar "x")) (EVar "y"))
+    , (">", ["x", "y"], EAp (EAp (EVar ">") (EVar "x")) (EVar "y"))
+    , (">=", ["x", "y"], EAp (EAp (EVar ">=") (EVar "x")) (EVar "y"))
+
+    , ("if", ["c", "t", "f"], EAp (EAp (EAp (EVar "if") (EVar "c")) (EVar "t")) (EVar "f"))
+    , ("True", [], EConstr 2 0)
+    , ("False", [], EConstr 1 0)
+    ]
+
+{--
 compiledPrimitives :: [GmCompiledSC]
 compiledPrimitives
   = [ ("+", 2, [Push 1, Eval, Push 1, Eval, Add, Update 2, Pop 2, Unwind])
@@ -637,6 +659,7 @@ compiledPrimitives
     , ("putNumber", 1, [Push 0, Eval, Print, Unwind])
     , ("putChar", 1, [Push 0, Eval, PutChar, Unwind])
     ]
+--}
 
 type GmCompiledSC = (Name, Int, GmCode)
 
@@ -874,6 +897,35 @@ compileLetrec comp defs expr env
 
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v, m) <- env]
+
+compileB :: GmCompiler
+compileB expr env = case expr of
+  (ENum n) -> [Pushbasic n]
+  (ELet recursive defs e)
+    | recursive -> compileLetrecB compileB defs e env
+    | otherwise -> compileLetB    compileB defs e env
+  (EAp (EAp (EVar op) e0) e1)
+    | op `elem` aDomain builtInDyadic
+      -> compileB e1 env ++ compileB e0 env ++ [op']
+         where op' = aLookup builtInDyadic op (error "invalid dyadic operator")
+  (EAp (EVar "negate") e)
+    -> compileB e env ++ [Neg]
+  (EAp (EAp (EAp (EVar "if") e0) e1) e2)
+    -> compileB e0 env ++ [Cond (compileB e1 env) (compileB e2 env)]
+  e -> compileE e env ++ [Get]
+
+compileLetrecB :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
+compileLetrecB comp defs expr env
+  = [Alloc n] ++ compiled defs ++ comp expr env' ++ [Pop n]
+  where n = length defs
+        env' = compileArgs defs env
+        compiled dds = fst $ foldr phi ([], 0) dds
+          where phi (_, e) (ds, i) = (compileC e env' ++ [Update i] ++ ds, i+1)
+
+compileLetB :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
+compileLetB comp defs expr env
+  = compileLet' defs env ++ comp expr env' ++ [Pop (length defs)]
+  where env' = compileArgs defs env
 
 showSimpleResult :: [GmState] -> String
 showSimpleResult states = concatMap (iDisplay . outputLast . getOutput) states
