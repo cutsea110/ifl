@@ -529,9 +529,7 @@ compile program = GmState { output  = initialOutput
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
   where
-    -- TODO: restore extra prelude
-    compiled = map compileSc (preludeDefs ++ program ++ primitives)
-    -- compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program ++ primitives)
+    compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program ++ primitives) ++ compiledPrimitives
 
 extraPreludeCode :: String
 extraPreludeCode
@@ -539,14 +537,9 @@ extraPreludeCode
             , "plus x y = x + y;"
             , "divMod x y = let d = x / y in Pair d (x-d*y);"
 
-            , "False = Pack{1,0};"
-            , "True  = Pack{2,0};"
             , "showBool b = case b of"
             , "  <1> -> Cons 70 (Cons 97 (Cons 108 (Cons 115 (Cons 101 Nil))));"
             , "  <2> -> Cons 84 (Cons 114 (Cons 117 (Cons 101 Nil)));"
-            , "if c t f = case c of"
-            , "               <1> -> f;"
-            , "               <2> -> t;"
             , "not x = case x of"
             , "  <1> -> True;"
             , "  <2> -> False;"
@@ -641,26 +634,11 @@ primitives
     , ("False", [], EConstr 1 0)
     ]
 
-{--
 compiledPrimitives :: [GmCompiledSC]
 compiledPrimitives
-  = [ ("+", 2, [Push 1, Eval, Push 1, Eval, Add, Update 2, Pop 2, Unwind])
-    , ("-", 2, [Push 1, Eval, Push 1, Eval, Sub, Update 2, Pop 2, Unwind])
-    , ("*", 2, [Push 1, Eval, Push 1, Eval, Mul, Update 2, Pop 2, Unwind])
-    , ("/", 2, [Push 1, Eval, Push 1, Eval, Div, Update 2, Pop 2, Unwind])
-    , ("negate", 1, [Push 0, Eval, Neg, Update 1, Pop 1, Unwind])
-
-    , ("==", 2, [Push 1, Eval, Push 1, Eval, Eq, Update 2, Pop 2, Unwind])
-    , ("/=", 2, [Push 1, Eval, Push 1, Eval, Ne, Update 2, Pop 2, Unwind])
-    , ("<",  2, [Push 1, Eval, Push 1, Eval, Lt, Update 2, Pop 2, Unwind])
-    , ("<=", 2, [Push 1, Eval, Push 1, Eval, Le, Update 2, Pop 2, Unwind])
-    , (">",  2, [Push 1, Eval, Push 1, Eval, Gt, Update 2, Pop 2, Unwind])
-    , (">=", 2, [Push 1, Eval, Push 1, Eval, Ge, Update 2, Pop 2, Unwind])
-
-    , ("putNumber", 1, [Push 0, Eval, Print, Unwind])
+  = [ ("putNumber", 1, [Push 0, Eval, Print, Unwind])
     , ("putChar", 1, [Push 0, Eval, PutChar, Unwind])
     ]
---}
 
 type GmCompiledSC = (Name, Int, GmCode)
 
