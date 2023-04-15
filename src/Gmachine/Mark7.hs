@@ -529,6 +529,7 @@ compile program = GmState { output  = initialOutput
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
   where
+    -- TODO: restore extra prelude
     compiled = map compileSc (preludeDefs ++ program ++ primitives)
     -- compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program ++ primitives)
 
