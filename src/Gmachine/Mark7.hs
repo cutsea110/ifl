@@ -288,7 +288,7 @@ cond i1 i2 state = putVStack vstack'
         i' = case b of
           1 -> (i1 ++ i)
           2 -> (i2 ++ i)
-          e -> error $ "cond failed: not boolean: " ++ show e
+          e -> error $ "not integer which can be regarded as boolean: " ++ show e
 
 pack :: Tag -> Arity -> GmState -> GmState
 pack t n state = putStack (S.push a s')
@@ -359,6 +359,7 @@ gmget state = putStack stack'
         v = case hLookup heap a of
           NConstr t [] -> t
           NNum n       -> n
+          e            -> error $ "unexpected constructor: " ++ show e
         vstack' = S.push v vstack
 
 gmprint :: GmState -> GmState
