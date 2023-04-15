@@ -76,6 +76,10 @@ data Instruction
   | Pack Tag Arity
   | Casejump [(Tag, GmCode)]
   | Split Arity
+  | Pushbasic Int
+  | Mkbool
+  | Mkint
+  | Get
   | Print
   | PutChar
   deriving (Eq, Show)
@@ -202,6 +206,10 @@ dispatch (Cond t e)     = cond t e
 dispatch (Pack t n)     = pack t n
 dispatch (Casejump bs)  = casejump bs
 dispatch (Split n)      = split n
+dispatch (Pushbasic n)  = pushbasic n
+dispatch Mkbool         = mkbool
+dispatch Mkint          = mkint
+dispatch Get            = gmget
 dispatch Print          = gmprint
 dispatch PutChar        = putchar
 
@@ -247,11 +255,17 @@ primitive2 box unbox op state
 
 arithmetic1 :: (Int -> Int)         -- arithmetic operator
             -> (GmState -> GmState) -- state transition
-arithmetic1 = primitive1 boxInteger unboxInteger
-
+arithmetic1 op state = putVStack vstack'' state
+  where vstack = getVStack state
+        vstack'' = S.push (op n) vstack'
+        (n, vstack') = S.pop vstack
+    
 arithmetic2 :: (Int -> Int -> Int)  -- arithmetic operator
             -> (GmState -> GmState) -- state transition
-arithmetic2 = primitive2 boxInteger unboxInteger
+arithmetic2 op state = putVStack vstack'' state
+  where vstack = getVStack state
+        vstack'' = S.push (op n0 n1) vstack'
+        ((n0:n1:_), vstack') = S.nPop 2 vstack
 
 boxBoolean :: Bool -> GmState -> GmState
 boxBoolean b state
@@ -265,14 +279,16 @@ comparison :: (Int -> Int -> Bool) -> GmState -> GmState
 comparison = primitive2 boxBoolean unboxInteger
 
 cond :: GmCode -> GmCode -> GmState -> GmState
-cond i1 i2 state = case hLookup heap a of
-  NNum 1 -> putCode (i1 ++ i) $ putStack stack' state
-  NNum 0 -> putCode (i2 ++ i) $ putStack stack' state
-  e      -> error $ "unexpected non-integer in heap: " ++ show e
-  where heap = getHeap state
-        stack = getStack state
+cond i1 i2 state = putVStack vstack'
+                   . putCode i'
+                   $ state
+  where vstack = getVStack state
+        (b, vstack') = S.pop vstack
         i = getCode state
-        (a, stack') = S.pop stack
+        i' = case b of
+          1 -> (i1 ++ i)
+          2 -> (i2 ++ i)
+          e -> error $ "cond failed: not boolean: " ++ show e
 
 pack :: Tag -> Arity -> GmState -> GmState
 pack t n state = putStack (S.push a s')
@@ -303,6 +319,47 @@ split n state = putStack s'' state
             | length as == n -> foldr S.push s' as
             | otherwise -> error "non-saturated"
           _ -> error "not data structure"
+
+pushbasic :: Int -> GmState -> GmState
+pushbasic i state = putVStack (S.push i vstack) state
+  where vstack = getVStack state
+
+mkbool :: GmState -> GmState
+mkbool state = putStack stack'
+               . putHeap heap'
+               . putVStack vstack'
+               $ state
+  where stack = getStack state
+        vstack = getVStack state
+        heap = getHeap state
+        (t, vstack') = S.pop vstack
+        (heap', a) = hAlloc heap (NConstr t [])
+        stack' = S.push a stack
+
+mkint :: GmState -> GmState
+mkint state = putStack stack'
+              . putHeap heap'
+              . putVStack vstack'
+              $ state
+  where stack = getStack state
+        vstack = getVStack state
+        heap = getHeap state
+        (n, vstack') = S.pop vstack
+        (heap', a) = hAlloc heap (NNum n)
+        stack' = S.push a stack
+
+gmget :: GmState -> GmState
+gmget state = putStack stack'
+              . putVStack vstack'
+              $ state
+  where stack = getStack state
+        vstack = getVStack state
+        heap = getHeap state
+        (a, stack') = S.pop stack
+        v = case hLookup heap a of
+          NConstr t [] -> t
+          NNum n       -> n
+        vstack' = S.push v vstack
 
 gmprint :: GmState -> GmState
 gmprint state = case hLookup h a of
@@ -879,6 +936,10 @@ showInstruction (Cond t e)     = iConcat [iStr "Cond "
 showInstruction (Pack t a)     = iConcat [iStr "Pack " , iNum t, iStr " " , iNum a]
 showInstruction (Casejump bs)  = iConcat [ iStr "Casejump ", showAlts bs]
 showInstruction (Split n)      = iStr "Split " `iAppend` iNum n
+showInstruction (Pushbasic n)  = iStr "Pushbasic " `iAppend` iNum n
+showInstruction Mkbool         = iStr "Mkbool"
+showInstruction Mkint          = iStr "Mkint"
+showInstruction Get            = iStr "Get"
 showInstruction Print          = iStr "Print"
 showInstruction PutChar        = iStr "PutChar"
 
