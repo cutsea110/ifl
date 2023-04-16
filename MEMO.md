@@ -36,5 +36,5 @@ E[e] p : compile code that evaluates an expression e to WHNF in environment p.
 * alternatives (as compileD)
 D[alts] p : compile the code for the alternatives in a `case` expression.
 
-* alternative (as compileA which is actually argument of above compileAlts)
+* alternative (as compileA which is actually argument of above compileD)
 A[alt] p : compile the code for an alternative in a `case` expression.
