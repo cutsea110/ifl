@@ -13,28 +13,38 @@
 
 ----
 G-machine
-                   ,--------
-                  |     `,  `,
-                  v      |   |
-   SC ---> R ---> E ---> C   |
-                  |          |
-                  `-> D ---> A
+                   ,----------------
+                  |     `,     `,    `,
+                  v      |      |     |
+   SC ---> R ---> E ---> C      |     |
+                  |             |     |
+                  |             |     |
+                  |`---> D ---> A     |
+                  |                   |
+                   `----------------> B
 
 * Supercombinator (as compileSC)
 SC[d] : compileSC is the G-Machine code for the supercombinator definition d.
 
 * Reduction? (as compileR)
 R[e] p d : generate code which instanticates the expression e in environment p,
-           for a supercombinator of arity d.
+           for a supercombinator of arity d,
+		   and then proceeds to unwind the resulting stack.
 
 * to Code (as compileC)
-C[e] p : generate code which constructs the graph of e in environment p.
+C[e] p : generate code which constructs the graph of e in environment p,
+         leaving a pointer to it on top of the stack.
 
 * for strict (as compileE)
-E[e] p : compile code that evaluates an expression e to WHNF in environment p.
+E[e] p : compile code that evaluates an expression e to WHNF in environment p,
+         leaving a pointer to the expression on top of the stack.
 
 * alternatives (as compileD)
 D[alts] p : compile the code for the alternatives in a `case` expression.
 
 * alternative (as compileA which is actually argument of above compileD)
 A[alt] p : compile the code for an alternative in a `case` expression.
+
+* for strict with V-Stack (as compileB)
+B[e] p : compile code that evaluates an expression e to WHNF, in an environment p,
+         leaving the result on the V-stack.
