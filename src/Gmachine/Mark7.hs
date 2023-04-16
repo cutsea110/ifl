@@ -202,7 +202,7 @@ dispatch Lt             = comparison (<)
 dispatch Le             = comparison (<=)
 dispatch Gt             = comparison (>)
 dispatch Ge             = comparison (>=)
-dispatch (Cond t e)     = cond t e
+dispatch (Cond t f)     = cond t f
 dispatch (Pack t n)     = pack t n
 dispatch (Casejump bs)  = casejump bs
 dispatch (Split n)      = split n
@@ -276,7 +276,12 @@ boxBoolean b state
            | otherwise = 1 -- tag of False
 
 comparison :: (Int -> Int -> Bool) -> GmState -> GmState
-comparison = primitive2 boxBoolean unboxInteger
+comparison op state = putVStack vstack'' state
+  where vstack = getVStack state
+        vstack'' = S.push b vstack'
+        ((n0:n1:_), vstack') = S.nPop 2 vstack
+        b | op n0 n1  = 2 -- True
+          | otherwise = 1 -- False
 
 cond :: GmCode -> GmCode -> GmState -> GmState
 cond i1 i2 state = putVStack vstack'
@@ -286,8 +291,8 @@ cond i1 i2 state = putVStack vstack'
         (b, vstack') = S.pop vstack
         i = getCode state
         i' = case b of
-          1 -> (i1 ++ i)
-          2 -> (i2 ++ i)
+          2 -> (i1 ++ i) -- True
+          1 -> (i2 ++ i) -- False
           e -> error $ "not integer which can be regarded as boolean: " ++ show e
 
 pack :: Tag -> Arity -> GmState -> GmState
@@ -349,18 +354,16 @@ mkint state = putStack stack'
         stack' = S.push a stack
 
 gmget :: GmState -> GmState
-gmget state = putStack stack'
-              . putVStack vstack'
-              $ state
+gmget state = newState (hLookup heap a) (putStack stack' state)
   where stack = getStack state
         vstack = getVStack state
         heap = getHeap state
         (a, stack') = S.pop stack
-        v = case hLookup heap a of
-          NConstr t [] -> t
-          NNum n       -> n
-          e            -> error $ "unexpected constructor: " ++ show e
-        vstack' = S.push v vstack
+        newState e = case e of
+          NConstr t [] -> putVStack (S.push t vstack)
+          NNum n       -> putVStack (S.push n vstack)
+          NInd a'      -> newState (hLookup heap a')
+          _            -> error $ "Get of a non-number or bool: " ++ show e
 
 gmprint :: GmState -> GmState
 gmprint state = case hLookup h a of
@@ -529,7 +532,7 @@ compile program = GmState { output  = initialOutput
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
   where
-    compiled = map compileSc (preludeDefs ++ program ++ primitives)
+    compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program ++ primitives) ++ compiledPrimitives
 
 extraPreludeCode :: String
 extraPreludeCode
@@ -661,8 +664,34 @@ compileSc (name, env, body) = (name, length env, compileR body (zip env [0..]))
 
 -- maybe Reduction's R
 compileR :: GmCompiler
-compileR e env = compileE e env ++ [Update n, Pop n, Unwind]
+compileR e env = case e of
+  ELet recursive defs e
+    | recursive -> compileLetrecR compileR defs e env
+    | otherwise -> compileLetR    compileR defs e env
+  EAp (EVar "negate") _ -> compileE e env ++ [Update n, Pop n, Unwind]
+  EAp (EAp (EVar op) _) _
+    | op `elem` aDomain builtInDyadic
+      -> compileE e env ++ [Update n, Pop n, Unwind]
+  EAp (EAp (EAp (EVar "if") e0) e1) e2
+    -> compileB e0 env ++ [Cond (compileR e1 env) (compileR e2 env)]
+  ECase expr alts
+    -> compileB expr env ++ [Casejump (compileD compileAR alts env)]
+  _ -> compileE e env ++ [Update n, Pop n, Unwind]
   where n = length env
+
+compileLetrecR :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
+compileLetrecR comp defs expr env
+  = [Alloc n] ++ compiled defs ++ comp expr env'
+  where n = length defs
+        env' = compileArgs defs env
+        compiled dds = fst $ foldr phi ([], 0) dds
+          where phi (_, e) (ds, i) = (compileC e env' ++ [Update i] ++ ds, i+1)
+
+compileLetR :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
+compileLetR comp defs expr env
+  = compileLet' defs env ++ comp expr env'
+  where env' = compileArgs defs env
+
 
 type GmCompiler = CoreExpr  -> GmEnvironment -> GmCode
 type GmEnvironment = Assoc Name Int
@@ -678,13 +707,16 @@ compileE e env = case e of
   ELet recursive defs e
     | recursive -> compileLetrec compileE defs e env
     | otherwise -> compileLet    compileE defs e env
-  EAp (EAp (EVar op) e0) e1
+  EAp (EAp (EVar op) _) _
     | op `elem` aDomain builtInDyadic
-      -> compileE e1 env ++
-         compileE e0 (argOffset 1 env) ++
-         [dyadic]
-    where dyadic = aLookup builtInDyadic op (error "unknown dyadic")
-  EAp (EVar "negate") e0 -> compileE e0 env ++ [Neg]
+      -> compileB e env ++ [dyadic]
+    where binop = aLookup builtInDyadic op (error "unknown dyadic")
+          dyadic | binop `elem` [Add, Sub, Mul, Div] = Mkint
+                 | otherwise                         = Mkbool
+  EAp (EVar "negate") _ -> compileB e env ++ [Mkint]
+  EAp (EAp (EAp (EVar "if") e0) e1) e2
+    -> compileB e0 env
+       ++ [Cond (compileE e1 env) (compileE e2 env)]
   EAp (EConstr t a) _ -> compileC e env -- in this case, action is as same as compileC's.
   ECase expr alts
     -> compileE expr env ++ [Casejump (compileD compileA alts env)]
@@ -709,6 +741,11 @@ compileD comp alts env
 compileA :: Int -> GmCompiler
 compileA offset expr env
   = [Split offset] ++ compileE expr env ++ [Slide offset]
+
+-- A scheme for the case of `case` in R scheme
+compileAR :: Int -> GmCompiler
+compileAR offset expr env
+  = [Split offset] ++ compileR expr env
 
 builtInDyadic :: Assoc Name Instruction
 builtInDyadic
