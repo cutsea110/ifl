@@ -529,7 +529,7 @@ compile program = GmState { output  = initialOutput
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
   where
-    compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program ++ primitives) ++ compiledPrimitives
+    compiled = map compileSc (preludeDefs ++ program ++ primitives)
 
 extraPreludeCode :: String
 extraPreludeCode
@@ -687,17 +687,17 @@ compileE e env = case e of
   EAp (EVar "negate") e0 -> compileE e0 env ++ [Neg]
   EAp (EConstr t a) _ -> compileC e env -- in this case, action is as same as compileC's.
   ECase expr alts
-    -> compileE expr env ++ [Casejump (compileAlts compileE' alts env)]
+    -> compileE expr env ++ [Casejump (compileD compileA alts env)]
   _ -> compileC e env ++ [Eval]
 
 --
 -- D scheme compiles the code for the alternatives in a case expression.
 --
-compileAlts :: (Tag -> GmCompiler) -- compiler for alternative bodies
-            -> [CoreAlt]           -- the list of alteratives
-            -> GmEnvironment       -- the current environment
-            -> [(Tag, GmCode)]     -- list of alternative code sequences
-compileAlts comp alts env
+compileD :: (Tag -> GmCompiler) -- compiler for alternative bodies
+         -> [CoreAlt]           -- the list of alteratives
+         -> GmEnvironment       -- the current environment
+         -> [(Tag, GmCode)]     -- list of alternative code sequences
+compileD comp alts env
   = [ (tag, comp len body (zip names [0..] ++ argOffset len env))
     | (tag, names, body) <- alts
     , let len = length names
@@ -706,8 +706,8 @@ compileAlts comp alts env
 --
 -- A scheme compiles the code for an alternative in a case expression.
 --
-compileE' :: Int -> GmCompiler
-compileE' offset expr env
+compileA :: Int -> GmCompiler
+compileA offset expr env
   = [Split offset] ++ compileE expr env ++ [Slide offset]
 
 builtInDyadic :: Assoc Name Instruction
