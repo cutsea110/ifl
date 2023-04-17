@@ -311,21 +311,24 @@ casejump bs state = putCode (i' ++ i) state
   where (a, _) = S.pop (getStack state)
         i = getCode state
         h = getHeap state
-        d = hLookup h a
-        i' = case d of
+        i' = newState (hLookup h a)
+        newState e = case e of
           NConstr t _
             -> aLookup bs t (error "unknown tag")
-          _ -> error $ "not data structure: " ++ show d
+          NInd a' -> newState (hLookup h a')
+          _ -> error $ "not data structure: " ++ show e
 
 split :: Int -> GmState -> GmState
 split n state = putStack s'' state
   where (a, s') = S.pop (getStack state)
-        d = hLookup (getHeap state) a
-        s'' = case d of
+        h = getHeap state
+        s'' = newState (hLookup h a)
+        newState e = case e of
           NConstr t as
             | length as == n -> foldr S.push s' as
             | otherwise -> error "non-saturated"
-          _ -> error $ "not data structure" ++ show d
+          NInd a' -> newState (hLookup h a')
+          _ -> error $ "not data structure: " ++ show e
 
 pushbasic :: Int -> GmState -> GmState
 pushbasic i state = putVStack (S.push i vstack) state
@@ -502,7 +505,6 @@ unwind state = newState (hLookup heap a)
                              . putVStack v' -- require?
                              . putDump d
                              $ state
-          where ((i', s', v'), d) = S.pop dump
         newState (NAp a1 a2) = putCode [Unwind]
                                . putStack (S.push a1 s)
                                $ state
@@ -515,8 +517,7 @@ unwind state = newState (hLookup heap a)
           | otherwise = putCode c
                         . putStack (rearrange n heap s)
                         $ state
-          where ((i', s', v'), d) = S.pop dump
-                k             = S.getDepth s1
+          where k             = S.getDepth s1
                 (ak, _)       = S.pop (S.discard k s)
         newState (NInd a1) = putCode [Unwind]
                              . putStack (S.push a1 s1)
@@ -528,7 +529,7 @@ unwind state = newState (hLookup heap a)
                              . putVStack v'
                              . putDump d
                              $ state
-          where ((i', s', v'), d) = S.pop dump
+        ((i', s', v'), d) = S.pop dump
 
 
 compile :: CoreProgram -> GmState
@@ -687,10 +688,9 @@ compileR e env = case e of
     | op `elem` aDomain builtInDyadic
       -> compileE e env ++ [Update n, Pop n, Unwind]
   EAp (EAp (EAp (EVar "if") e0) e1) e2
-    -> compileB e0 env
-       ++ [Cond (compileR e1 env) (compileR e2 env)]
+    -> compileB e0 env ++ [Cond (compileR e1 env) (compileR e2 env)]
   ECase expr alts
-    -> compileB expr env ++ [Casejump (compileD compileAR alts env)]
+    -> compileB expr env ++ [Casejump (compileD compileA alts env)]
   _ -> compileE e env ++ [Update n, Pop n, Unwind]
   where n = length env
 
@@ -730,8 +730,7 @@ compileE e env = case e of
                  | otherwise                         = Mkbool
   EAp (EVar "negate") _ -> compileB e env ++ [Mkint]
   EAp (EAp (EAp (EVar "if") e0) e1) e2
-    -> compileB e0 env
-       ++ [Cond (compileE e1 env) (compileE e2 env)]
+    -> compileB e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]
   EAp (EConstr t a) _ -> compileC e env -- in this case, action is as same as compileC's.
   ECase expr alts
     -> compileE expr env ++ [Casejump (compileD compileA alts env)]
@@ -756,11 +755,6 @@ compileD comp alts env
 compileA :: Int -> GmCompiler
 compileA offset expr env
   = [Split offset] ++ compileE expr env ++ [Slide offset]
-
--- A scheme for the case of `case` in R scheme
-compileAR :: Int -> GmCompiler
-compileAR offset expr env
-  = [Split offset] ++ compileR expr env
 
 builtInDyadic :: Assoc Name Instruction
 builtInDyadic
