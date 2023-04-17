@@ -101,7 +101,7 @@ putVStack :: GmVStack -> GmState -> GmState
 putVStack vstack' state = state { vstack = vstack' }
 
 type GmDump = S.Stack GmDumpItem
-type GmDumpItem = (GmCode, GmStack)
+type GmDumpItem = (GmCode, GmStack, GmVStack)
 
 getDump :: GmState -> GmDump
 getDump state = dump state
@@ -216,9 +216,11 @@ dispatch PutChar        = putchar
 evalop :: GmState -> GmState
 evalop state = putCode    [Unwind]
                . putStack (S.push a S.emptyStack)
-               . putDump  (S.push (i, s) d)
+               . putVStack S.emptyStack
+               . putDump  (S.push (i, s, v) d)
                $ state
   where d = getDump state
+        v = getVStack state
         (a, s) = S.pop (getStack state)
         i = getCode state
 
@@ -313,7 +315,7 @@ casejump bs state = putCode (i' ++ i) state
         i' = case d of
           NConstr t _
             -> aLookup bs t (error "unknown tag")
-          _ -> error "not data structure"
+          _ -> error $ "not data structure: " ++ show d
 
 split :: Int -> GmState -> GmState
 split n state = putStack s'' state
@@ -323,7 +325,7 @@ split n state = putStack s'' state
           NConstr t as
             | length as == n -> foldr S.push s' as
             | otherwise -> error "non-saturated"
-          _ -> error "not data structure"
+          _ -> error $ "not data structure" ++ show d
 
 pushbasic :: Int -> GmState -> GmState
 pushbasic i state = putVStack (S.push i vstack) state
@@ -497,24 +499,36 @@ unwind state = newState (hLookup heap a)
           | S.isEmpty dump = putCode [] state
           | otherwise      = putCode i'
                              . putStack (S.push a s')
+                             . putVStack v' -- require?
                              . putDump d
                              $ state
-          where ((i', s'), d) = S.pop dump
-        newState (NAp a1 a2) = putCode [Unwind] (putStack (S.push a1 s) state)
+          where ((i', s', v'), d) = S.pop dump
+        newState (NAp a1 a2) = putCode [Unwind]
+                               . putStack (S.push a1 s)
+                               $ state
         newState (NGlobal n c)
-          | k < n     = putCode i' (putStack (S.push ak s') (putDump d state))
-          | otherwise = putCode c (putStack (rearrange n heap s) state)
-          where ((i', s'), d) = S.pop dump
+          | k < n     = putCode i'
+                        . putStack (S.push ak s')
+                        . putVStack v' -- require?
+                        . putDump d
+                        $ state
+          | otherwise = putCode c
+                        . putStack (rearrange n heap s)
+                        $ state
+          where ((i', s', v'), d) = S.pop dump
                 k             = S.getDepth s1
                 (ak, _)       = S.pop (S.discard k s)
-        newState (NInd a1) = putCode [Unwind] (putStack (S.push a1 s1) state)
+        newState (NInd a1) = putCode [Unwind]
+                             . putStack (S.push a1 s1)
+                             $ state
         newState (NConstr _ _)
           | S.isEmpty dump = putCode [] state
           | otherwise      = putCode i'
                              . putStack (S.push a s')
+                             . putVStack v'
                              . putDump d
                              $ state
-          where ((i', s'), d) = S.pop dump
+          where ((i', s', v'), d) = S.pop dump
 
 
 compile :: CoreProgram -> GmState
@@ -532,7 +546,7 @@ compile program = GmState { output  = initialOutput
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
   where
-    compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program ++ primitives) ++ compiledPrimitives
+    compiled = map compileSc (preludeDefs ++ program ++ primitives) ++ compiledPrimitives
 
 extraPreludeCode :: String
 extraPreludeCode
@@ -673,7 +687,8 @@ compileR e env = case e of
     | op `elem` aDomain builtInDyadic
       -> compileE e env ++ [Update n, Pop n, Unwind]
   EAp (EAp (EAp (EVar "if") e0) e1) e2
-    -> compileB e0 env ++ [Cond (compileR e1 env) (compileR e2 env)]
+    -> compileB e0 env
+       ++ [Cond (compileR e1 env) (compileR e2 env)]
   ECase expr alts
     -> compileB expr env ++ [Casejump (compileD compileAR alts env)]
   _ -> compileE e env ++ [Update n, Pop n, Unwind]
@@ -1046,11 +1061,19 @@ showDump s
             ]
 
 showDumpItem :: GmDumpItem -> IseqRep
-showDumpItem (code, stack)
+showDumpItem (code, stack, vstack)
   = iConcat [ iStr "<"
             , shortShowInstructions 3 code, iStr ", "
-            , shortShowStack stack
+            , shortShowStack stack, iStr ", "
+            , shortShowVStack vstack
             , iStr ">"
+            ]
+
+shortShowVStack :: GmVStack -> IseqRep
+shortShowVStack s
+  = iConcat [ iStr "["
+            , iInterleave (iStr ", ") (map iNum $ S.getStack s)
+            , iStr "]"
             ]
 
 showVStack :: GmState -> IseqRep
