@@ -305,7 +305,6 @@ casejump bs state = putCode (i' ++ i) state
         newState e = case e of
           NConstr t _
             -> aLookup bs t (error "unknown tag")
-          NInd a' -> newState (hLookup h a')
           _ -> error $ "not data structure: " ++ show e
 
 split :: Int -> GmState -> GmState
@@ -317,7 +316,6 @@ split n state = putStack s'' state
           NConstr t as
             | length as == n -> foldr S.push s' as
             | otherwise -> error "non-saturated"
-          NInd a' -> newState (hLookup h a')
           _ -> error $ "not data structure: " ++ show e
 
 pushbasic :: Int -> GmState -> GmState
@@ -357,7 +355,6 @@ gmget state = newState (hLookup heap a) (putStack stack' state)
         newState e = case e of
           NConstr t [] -> putVStack (S.push t vstack)
           NNum n       -> putVStack (S.push n vstack)
-          NInd a'      -> newState (hLookup heap a')
           _            -> error $ "Get of a non-number or bool: " ++ show e
 
 gmprint :: GmState -> GmState
@@ -540,88 +537,77 @@ buildInitialHeap program = mapAccumL allocateSc hInitial compiled
     compiled = map compileSc (preludeDefs ++ program ++ primitives) ++ compiledPrimitives
 
 extraPreludeCode :: String
-extraPreludeCode
-  = unlines [ "flip f x y = f y x;"
-            , "plus x y = x + y;"
-            , "divMod x y = let d = x / y in Pair d (x-d*y);"
+extraPreludeCode = unlines extraPrelude
 
-            , "showBool b = case b of"
-            , "  <1> -> Cons 70 (Cons 97 (Cons 108 (Cons 115 (Cons 101 Nil))));"
-            , "  <2> -> Cons 84 (Cons 114 (Cons 117 (Cons 101 Nil)));"
-            , "not x = case x of"
-            , "  <1> -> True;"
-            , "  <2> -> False;"
-            , "and x y = case x of"
-            , "  <1> -> False;"
-            , "  <2> -> y;"
-            , "or x y = case x of"
-            , "  <2> -> True;"
-            , "  <1> -> y;"
-            , "xor x y = case x of"
-            , "  <1> -> y;"
-            , "  <2> -> not y;"
+extraPrelude :: [String]
+extraPrelude
+  = [ "flip f x y = f y x;"
+    , "plus x y = x + y;"
+    , "divMod x y = let d = x / y in Pair d (x-d*y);"
 
-            , "Nothing = Pack{0,0};"
-            , "Just x = Pack{1,1} x;"
-            , "maybe n f x = case x of"
-            , "  <0> -> n;"
-            , "  <1> a -> f a;"
-            , "putMaybe p x = case x of"
-            , "  <0>   -> putStr (Cons 78 (Cons 111 (Cons 116 (Cons 104 (Cons 105 (Cons 110 (Cons 103 Nil)))))));"
-            , "  <1> x -> seq (putStr (Cons 74 (Cons 117 (Cons 115 (Cons 116 (Cons 32 Nil)))))) (p x);"
+    , "showBool b = case b of"
+    , "  <1> -> Cons 70 (Cons 97 (Cons 108 (Cons 115 (Cons 101 Nil))));"
+    , "  <2> -> Cons 84 (Cons 114 (Cons 117 (Cons 101 Nil)));"
+    , "xor x y = (x || y) && not (x && y);"
 
-            , "Pair l r = Pack{0,2} l r;"
-            , "fst p = case p of"
-            , "  <0> a b -> a;"
-            , "snd p = case p of"
-            , "  <0> a b -> b;"
-            , "dup x = Pair x x;"
-            , "swap p = case p of"
-            , "  <0> x y -> Pair y x;"
-            , "putPair p1 p2 x = case x of"
-            , "  <0> a b -> let tpl = Cons (p1 a) (Cons (putChar 44) (Cons (p2 b) Nil))"
-            , "             in foldr seq 0 (bracket (putChar 40) tpl (putChar 41));"
+    , "Nothing = Pack{0,0};"
+    , "Just x = Pack{1,1} x;"
+    , "maybe n f x = case x of"
+    , "  <0> -> n;"
+    , "  <1> a -> f a;"
+    , "putMaybe p x = case x of"
+    , "  <0>   -> putStr (Cons 78 (Cons 111 (Cons 116 (Cons 104 (Cons 105 (Cons 110 (Cons 103 Nil)))))));"
+    , "  <1> x -> seq (putStr (Cons 74 (Cons 117 (Cons 115 (Cons 116 (Cons 32 Nil)))))) (p x);"
 
-            , "Left  x = Pack{1,1} x;"
-            , "Right x = Pack{2,1} x;"
-            , "either f g x = case x of"
-            , "  <1> a -> f a;"
-            , "  <2> b -> g b;"
-            , "putEither p1 p2 x = case x of"
-            , "  <1> a -> seq (putStr (Cons 76 (Cons 101 (Cons 102 (Cons 116 (Cons 32 Nil)))))) (p1 a);"
-            , "  <2> b -> seq (putStr (Cons 82 (Cons 105 (Cons 103 (Cons 104 (Cons 116 (Cons 32 Nil))))))) (p2 b);"
+    , "Pair l r = Pack{0,2} l r;"
+    , "fst p = case p of"
+    , "  <0> a b -> a;"
+    , "snd p = case p of"
+    , "  <0> a b -> b;"
+    , "dup x = Pair x x;"
+    , "swap p = case p of"
+    , "  <0> x y -> Pair y x;"
+    , "putPair p1 p2 x = case x of"
+    , "  <0> a b -> let tpl = Cons (p1 a) (Cons (putChar 44) (Cons (p2 b) Nil))"
+    , "             in foldr seq 0 (bracket (putChar 40) tpl (putChar 41));"
 
-            , "Nil = Pack{1,0};"
-            , "Cons x xs = Pack{2,2} x xs;"
-            , "null xs = case xs of"
-            , "  <1>     -> True;"
-            , "  <2> a b -> False;"
-            , "foldr f seed xs = case xs of"
-            , "  <1>      -> seed;"
-            , "  <2> y ys -> f y (foldr f seed ys);"
-            , "map f xs = case xs of"
-            , "  <1>      -> Nil;"
-            , "  <2> y ys -> Cons (f y) (map f ys);"
-            , "unfoldr psi xs = case psi xs of"
-            , "  <0>   -> Nil;"
-            , "  <1> p -> case p of"
-            , "      <0> a b -> Cons a (unfoldr psi b);"
-            , "append xs ys = foldr Cons ys xs;"
-            , "bracket l xs r = Cons l (append xs (Cons r Nil));"
-            , "intersperse sep xs = foldr (withSep sep) Nil xs;"
-            , "withSep sep a b = if (null b) (Cons a b) (Cons a (Cons sep b));"
-            , "pLsub p xs = case xs of"
-            , "  <1> -> putChar 93;"
-            , "  <2> y ys -> seq (p y) (if (null ys) (putChar 93) (seq (putChar 44) (pLsub p ys)));"
-            , "putList p xs = seq (putChar 91) (pLsub p xs);"
+    , "Left  x = Pack{1,1} x;"
+    , "Right x = Pack{2,1} x;"
+    , "either f g x = case x of"
+    , "  <1> a -> f a;"
+    , "  <2> b -> g b;"
+    , "putEither p1 p2 x = case x of"
+    , "  <1> a -> seq (putStr (Cons 76 (Cons 101 (Cons 102 (Cons 116 (Cons 32 Nil)))))) (p1 a);"
+    , "  <2> b -> seq (putStr (Cons 82 (Cons 105 (Cons 103 (Cons 104 (Cons 116 (Cons 32 Nil))))))) (p2 b);"
 
-            , "seq x y = y + 0 * x;" -- means 'x >> y' but just kidding.
-            , "putStr cs = foldr seq 0 (map putChar cs);"
-            , "putStrLn cs = foldr seq (putChar 10) (map putChar cs)"
-            ]
+    , "Nil = Pack{1,0};"
+    , "Cons x xs = Pack{2,2} x xs;"
+    , "null xs = case xs of"
+    , "  <1>     -> True;"
+    , "  <2> a b -> False;"
+    , "foldr f seed xs = case xs of"
+    , "  <1>      -> seed;"
+    , "  <2> y ys -> f y (foldr f seed ys);"
+    , "map f xs = case xs of"
+    , "  <1>      -> Nil;"
+    , "  <2> y ys -> Cons (f y) (map f ys);"
+    , "unfoldr psi xs = case psi xs of"
+    , "  <0>   -> Nil;"
+    , "  <1> p -> case p of"
+    , "      <0> a b -> Cons a (unfoldr psi b);"
+    , "append xs ys = foldr Cons ys xs;"
+    , "bracket l xs r = Cons l (append xs (Cons r Nil));"
+    , "intersperse sep xs = foldr (withSep sep) Nil xs;"
+    , "withSep sep a b = if (null b) (Cons a b) (Cons a (Cons sep b));"
+    , "pLsub p xs = case xs of"
+    , "  <1> -> putChar 93;"
+    , "  <2> y ys -> seq (p y) (if (null ys) (putChar 93) (seq (putChar 44) (pLsub p ys)));"
+    , "putList p xs = seq (putChar 91) (pLsub p xs);"
 
-extraPreludeDefs :: CoreProgram
-extraPreludeDefs = parse extraPreludeCode
+    , "seq x y = y + 0 * x;" -- means 'x >> y' but just kidding.
+    , "putStr cs = foldr seq 0 (map putChar cs);"
+    , "putStrLn cs = foldr seq (putChar 10) (map putChar cs);"
+    ]
 
 primitives :: [CoreScDefn]
 primitives
@@ -684,7 +670,7 @@ compileR e env = case e of
   EAp (EAp (EAp (EVar "if") e0) e1) e2
     -> compileB e0 env ++ [Cond (compileR e1 env) (compileR e2 env)]
   ECase expr alts
-    -> compileE expr env ++ [Casejump (compileD compileA alts env)]
+    -> compileE expr env ++ [Casejump (compileD compileAR alts env)]
   _ -> compileE e env ++ [Update n, Pop n, Unwind]
   where n = length env
 
@@ -750,6 +736,10 @@ compileD comp alts env
 compileA :: Int -> GmCompiler
 compileA offset expr env
   = [Split offset] ++ compileE expr env ++ [Slide offset]
+
+compileAR :: Int -> GmCompiler
+compileAR offset expr env
+  = [Split offset] ++ compileR expr env
 
 builtInDyadic :: Assoc Name Instruction
 builtInDyadic
@@ -904,10 +894,10 @@ compileArgs defs env
 
 {- |
 >>> compileSc . head . parse $ "Y f = letrec x = f x in x"
-("Y",1,[Alloc 1,Push 0,Push 2,Mkap,Update 0,Push 0,Eval,Slide 1,Update 1,Pop 1,Unwind])
+("Y",1,[Alloc 1,Push 0,Push 2,Mkap,Update 0,Push 0,Eval,Update 2,Pop 2,Unwind])
 
 >>> compileSc . head . parse $ "f x y = letrec a = Pack{0,2} x b; b = Pack{0,2} y a in fst (snd (snd a))"
-("f",2,[Alloc 2,Push 0,Push 3,Pack 0 2,Update 1,Push 1,Push 4,Pack 0 2,Update 0,Push 1,Pushglobal "snd",Mkap,Pushglobal "snd",Mkap,Pushglobal "fst",Mkap,Eval,Slide 2,Update 2,Pop 2,Unwind])
+("f",2,[Alloc 2,Push 0,Push 3,Pack 0 2,Update 1,Push 1,Push 4,Pack 0 2,Update 0,Push 1,Pushglobal "snd",Mkap,Pushglobal "snd",Mkap,Pushglobal "fst",Mkap,Eval,Update 4,Pop 4,Unwind])
 -}
 compileLetrec :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLetrec comp defs expr env
@@ -1192,40 +1182,70 @@ in runTest (unlines prog)
 >>> runTest "main = if (not True) 1 2"
 "2"
 
->>> runTest "main = if (and True False) 1 2"
+>>> runTest "main = if (True && False) 1 2"
 "2"
 
->>> runTest "main = if (or False True) 1 2"
+>>> runTest "main = if (False || True) 1 2"
 "1"
 
->>> runTest "main = if (xor False True) 1 2"
+>>> :{
+let prog = extraPrelude ++
+           [ "main = if (xor False True) 1 2"
+           ]
+in runTest (unlines prog)
+:}
 "1"
 
->>> runTest "main = if (xor True False) 1 2"
+>>> :{
+let prog = extraPrelude ++
+           [ "main = if (xor True False) 1 2"
+           ]
+in runTest (unlines prog)
+:}
 "1"
 
->>> runTest "main = if (xor True True) 1 2"
+>>> :{
+let prog = extraPrelude ++
+           [ "main = if (xor True True) 1 2"
+           ]
+in runTest (unlines prog)
+:}
 "2"
 
->>> runTest "main = if (xor False False) 1 2"
+>>> :{
+let prog = extraPrelude ++
+           [ "main = if (xor False False) 1 2"
+           ]
+in runTest (unlines prog)
+:}
 "2"
 
->>> runTest "main = if (and (1 == 1) (2 /= 3)) 1 2"
+>>> runTest "main = if (1 == 1 && 2 /= 3) 1 2"
 "1"
 
->>> runTest "main = if (and (1 < 2) (2 <= 1)) 1 2"
+>>> runTest "main = if (1 < 2 && 2 <= 1) 1 2"
 "2"
 
->>> runTest "main = if (or (1 > 2) (2 >= 1)) 1 2"
+>>> runTest "main = if (1 > 2 || 2 >= 1) 1 2"
 "1"
 
 >>> runTest "fac n = if (n==0) 1 (n*fac (n-1)); main = fac 5"
 "120"
 
->>> runTest "main = fst (snd (fst (Pair (Pair 1 (Pair 2 3)) 4)))"
+>>> :{
+let prog = extraPrelude ++
+           [ "main = fst (snd (fst (Pair (Pair 1 (Pair 2 3)) 4)))"
+           ]
+in runTest (unlines prog)
+:}
 "2"
 
->>> runTest "main = Cons (1+2) (Cons (3+4) Nil)"
+>>> :{
+let prog = extraPrelude ++
+           [ "main = Cons (1+2) (Cons (3+4) Nil)"
+           ]
+in runTest (unlines prog)
+:}
 "(Pack{2,2} 3 (Pack{2,2} 7 Pack{1,0}))"
 
 >>> :{
@@ -1238,7 +1258,13 @@ in runTest (unlines prog)
 :}
 "85"
 
->>> runTest "double x = x + x; main = Cons (double (double (S K K 3))) Nil"
+>>> :{
+let prog = extraPrelude ++
+           [ "double x = x + x;"
+           , "main = Cons (double (double (S K K 3))) Nil"
+           ]
+in runTest (unlines prog)
+:}
 "(Pack{2,2} 12 Pack{1,0})"
 
 >>> runTest "main = let id1 = I I I in id1 id1 3"
@@ -1345,11 +1371,18 @@ in runTest (unlines prog)
 >>> runTest "nil = Pack{1,0}; cons x xs = Pack{2,2} x xs; main = cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil))))"
 "(Pack{2,2} 1 (Pack{2,2} 2 (Pack{2,2} 3 (Pack{2,2} 4 (Pack{2,2} 5 Pack{1,0})))))"
 
->>> runTest "iota x y s = if (x > y) Nil (Cons x (iota (x+s) y s)); main = iota 5 100 3"
+>>> :{
+let prog = extraPrelude ++
+           [ "iota x y s = if (x > y) Nil (Cons x (iota (x+s) y s));"
+           , "main = iota 5 100 3"
+           ]
+in runTest (unlines prog)
+:}
 "(Pack{2,2} 5 (Pack{2,2} 8 (Pack{2,2} 11 (Pack{2,2} 14 (Pack{2,2} 17 (Pack{2,2} 20 (Pack{2,2} 23 (Pack{2,2} 26 (Pack{2,2} 29 (Pack{2,2} 32 (Pack{2,2} 35 (Pack{2,2} 38 (Pack{2,2} 41 (Pack{2,2} 44 (Pack{2,2} 47 (Pack{2,2} 50 (Pack{2,2} 53 (Pack{2,2} 56 (Pack{2,2} 59 (Pack{2,2} 62 (Pack{2,2} 65 (Pack{2,2} 68 (Pack{2,2} 71 (Pack{2,2} 74 (Pack{2,2} 77 (Pack{2,2} 80 (Pack{2,2} 83 (Pack{2,2} 86 (Pack{2,2} 89 (Pack{2,2} 92 (Pack{2,2} 95 (Pack{2,2} 98 Pack{1,0}))))))))))))))))))))))))))))))))"
 
 >>> :{
-let prog = [ "ones = Cons 1 ones;"
+let prog = extraPrelude ++
+           [ "ones = Cons 1 ones;"
            , "head xs = case xs of"
            , "  <1> -> Pack{1,0};"
            , "  <2> a b -> Pack{2,1} a;"
@@ -1360,7 +1393,8 @@ in runTest (unlines prog)
 "(Pack{2,1} 1)"
 
 >>> :{
-let prog = [ "plus x y = x + y;"
+let prog = extraPrelude ++
+           [ "plus x y = x + y;"
            , "sum xs = foldr plus 0 xs;"
            , "iota x y = if (x > y) Nil (Cons x (iota (x+1) y));"
            , "double x = 2 * x;"
@@ -1371,7 +1405,8 @@ in runTest (unlines prog)
 "110"
 
 >>> :{
-let prog = [ "stream n = Cons n (stream (n + 1));"
+let prog = extraPrelude ++
+           [ "stream n = Cons n (stream (n + 1));"
            , "take n xs = case xs of"
            , "  <1> -> Nil;"
            , "  <2> y ys -> if (n == 0) Nil (Cons y (take (n-1) ys));"
@@ -1382,7 +1417,8 @@ in runTest (unlines prog)
 "(Pack{2,2} 1 (Pack{2,2} 2 (Pack{2,2} 3 (Pack{2,2} 4 (Pack{2,2} 5 (Pack{2,2} 6 (Pack{2,2} 7 (Pack{2,2} 8 (Pack{2,2} 9 (Pack{2,2} 10 Pack{1,0}))))))))))"
 
 >>> :{
-let prog = [ "mod x y = let d = x / y in x - (d * y);"
+let prog = extraPrelude ++
+           [ "mod x y = let d = x / y in x - (d * y);"
            , "gcd a b = let d = mod a b"
            , "          in if (d == 0) b (gcd b d);"
            , "lcm a b = let d = gcd a b"
@@ -1407,11 +1443,17 @@ in runTest (unlines prog)
 :}
 "12"
 
->>> runTest "main = seq (putStr (showBool (not True))) (putChar 10)"
+>>> :{
+let prog = extraPrelude ++
+           [ "main = seq (putStr (showBool (not True))) (putChar 10)"
+           ]
+in runTest (unlines prog)
+:}
 "False\n10"
 
 >>> :{
-let prog = [ "ch x xs = Cons x xs;"
+let prog = extraPrelude ++
+           [ "ch x xs = Cons x xs;"
            , "n = Nil;"
            , "H = 72;"
            , "e = 101;"
@@ -1430,7 +1472,8 @@ in runTest (unlines prog)
 "Hello,World!\n10"
 
 >>> :{
-let prog = [ "psi n = Just (Pair n (n+1));"
+let prog = extraPrelude ++
+           [ "psi n = Just (Pair n (n+1));"
            , "take n xs = case xs of"
            , "  <1> -> Nil;"
            , "  <2> y ys -> if (n == 0) Nil (Cons y (take (n-1) ys));"
@@ -1441,13 +1484,15 @@ in runTest (unlines prog)
 "(Pack{2,2} 1 (Pack{2,2} 2 (Pack{2,2} 3 (Pack{2,2} 4 (Pack{2,2} 5 (Pack{2,2} 6 (Pack{2,2} 7 (Pack{2,2} 8 (Pack{2,2} 9 (Pack{2,2} 10 Pack{1,0}))))))))))"
 
 >>> :{
-let prog = [ "showPair p = case p of"
+let prog = extraPrelude ++
+           [ "showPair p = case p of"
            , "  <0> f s -> let nr     = putChar 10;"
            , "                 lparen = putChar 40;"
            , "                 rparen = putChar 41;"
            , "                 comma  = putChar 44"
            , "             in let body = Cons (putNumber f) (Cons comma (Cons (putNumber s) Nil))"
            , "                in foldr seq nr (bracket lparen body rparen);"
+           , "seq x y = y + 0 * x;"
            , "main = showPair (Pair 42 28)"
            ]
 in runTest (unlines prog)
@@ -1455,7 +1500,8 @@ in runTest (unlines prog)
 "(42,28)\n10"
 
 >>> :{
-let prog = [ "nr = putChar 10;"
+let prog = extraPrelude ++
+           [ "nr = putChar 10;"
            , "lparen = putChar 91;"
            , "rparen = putChar 93;"
            , "iota x y = if (x > y) Nil (Cons x (iota (x+1) y));"
@@ -1467,7 +1513,8 @@ in runTest (unlines prog)
 "[1,2,3,4,5,6,7,8,9,10]\n10"
 
 >>> :{
-let prog = [ "from n = Cons n (from (n+1));"
+let prog = extraPrelude ++
+           [ "from n = Cons n (from (n+1));"
            , "take n xxs = case xxs of"
            , "  <1> -> Nil;"
            , "  <2> x xs -> if (n == 0) Nil (Cons x (take (n-1) xs));"
@@ -1478,7 +1525,8 @@ in runTest (unlines prog)
 "[1,2,3,4,5,6,7,8,9,10]93"
 
 >>> :{
-let prog = [ "iota s e = if (s>e) Nil (Cons s (iota (s+1) e));"
+let prog = extraPrelude ++
+           [ "iota s e = if (s>e) Nil (Cons s (iota (s+1) e));"
            , "main = putList (putPair putChar putNumber) (map dup (iota 32 127))"
            ]
 in runTest (unlines prog)
@@ -1486,7 +1534,8 @@ in runTest (unlines prog)
 "[( ,32),(!,33),(\",34),(#,35),($,36),(%,37),(&,38),(',39),((,40),(),41),(*,42),(+,43),(,,44),(-,45),(.,46),(/,47),(0,48),(1,49),(2,50),(3,51),(4,52),(5,53),(6,54),(7,55),(8,56),(9,57),(:,58),(;,59),(<,60),(=,61),(>,62),(?,63),(@,64),(A,65),(B,66),(C,67),(D,68),(E,69),(F,70),(G,71),(H,72),(I,73),(J,74),(K,75),(L,76),(M,77),(N,78),(O,79),(P,80),(Q,81),(R,82),(S,83),(T,84),(U,85),(V,86),(W,87),(X,88),(Y,89),(Z,90),([,91),(\\,92),(],93),(^,94),(_,95),(`,96),(a,97),(b,98),(c,99),(d,100),(e,101),(f,102),(g,103),(h,104),(i,105),(j,106),(k,107),(l,108),(m,109),(n,110),(o,111),(p,112),(q,113),(r,114),(s,115),(t,116),(u,117),(v,118),(w,119),(x,120),(y,121),(z,122),({,123),(|,124),(},125),(~,126),(\DEL,127)]93"
 
 >>> :{
-let prog = [ "num2chr n = unfoldr psi n;"
+let prog = extraPrelude ++
+           [ "num2chr n = unfoldr psi n;"
            , "psi n = if (n == 0) Nothing (Just (swap (divMod n 10)));"
            , "revchr xs = foldr phi I xs Nil;"
            , "phi b g x = g (Cons (48 + b) x);"
@@ -1498,7 +1547,8 @@ in runTest (unlines prog)
 "257\n10"
 
 >>> :{
-let prog = [ "x1 = Pair Nothing (Just 42);"
+let prog = extraPrelude ++
+           [ "x1 = Pair Nothing (Just 42);"
            , "x2 = let xs = Cons 65 (Cons 66 (Cons 67 Nil)) in Pair (Left xs) (Right xs);"
            , "t1 = let p = putMaybe putNumber in putPair p p x1;"
            , "t2 = let p = putEither (putList putNumber) (putList putChar) in putPair p p x2;"
@@ -1511,10 +1561,23 @@ in runTest (unlines prog)
 >>> runTest "apply f x = f x; test x = apply (Pack{2,2} 42) x; main = test 4"
 "(Pack{2,2} 42 4)"
 
->>> runTest "prefix p xs = map (f p) xs; f p x = Pack{2,2} p x; main = prefix 42 (Cons 1 Nil)"
+>>> :{
+let prog = extraPrelude ++
+           [ "prefix p xs = map (f p) xs;"
+           , "f p x = Pack{2,2} p x;"
+           , "main = prefix 42 (Cons 1 Nil)"
+           ]
+in runTest (unlines prog)
+:}
 "(Pack{2,2} (Pack{2,2} 42 1) Pack{1,0})"
 
->>> runTest "prefix p xs = map (Pack{2,2} p) xs; main = prefix 42 (Cons 1 (Cons 2 (Cons 3 Nil)))"
+>>> :{
+let prog = extraPrelude ++
+           [ "prefix p xs = map (Pack{2,2} p) xs;"
+           , "main = prefix 42 (Cons 1 (Cons 2 (Cons 3 Nil)))"
+           ]
+in runTest (unlines prog)
+:}
 "(Pack{2,2} (Pack{2,2} 42 1) (Pack{2,2} (Pack{2,2} 42 2) (Pack{2,2} (Pack{2,2} 42 3) Pack{1,0})))"
 
 >>> runTest "f x = Pack{2,2} (case x of <1> -> 1; <2> -> 2) Pack{1,0}; main = f Pack{2,0}"
@@ -1588,7 +1651,8 @@ in runTest (unlines prog)
 "3628800"
 
 >>> :{
-let prog = [ "B f g x = f (g x);"
+let prog = extraPrelude ++
+           [ "B f g x = f (g x);"
            , "G a b c d = let e = c d in a (b e) e;"
            , "fmap f x = case x of"
            , "  <0>   -> Nothing;"
@@ -1639,7 +1703,8 @@ in runTest (unlines prog)
 "6765"
 
 >>> :{
-let prog = [ "Zero = Pack{0,0};"
+let prog = extraPrelude ++
+           [ "Zero = Pack{0,0};"
            , "Succ n = Pack{1,1} n;"
            , "foldn c f n = case n of"
            , "  <0>   -> c;"
@@ -1655,7 +1720,8 @@ in runTest (unlines prog)
 "(Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} Pack{0,0})))))))))))))"
 
 >>> :{
-let prog = [ "Zero = Pack{0,0};"
+let prog = extraPrelude ++
+           [ "Zero = Pack{0,0};"
            , "Succ n = Pack{1,1} n;"
            , "foldn c f n = case n of"
            , "  <0>   -> c;"
