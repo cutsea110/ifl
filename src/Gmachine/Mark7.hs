@@ -203,9 +203,9 @@ dispatch Lt             = comparison (<)
 dispatch Le             = comparison (<=)
 dispatch Gt             = comparison (>)
 dispatch Ge             = comparison (>=)
-dispatch And            = logic2 (&&)
-dispatch Or             = logic2 (||)
-dispatch Not            = logic1 not
+dispatch And            = logical2 (&&)
+dispatch Or             = logical2 (||)
+dispatch Not            = logical1 not
 dispatch (Cond t f)     = cond t f
 dispatch (Pack t n)     = pack t n
 dispatch (Casejump bs)  = casejump bs
@@ -228,37 +228,6 @@ evalop state = putCode    [Unwind]
         (a, s) = S.pop (getStack state)
         i = getCode state
 
-
-boxInteger :: Int -> GmState -> GmState
-boxInteger n state
-  = putStack (S.push a stack) (putHeap h' state)
-  where stack = getStack state
-        (h', a) = hAlloc (getHeap state) (NNum n)
-
-unboxInteger :: Addr -> GmState -> Int
-unboxInteger a state
-  = ub (hLookup (getHeap state) a)
-  where ub (NNum i) = i
-        ub n        = error "Unboxing a non-integer"
-
-primitive1 :: (b -> GmState -> GmState) -- boxing function
-           -> (Addr -> GmState -> a)    -- unboxing function
-           -> (a -> b)                  -- operator
-           -> (GmState -> GmState)      -- state transition
-primitive1 box unbox op state
-  = box (op (unbox a state)) (putStack as state)
-  where (a, as) = S.pop $ getStack state
-
-primitive2 :: (b -> GmState -> GmState) -- boxing function
-           -> (Addr -> GmState -> a)    -- unboxing function
-           -> (a -> a -> b)             -- operator
-           -> (GmState -> GmState)      -- state transition
-primitive2 box unbox op state
-  = box (op (unbox a0 state) (unbox a1 state)) (putStack as1 state)
-    where stack = getStack state
-          (a0, as0) = S.pop stack
-          (a1, as1) = S.pop as0
-
 arithmetic1 :: (Int -> Int)         -- arithmetic operator
             -> (GmState -> GmState) -- state transition
 arithmetic1 op state = putVStack vstack'' state
@@ -273,14 +242,6 @@ arithmetic2 op state = putVStack vstack'' state
         vstack'' = S.push (op n0 n1) vstack'
         ((n0:n1:_), vstack') = S.nPop 2 vstack
 
-boxBoolean :: Bool -> GmState -> GmState
-boxBoolean b state
-  = putStack (S.push a stack) (putHeap h' state)
-  where stack = getStack state
-        (h', a) = hAlloc (getHeap state) (NConstr b' [])
-        b' | b         = 2 -- tag of True
-           | otherwise = 1 -- tag of False
-
 comparison :: (Int -> Int -> Bool) -> GmState -> GmState
 comparison op state = putVStack vstack'' state
   where vstack = getVStack state
@@ -289,8 +250,8 @@ comparison op state = putVStack vstack'' state
         b | op n0 n1  = 2 -- True
           | otherwise = 1 -- False
 
-logic2 :: (Bool -> Bool -> Bool) -> GmState -> GmState
-logic2 op state = putVStack vstack'' state
+logical2 :: (Bool -> Bool -> Bool) -> GmState -> GmState
+logical2 op state = putVStack vstack'' state
   where vstack = getVStack state
         vstack'' = S.push b vstack'
         ((n0:n1:_), vstack') = S.nPop 2 vstack
@@ -301,8 +262,8 @@ logic2 op state = putVStack vstack'' state
         b | op (box n0) (box n1)  = 2 -- True
           | otherwise             = 1 -- False
 
-logic1 :: (Bool -> Bool) -> GmState -> GmState
-logic1 op state = putVStack vstack'' state
+logical1 :: (Bool -> Bool) -> GmState -> GmState
+logical1 op state = putVStack vstack'' state
   where vstack = getVStack state
         vstack'' = S.push b vstack'
         (n, vstack') = S.pop vstack
