@@ -684,7 +684,7 @@ compileR e env = case e of
   EAp (EAp (EAp (EVar "if") e0) e1) e2
     -> compileB e0 env ++ [Cond (compileR e1 env) (compileR e2 env)]
   ECase expr alts
-    -> compileB expr env ++ [Casejump (compileD compileA alts env)]
+    -> compileE expr env ++ [Casejump (compileD compileA alts env)]
   _ -> compileE e env ++ [Update n, Pop n, Unwind]
   where n = length env
 
