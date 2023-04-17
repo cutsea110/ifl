@@ -534,7 +534,10 @@ compile program = GmState { output  = initialOutput
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
   where
-    compiled = map compileSc (preludeDefs ++ program ++ primitives) ++ compiledPrimitives
+    compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program ++ primitives) ++ compiledPrimitives
+
+extraPreludeDefs :: CoreProgram
+extraPreludeDefs = parse extraPreludeCode
 
 extraPreludeCode :: String
 extraPreludeCode = unlines extraPrelude
@@ -606,7 +609,7 @@ extraPrelude
 
     , "seq x y = y + 0 * x;" -- means 'x >> y' but just kidding.
     , "putStr cs = foldr seq 0 (map putChar cs);"
-    , "putStrLn cs = foldr seq (putChar 10) (map putChar cs);"
+    , "putStrLn cs = foldr seq (putChar 10) (map putChar cs)"
     ]
 
 primitives :: [CoreScDefn]
@@ -1188,36 +1191,16 @@ in runTest (unlines prog)
 >>> runTest "main = if (False || True) 1 2"
 "1"
 
->>> :{
-let prog = extraPrelude ++
-           [ "main = if (xor False True) 1 2"
-           ]
-in runTest (unlines prog)
-:}
+>>> runTest "main = if (xor False True) 1 2"
 "1"
 
->>> :{
-let prog = extraPrelude ++
-           [ "main = if (xor True False) 1 2"
-           ]
-in runTest (unlines prog)
-:}
+>>> runTest "main = if (xor True False) 1 2"
 "1"
 
->>> :{
-let prog = extraPrelude ++
-           [ "main = if (xor True True) 1 2"
-           ]
-in runTest (unlines prog)
-:}
+>>> runTest "main = if (xor True True) 1 2"
 "2"
 
->>> :{
-let prog = extraPrelude ++
-           [ "main = if (xor False False) 1 2"
-           ]
-in runTest (unlines prog)
-:}
+>>> runTest "main = if (xor False False) 1 2"
 "2"
 
 >>> runTest "main = if (1 == 1 && 2 /= 3) 1 2"
@@ -1232,20 +1215,10 @@ in runTest (unlines prog)
 >>> runTest "fac n = if (n==0) 1 (n*fac (n-1)); main = fac 5"
 "120"
 
->>> :{
-let prog = extraPrelude ++
-           [ "main = fst (snd (fst (Pair (Pair 1 (Pair 2 3)) 4)))"
-           ]
-in runTest (unlines prog)
-:}
+>>> runTest "main = fst (snd (fst (Pair (Pair 1 (Pair 2 3)) 4)))"
 "2"
 
->>> :{
-let prog = extraPrelude ++
-           [ "main = Cons (1+2) (Cons (3+4) Nil)"
-           ]
-in runTest (unlines prog)
-:}
+>>> runTest "main = Cons (1+2) (Cons (3+4) Nil)"
 "(Pack{2,2} 3 (Pack{2,2} 7 Pack{1,0}))"
 
 >>> :{
@@ -1259,8 +1232,7 @@ in runTest (unlines prog)
 "85"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "double x = x + x;"
+let prog = [ "double x = x + x;"
            , "main = Cons (double (double (S K K 3))) Nil"
            ]
 in runTest (unlines prog)
@@ -1372,8 +1344,7 @@ in runTest (unlines prog)
 "(Pack{2,2} 1 (Pack{2,2} 2 (Pack{2,2} 3 (Pack{2,2} 4 (Pack{2,2} 5 Pack{1,0})))))"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "iota x y s = if (x > y) Nil (Cons x (iota (x+s) y s));"
+let prog = [ "iota x y s = if (x > y) Nil (Cons x (iota (x+s) y s));"
            , "main = iota 5 100 3"
            ]
 in runTest (unlines prog)
@@ -1381,8 +1352,7 @@ in runTest (unlines prog)
 "(Pack{2,2} 5 (Pack{2,2} 8 (Pack{2,2} 11 (Pack{2,2} 14 (Pack{2,2} 17 (Pack{2,2} 20 (Pack{2,2} 23 (Pack{2,2} 26 (Pack{2,2} 29 (Pack{2,2} 32 (Pack{2,2} 35 (Pack{2,2} 38 (Pack{2,2} 41 (Pack{2,2} 44 (Pack{2,2} 47 (Pack{2,2} 50 (Pack{2,2} 53 (Pack{2,2} 56 (Pack{2,2} 59 (Pack{2,2} 62 (Pack{2,2} 65 (Pack{2,2} 68 (Pack{2,2} 71 (Pack{2,2} 74 (Pack{2,2} 77 (Pack{2,2} 80 (Pack{2,2} 83 (Pack{2,2} 86 (Pack{2,2} 89 (Pack{2,2} 92 (Pack{2,2} 95 (Pack{2,2} 98 Pack{1,0}))))))))))))))))))))))))))))))))"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "ones = Cons 1 ones;"
+let prog = [ "ones = Cons 1 ones;"
            , "head xs = case xs of"
            , "  <1> -> Pack{1,0};"
            , "  <2> a b -> Pack{2,1} a;"
@@ -1393,8 +1363,7 @@ in runTest (unlines prog)
 "(Pack{2,1} 1)"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "plus x y = x + y;"
+let prog = [ "plus x y = x + y;"
            , "sum xs = foldr plus 0 xs;"
            , "iota x y = if (x > y) Nil (Cons x (iota (x+1) y));"
            , "double x = 2 * x;"
@@ -1405,8 +1374,7 @@ in runTest (unlines prog)
 "110"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "stream n = Cons n (stream (n + 1));"
+let prog = [ "stream n = Cons n (stream (n + 1));"
            , "take n xs = case xs of"
            , "  <1> -> Nil;"
            , "  <2> y ys -> if (n == 0) Nil (Cons y (take (n-1) ys));"
@@ -1417,8 +1385,7 @@ in runTest (unlines prog)
 "(Pack{2,2} 1 (Pack{2,2} 2 (Pack{2,2} 3 (Pack{2,2} 4 (Pack{2,2} 5 (Pack{2,2} 6 (Pack{2,2} 7 (Pack{2,2} 8 (Pack{2,2} 9 (Pack{2,2} 10 Pack{1,0}))))))))))"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "mod x y = let d = x / y in x - (d * y);"
+let prog = [ "mod x y = let d = x / y in x - (d * y);"
            , "gcd a b = let d = mod a b"
            , "          in if (d == 0) b (gcd b d);"
            , "lcm a b = let d = gcd a b"
@@ -1443,17 +1410,11 @@ in runTest (unlines prog)
 :}
 "12"
 
->>> :{
-let prog = extraPrelude ++
-           [ "main = seq (putStr (showBool (not True))) (putChar 10)"
-           ]
-in runTest (unlines prog)
-:}
+>>> runTest "main = seq (putStr (showBool (not True))) (putChar 10)"
 "False\n10"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "ch x xs = Cons x xs;"
+let prog = [ "ch x xs = Cons x xs;"
            , "n = Nil;"
            , "H = 72;"
            , "e = 101;"
@@ -1472,8 +1433,7 @@ in runTest (unlines prog)
 "Hello,World!\n10"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "psi n = Just (Pair n (n+1));"
+let prog = [ "psi n = Just (Pair n (n+1));"
            , "take n xs = case xs of"
            , "  <1> -> Nil;"
            , "  <2> y ys -> if (n == 0) Nil (Cons y (take (n-1) ys));"
@@ -1484,8 +1444,7 @@ in runTest (unlines prog)
 "(Pack{2,2} 1 (Pack{2,2} 2 (Pack{2,2} 3 (Pack{2,2} 4 (Pack{2,2} 5 (Pack{2,2} 6 (Pack{2,2} 7 (Pack{2,2} 8 (Pack{2,2} 9 (Pack{2,2} 10 Pack{1,0}))))))))))"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "showPair p = case p of"
+let prog = [ "showPair p = case p of"
            , "  <0> f s -> let nr     = putChar 10;"
            , "                 lparen = putChar 40;"
            , "                 rparen = putChar 41;"
@@ -1500,8 +1459,7 @@ in runTest (unlines prog)
 "(42,28)\n10"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "nr = putChar 10;"
+let prog = [ "nr = putChar 10;"
            , "lparen = putChar 91;"
            , "rparen = putChar 93;"
            , "iota x y = if (x > y) Nil (Cons x (iota (x+1) y));"
@@ -1513,8 +1471,7 @@ in runTest (unlines prog)
 "[1,2,3,4,5,6,7,8,9,10]\n10"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "from n = Cons n (from (n+1));"
+let prog = [ "from n = Cons n (from (n+1));"
            , "take n xxs = case xxs of"
            , "  <1> -> Nil;"
            , "  <2> x xs -> if (n == 0) Nil (Cons x (take (n-1) xs));"
@@ -1525,8 +1482,7 @@ in runTest (unlines prog)
 "[1,2,3,4,5,6,7,8,9,10]93"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "iota s e = if (s>e) Nil (Cons s (iota (s+1) e));"
+let prog = [ "iota s e = if (s>e) Nil (Cons s (iota (s+1) e));"
            , "main = putList (putPair putChar putNumber) (map dup (iota 32 127))"
            ]
 in runTest (unlines prog)
@@ -1534,8 +1490,7 @@ in runTest (unlines prog)
 "[( ,32),(!,33),(\",34),(#,35),($,36),(%,37),(&,38),(',39),((,40),(),41),(*,42),(+,43),(,,44),(-,45),(.,46),(/,47),(0,48),(1,49),(2,50),(3,51),(4,52),(5,53),(6,54),(7,55),(8,56),(9,57),(:,58),(;,59),(<,60),(=,61),(>,62),(?,63),(@,64),(A,65),(B,66),(C,67),(D,68),(E,69),(F,70),(G,71),(H,72),(I,73),(J,74),(K,75),(L,76),(M,77),(N,78),(O,79),(P,80),(Q,81),(R,82),(S,83),(T,84),(U,85),(V,86),(W,87),(X,88),(Y,89),(Z,90),([,91),(\\,92),(],93),(^,94),(_,95),(`,96),(a,97),(b,98),(c,99),(d,100),(e,101),(f,102),(g,103),(h,104),(i,105),(j,106),(k,107),(l,108),(m,109),(n,110),(o,111),(p,112),(q,113),(r,114),(s,115),(t,116),(u,117),(v,118),(w,119),(x,120),(y,121),(z,122),({,123),(|,124),(},125),(~,126),(\DEL,127)]93"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "num2chr n = unfoldr psi n;"
+let prog = [ "num2chr n = unfoldr psi n;"
            , "psi n = if (n == 0) Nothing (Just (swap (divMod n 10)));"
            , "revchr xs = foldr phi I xs Nil;"
            , "phi b g x = g (Cons (48 + b) x);"
@@ -1547,8 +1502,7 @@ in runTest (unlines prog)
 "257\n10"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "x1 = Pair Nothing (Just 42);"
+let prog = [ "x1 = Pair Nothing (Just 42);"
            , "x2 = let xs = Cons 65 (Cons 66 (Cons 67 Nil)) in Pair (Left xs) (Right xs);"
            , "t1 = let p = putMaybe putNumber in putPair p p x1;"
            , "t2 = let p = putEither (putList putNumber) (putList putChar) in putPair p p x2;"
@@ -1562,8 +1516,7 @@ in runTest (unlines prog)
 "(Pack{2,2} 42 4)"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "prefix p xs = map (f p) xs;"
+let prog = [ "prefix p xs = map (f p) xs;"
            , "f p x = Pack{2,2} p x;"
            , "main = prefix 42 (Cons 1 Nil)"
            ]
@@ -1572,8 +1525,7 @@ in runTest (unlines prog)
 "(Pack{2,2} (Pack{2,2} 42 1) Pack{1,0})"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "prefix p xs = map (Pack{2,2} p) xs;"
+let prog = [ "prefix p xs = map (Pack{2,2} p) xs;"
            , "main = prefix 42 (Cons 1 (Cons 2 (Cons 3 Nil)))"
            ]
 in runTest (unlines prog)
@@ -1651,8 +1603,7 @@ in runTest (unlines prog)
 "3628800"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "B f g x = f (g x);"
+let prog = [ "B f g x = f (g x);"
            , "G a b c d = let e = c d in a (b e) e;"
            , "fmap f x = case x of"
            , "  <0>   -> Nothing;"
@@ -1703,8 +1654,7 @@ in runTest (unlines prog)
 "6765"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "Zero = Pack{0,0};"
+let prog = [ "Zero = Pack{0,0};"
            , "Succ n = Pack{1,1} n;"
            , "foldn c f n = case n of"
            , "  <0>   -> c;"
@@ -1720,8 +1670,7 @@ in runTest (unlines prog)
 "(Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} (Pack{1,1} Pack{0,0})))))))))))))"
 
 >>> :{
-let prog = extraPrelude ++
-           [ "Zero = Pack{0,0};"
+let prog = [ "Zero = Pack{0,0};"
            , "Succ n = Pack{1,1} n;"
            , "foldn c f n = case n of"
            , "  <0>   -> c;"
