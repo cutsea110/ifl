@@ -72,6 +72,7 @@ data Instruction
   | Eval
   | Add | Sub | Mul | Div | Neg
   | Eq | Ne | Lt | Le | Gt | Ge
+  | And | Or | Not
   | Cond GmCode GmCode
   | Pack Tag Arity
   | Casejump [(Tag, GmCode)]
@@ -202,6 +203,9 @@ dispatch Lt             = comparison (<)
 dispatch Le             = comparison (<=)
 dispatch Gt             = comparison (>)
 dispatch Ge             = comparison (>=)
+dispatch And            = logic2 (&&)
+dispatch Or             = logic2 (||)
+dispatch Not            = logic1 not
 dispatch (Cond t f)     = cond t f
 dispatch (Pack t n)     = pack t n
 dispatch (Casejump bs)  = casejump bs
@@ -284,6 +288,31 @@ comparison op state = putVStack vstack'' state
         ((n0:n1:_), vstack') = S.nPop 2 vstack
         b | op n0 n1  = 2 -- True
           | otherwise = 1 -- False
+
+logic2 :: (Bool -> Bool -> Bool) -> GmState -> GmState
+logic2 op state = putVStack vstack'' state
+  where vstack = getVStack state
+        vstack'' = S.push b vstack'
+        ((n0:n1:_), vstack') = S.nPop 2 vstack
+        box n = case n of
+          1 -> False
+          2 -> True
+          _ -> error $ "not integer which can be regarded as boolean: " ++ show n
+        b | op (box n0) (box n1)  = 2 -- True
+          | otherwise             = 1 -- False
+
+logic1 :: (Bool -> Bool) -> GmState -> GmState
+logic1 op state = putVStack vstack'' state
+  where vstack = getVStack state
+        vstack'' = S.push b vstack'
+        (n, vstack') = S.pop vstack
+        box n = case n of
+          1 -> False
+          2 -> True
+          _ -> error $ "not integer which can be regarded as boolean: " ++ show n
+        b | op (box n) = 2 -- True
+          | otherwise  = 1 -- False
+
 
 cond :: GmCode -> GmCode -> GmState -> GmState
 cond i1 i2 state = putVStack vstack'
@@ -502,7 +531,7 @@ unwind state = newState (hLookup heap a)
           | S.isEmpty dump = putCode [] state
           | otherwise      = putCode i'
                              . putStack (S.push a s')
-                             . putVStack v' -- require?
+                             . putVStack v'
                              . putDump d
                              $ state
         newState (NAp a1 a2) = putCode [Unwind]
@@ -511,7 +540,7 @@ unwind state = newState (hLookup heap a)
         newState (NGlobal n c)
           | k < n     = putCode i'
                         . putStack (S.push ak s')
-                        . putVStack v' -- require?
+                        . putVStack v'
                         . putDump d
                         $ state
           | otherwise = putCode c
@@ -646,6 +675,9 @@ primitives
     , ("<=", ["x", "y"], EAp (EAp (EVar "<=") (EVar "x")) (EVar "y"))
     , (">", ["x", "y"], EAp (EAp (EVar ">") (EVar "x")) (EVar "y"))
     , (">=", ["x", "y"], EAp (EAp (EVar ">=") (EVar "x")) (EVar "y"))
+    , ("&&", ["x", "y"], EAp (EAp (EVar "&&") (EVar "x")) (EVar "y"))
+    , ("||", ["x", "y"], EAp (EAp (EVar "||") (EVar "x")) (EVar "y"))
+    , ("not", ["x"], EAp (EVar "not") (EVar "x"))
 
     , ("if", ["c", "t", "f"], EAp (EAp (EAp (EVar "if") (EVar "c")) (EVar "t")) (EVar "f"))
     , ("True", [], EConstr 2 0)
@@ -684,6 +716,7 @@ compileR e env = case e of
     | recursive -> compileLetrecR compileR defs e env
     | otherwise -> compileLetR    compileR defs e env
   EAp (EVar "negate") _ -> compileE e env ++ [Update n, Pop n, Unwind]
+  EAp (EVar "not") _ -> compileE e env ++ [Update n, Pop n, Unwind]
   EAp (EAp (EVar op) _) _
     | op `elem` aDomain builtInDyadic
       -> compileE e env ++ [Update n, Pop n, Unwind]
@@ -729,6 +762,7 @@ compileE e env = case e of
           dyadic | binop `elem` [Add, Sub, Mul, Div] = Mkint
                  | otherwise                         = Mkbool
   EAp (EVar "negate") _ -> compileB e env ++ [Mkint]
+  EAp (EVar "not") _ -> compileB e env ++ [Mkbool]
   EAp (EAp (EAp (EVar "if") e0) e1) e2
     -> compileB e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]
   EAp (EConstr t a) _ -> compileC e env -- in this case, action is as same as compileC's.
@@ -768,6 +802,8 @@ builtInDyadic
     , (">",  Gt)
     , ("<=", Le)
     , ("<",  Lt)
+    , ("&&", And)
+    , ("||", Or)
     ]
 
 {- |
@@ -935,6 +971,8 @@ compileB expr env = case expr of
          where op' = aLookup builtInDyadic op (error "invalid dyadic operator")
   (EAp (EVar "negate") e)
     -> compileB e env ++ [Neg]
+  (EAp (EVar "not") e)
+    -> compileB e env ++ [Not]
   (EAp (EAp (EAp (EVar "if") e0) e1) e2)
     -> compileB e0 env ++ [Cond (compileB e1 env) (compileB e2 env)]
   e -> compileE e env ++ [Get]
@@ -1007,6 +1045,9 @@ showInstruction Lt             = iStr "Lt"
 showInstruction Le             = iStr "Le"
 showInstruction Gt             = iStr "Gt"
 showInstruction Ge             = iStr "Ge"
+showInstruction And            = iStr "And"
+showInstruction Or             = iStr "Or"
+showInstruction Not            = iStr "Not"
 showInstruction (Cond t e)     = iConcat [iStr "Cond "
                                          , shortShowInstructions 3 t
                                          , shortShowInstructions 3 e
