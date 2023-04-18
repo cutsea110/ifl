@@ -678,6 +678,18 @@ initialCode = [Pushglobal "main", Eval, Print]
 
 >>> compileSc ("S", ["f", "g", "x"], EAp (EAp (EVar "f") (EVar "x")) (EAp (EVar "g") (EVar "x")))
 ("S",3,[Push 2,Push 2,Mkap,Push 3,Push 2,Mkap,Mkap,Eval,Update 3,Pop 3,Unwind])
+
+>>> compileSc . head . parse $ "Y f = letrec x = f x in x"
+("Y",1,[Alloc 1,Push 0,Push 2,Mkap,Update 0,Push 0,Eval,Update 2,Pop 2,Unwind])
+
+>>> compileSc . head . parse $ "f x y = letrec a = Pack{0,2} x b; b = Pack{0,2} y a in fst (snd (snd a))"
+("f",2,[Alloc 2,Push 0,Push 3,Pack 0 2,Update 1,Push 1,Push 4,Pack 0 2,Update 0,Push 1,Pushglobal "snd",Mkap,Pushglobal "snd",Mkap,Pushglobal "fst",Mkap,Eval,Update 4,Pop 4,Unwind])
+
+>>> compileSc . head . parse $ "main = 3+4*5"
+("main",0,[Pushbasic 5,Pushbasic 4,Mul,Pushbasic 3,Add,Mkint,Update 0,Pop 0,Unwind])
+
+>>> compileSc . head . parse $ "fac n = if (n == 0) 1 (n * fac (n-1))"
+("fac",1,[Pushbasic 0,Push 0,Eval,Get,Eq,Cond [Pushint 1,Update 1,Pop 1,Unwind] [Pushint 1,Push 1,Pushglobal "-",Mkap,Mkap,Pushglobal "fac",Mkap,Eval,Get,Push 0,Eval,Get,Mul,Mkint,Update 1,Pop 1,Unwind]])
 -}
 compileSc :: (Name, [Name], CoreExpr) -> GmCompiledSC
 compileSc (name, env, body) = (name, length env, compileR body (zip env [0..]))
@@ -918,13 +930,6 @@ compileArgs defs env
   = zip (aDomain defs) [n-1, n-2 .. 0] ++ argOffset n env
   where n = length defs
 
-{- |
->>> compileSc . head . parse $ "Y f = letrec x = f x in x"
-("Y",1,[Alloc 1,Push 0,Push 2,Mkap,Update 0,Push 0,Eval,Update 2,Pop 2,Unwind])
-
->>> compileSc . head . parse $ "f x y = letrec a = Pack{0,2} x b; b = Pack{0,2} y a in fst (snd (snd a))"
-("f",2,[Alloc 2,Push 0,Push 3,Pack 0 2,Update 1,Push 1,Push 4,Pack 0 2,Update 0,Push 1,Pushglobal "snd",Mkap,Pushglobal "snd",Mkap,Pushglobal "fst",Mkap,Eval,Update 4,Pop 4,Unwind])
--}
 compileLetrec :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLetrec comp defs expr env
   = [Alloc n] ++ compiled defs ++ comp expr env' ++ [Slide n]
