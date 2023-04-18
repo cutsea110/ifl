@@ -81,6 +81,7 @@ data Instruction
   | Mkbool
   | Mkint
   | Get
+  | Return
   | Print
   | PutChar
   deriving (Eq, Show)
@@ -214,6 +215,7 @@ dispatch (Pushbasic n)  = pushbasic n
 dispatch Mkbool         = mkbool
 dispatch Mkint          = mkint
 dispatch Get            = gmget
+dispatch Return         = gmreturn
 dispatch Print          = gmprint
 dispatch PutChar        = putchar
 
@@ -361,6 +363,20 @@ gmget state = newState (hLookup heap a) (putStack stack' state)
           NConstr t [] -> putVStack (S.push t vstack)
           NNum n       -> putVStack (S.push n vstack)
           _            -> error $ "Get of a non-number or bool: " ++ show e
+
+gmreturn :: GmState -> GmState
+gmreturn state = putCode i
+                 . putStack stack'
+                 . putVStack v
+                 . putDump d
+                 $ state
+  where stack = getStack state
+        dump = getDump state
+        ((i, s, v), d) = S.pop dump
+        k = S.getDepth stack
+        (ak, _) = S.pop (S.discard (k-1) stack)
+        stack' = S.push ak s
+
 
 gmprint :: GmState -> GmState
 gmprint state = case hLookup h a of
@@ -1020,6 +1036,7 @@ showInstruction (Pushbasic n)  = iStr "Pushbasic " `iAppend` iNum n
 showInstruction Mkbool         = iStr "Mkbool"
 showInstruction Mkint          = iStr "Mkint"
 showInstruction Get            = iStr "Get"
+showInstruction Return         = iStr "Return"
 showInstruction Print          = iStr "Print"
 showInstruction PutChar        = iStr "PutChar"
 
