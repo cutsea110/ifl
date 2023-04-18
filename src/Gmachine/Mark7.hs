@@ -884,9 +884,9 @@ compileC expr env = case expr of
   _                        -> error $ "support this expr: " ++ show expr
   where
     unwrap = either id id
-    -- In the case of normal function application, the trailer is [Mkap, Mkap, ...].
+    -- In the case of normal function application, the trailer is [Mkap, Mkap, ..].
     -- On the other hand, for data constructor, the trailer is [], except for the case of unsatisified.
-    -- If data constructor doesn't be saturated, the trailer is [Mkap, Mkap, ...],
+    -- If data constructor doesn't be saturated, the trailer is [Mkap, Mkap, ..],
     -- which length is the missing arguments length.
     compileCS e ev tl = case e of
       (EConstr t a)
@@ -1097,14 +1097,14 @@ showVStack s
             ]
 
 shortShowInstructions :: Int -> GmCode -> IseqRep
-shortShowInstructions number code
+shortShowInstructions n code
   = iConcat [ iStr "{"
             , iInterleave (iStr "; ") dotcodes
             , iStr "}"
             ]
-    where codes = map showInstruction (take number code)
-          dotcodes | length code > number = codes ++ [iStr "..."]
-                   | otherwise            = codes
+    where codes = map showInstruction (take n code)
+          dotcodes | length code > n = codes ++ [iStr ".."]
+                   | otherwise       = codes
 
 shortShowStack :: GmStack -> IseqRep
 shortShowStack stack
