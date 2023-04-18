@@ -1001,44 +1001,45 @@ showInstructions is
             ]
 
 showInstruction :: Instruction -> IseqRep
-showInstruction Unwind         = iStr "Unwind"
-showInstruction (Pushglobal f) = iStr "Pushglobal " `iAppend` iStr f
-showInstruction (Push n)       = iStr "Push " `iAppend` iNum n
-showInstruction (Pushint n)    = iStr "Pushint " `iAppend` iNum n
-showInstruction Mkap           = iStr "Mkap"
-showInstruction (Pop n)        = iStr "Pop " `iAppend` iNum n
-showInstruction (Update n)     = iStr "Update " `iAppend` iNum n
-showInstruction (Slide n)      = iStr "Slide " `iAppend` iNum n
-showInstruction (Alloc n)      = iStr "Alloc " `iAppend` iNum n
-showInstruction Eval           = iStr "Eval"
-showInstruction Add            = iStr "Add"
-showInstruction Sub            = iStr "Sub"
-showInstruction Mul            = iStr "Mul"
-showInstruction Div            = iStr "Div"
-showInstruction Neg            = iStr "Neg"
-showInstruction Eq             = iStr "Eq"
-showInstruction Ne             = iStr "Ne"
-showInstruction Lt             = iStr "Lt"
-showInstruction Le             = iStr "Le"
-showInstruction Gt             = iStr "Gt"
-showInstruction Ge             = iStr "Ge"
-showInstruction And            = iStr "And"
-showInstruction Or             = iStr "Or"
-showInstruction Not            = iStr "Not"
-showInstruction (Cond t e)     = iConcat [iStr "Cond "
-                                         , shortShowInstructions 3 t
-                                         , shortShowInstructions 3 e
-                                         ]
-showInstruction (Pack t a)     = iConcat [iStr "Pack " , iNum t, iStr " " , iNum a]
-showInstruction (Casejump bs)  = iConcat [ iStr "Casejump ", showAlts bs]
-showInstruction (Split n)      = iStr "Split " `iAppend` iNum n
-showInstruction (Pushbasic n)  = iStr "Pushbasic " `iAppend` iNum n
-showInstruction Mkbool         = iStr "Mkbool"
-showInstruction Mkint          = iStr "Mkint"
-showInstruction Get            = iStr "Get"
-showInstruction Return         = iStr "Return"
-showInstruction Print          = iStr "Print"
-showInstruction PutChar        = iStr "PutChar"
+showInstruction i = case i of
+  Unwind         -> iStr "Unwind"
+  (Pushglobal f) -> iStr "Pushglobal " `iAppend` iStr (show f)
+  (Push n)       -> iStr "Push " `iAppend` iNum n
+  (Pushint n)    -> iStr "Pushint " `iAppend` iNum n
+  Mkap           -> iStr "Mkap"
+  (Pop n)        -> iStr "Pop " `iAppend` iNum n
+  (Update n)     -> iStr "Update " `iAppend` iNum n
+  (Slide n)      -> iStr "Slide " `iAppend` iNum n
+  (Alloc n)      -> iStr "Alloc " `iAppend` iNum n
+  Eval           -> iStr "Eval"
+  Add            -> iStr "Add"
+  Sub            -> iStr "Sub"
+  Mul            -> iStr "Mul"
+  Div            -> iStr "Div"
+  Neg            -> iStr "Neg"
+  Eq             -> iStr "Eq"
+  Ne             -> iStr "Ne"
+  Lt             -> iStr "Lt"
+  Le             -> iStr "Le"
+  Gt             -> iStr "Gt"
+  Ge             -> iStr "Ge"
+  And            -> iStr "And"
+  Or             -> iStr "Or"
+  Not            -> iStr "Not"
+  (Cond t e)     -> iConcat [iStr "Cond "
+                            , shortShowInstructions 3 t
+                            , shortShowInstructions 3 e
+                            ]
+  (Pack t a)     -> iConcat [iStr "Pack " , iNum t, iStr " " , iNum a]
+  (Casejump bs)  -> iConcat [ iStr "Casejump ", showAlts bs]
+  (Split n)      -> iStr "Split " `iAppend` iNum n
+  (Pushbasic n)  -> iStr "Pushbasic " `iAppend` iNum n
+  Mkbool         -> iStr "Mkbool"
+  Mkint          -> iStr "Mkint"
+  Get            -> iStr "Get"
+  Return         -> iStr "Return"
+  Print          -> iStr "Print"
+  PutChar        -> iStr "PutChar"
 
 showCodes :: [Instruction] -> IseqRep
 showCodes []     = iStr "[]"
