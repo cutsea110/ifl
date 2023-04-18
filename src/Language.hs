@@ -17,6 +17,7 @@ module Language
   ) where
 
 import Data.Char (isAlpha, isDigit, isSpace)
+import Text.Printf
 
 import Iseq
 import Parser
@@ -654,18 +655,23 @@ pVar = pSat p
 keywords :: [String]
 keywords = ["let", "letrec", "in", "case", "of", "Pack"]
 
-syntax :: [Token] -> CoreProgram
-syntax = takeFirstParse . runParser pProgram
+syntax :: String -> [Token] -> CoreProgram
+syntax src = takeFirstParse . runParser pProgram
   where
     takeFirstParse ((prog, []):other) = prog
     takeFirstParse ((prog, xs):other) = error msg
       where (n, w):_ = xs
             msg = unlines [ "syntax error:"
                           , "-----------------"
-                          , pprint prog
+                          , src'
                           , "-----------------"
-                          , "source line " ++ show n ++ ": Got " ++ w
+                          , "source line " ++ show n ++ ": Got '" ++ w ++ "'"
                           ]
+            src' = unlines $ zipWith showLine [1..] (lines src)
+              where showLine :: Int -> String -> String
+                    showLine no line
+                      | no == n   = printf "🐛%05d| " no ++ line
+                      | otherwise = printf "  %05d| " no ++ line
     takeFirstParse other              = error "syntax error"
 
 pProgram :: Parser CoreProgram
@@ -1138,7 +1144,7 @@ mkApChain :: [CoreExpr] -> CoreExpr
 mkApChain = foldl1 EAp
 
 parse :: String -> CoreProgram
-parse = syntax . clex 1
+parse src = syntax src $ clex 1 src
 
 
 ----------------------------------------------------------------------------------------
