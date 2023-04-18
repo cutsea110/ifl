@@ -218,12 +218,17 @@ dispatch Print          = gmprint
 dispatch PutChar        = putchar
 
 evalop :: GmState -> GmState
-evalop state = putCode    [Unwind]
+evalop state = newState (hLookup h a)
+  where newState e = case e of
+          (NNum _) -> state
+          (NConstr _ _) -> state
+          _ -> putCode    [Unwind]
                . putStack (S.push a S.emptyStack)
                . putVStack S.emptyStack
                . putDump  (S.push (i, s, v) d)
                $ state
-  where d = getDump state
+        h = getHeap state
+        d = getDump state
         v = getVStack state
         (a, s) = S.pop (getStack state)
         i = getCode state
