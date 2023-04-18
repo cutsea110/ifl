@@ -995,9 +995,8 @@ showSC s (name, addr)
 
 showInstructions :: GmCode -> IseqRep
 showInstructions is
-  = iConcat [ iStr "  Code:{"
+  = iConcat [ iStr "  Code: "
             , iIndent (iInterleave iNewline (map showInstruction is))
-            , iStr "}", iNewline
             ]
 
 showInstruction :: Instruction -> IseqRep
