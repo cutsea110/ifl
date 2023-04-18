@@ -1,3 +1,10 @@
 -- test program 30
-
+CFalse = Pack{1,0};
+CTrue  = Pack{2,0};
+CIf c t f = case c of
+  <1> -> f;
+  <2> -> t;
+COr x y = case x of
+  <1> -> y;
+  <2> -> CTrue;
 main = Cons (CIf (COr CFalse CTrue) 1 2) Nil

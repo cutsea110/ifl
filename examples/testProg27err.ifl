@@ -1,2 +1,4 @@
+tail xs = case xs of
+  <2> y ys -> ys;
 main = tail Nil -- error!
 

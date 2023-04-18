@@ -1,4 +1,3 @@
 -- test program 31
-
-main = Cons (fst (snd (snd (MkPair 1 (MkPair 2 (MkPair 3 4)))))) Nil
+main = Cons (fst (snd (snd (Pair 1 (Pair 2 (Pair 3 4)))))) Nil
 -- main = Cons 1 Nil

@@ -1,1 +1,2 @@
+MkPair l r = Pack{0,2} l r;
 main = fst (snd (fst (MkPair (MkPair 1 (MkPair 2 3)) 4)))

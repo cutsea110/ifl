@@ -1,3 +1,4 @@
 -- test program 32
-
+CNil = Pack{1,0};
+CCons x xs = Pack{2,2} x xs;
 main = CCons 1 (CCons 2 (CCons 3 (CCons 4 CNil)))

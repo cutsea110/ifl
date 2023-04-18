@@ -551,6 +551,8 @@ extraPrelude
     , "showBool b = case b of"
     , "  <1> -> Cons 70 (Cons 97 (Cons 108 (Cons 115 (Cons 101 Nil))));"
     , "  <2> -> Cons 84 (Cons 114 (Cons 117 (Cons 101 Nil)));"
+    , "and x y = x && y;"
+    , "or x y = x || y;"
     , "xor x y = (x || y) && not (x && y);"
 
     , "Nothing = Pack{0,0};"

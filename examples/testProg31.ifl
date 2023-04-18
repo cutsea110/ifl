@@ -1,3 +1,7 @@
 -- test program 31
-
+CPair l r = Pack{0,2} l r;
+CFst p = case p of
+  <0> x y -> x;
+CSnd p = case p of
+  <0> x y -> y;
 main = Cons (CFst (CSnd (CSnd (CPair 1 (CPair 2 (CPair 3 4)))))) Nil

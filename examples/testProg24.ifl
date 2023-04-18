@@ -1,1 +1,3 @@
+head xs = case xs of
+  <2> y ys -> y;
 main = head (Cons 1 (Cons 2 Nil))

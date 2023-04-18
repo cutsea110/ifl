@@ -1,5 +1,5 @@
-length xs = caseList xs 0 len2 ;
-len2 x xs = 1 + length xs ;
+length xs = foldr len 0 xs;
+len x xs = 1 + xs;
 main = let
          xs = Cons 1 (Cons 2 (Cons 3 (Cons 4 (Cons 5 Nil))))
        in length xs
