@@ -682,6 +682,9 @@ initialCode = [Pushglobal "main", Eval, Print]
 >>> compileSc . head . parse $ "Y f = letrec x = f x in x"
 ("Y",1,[Alloc 1,Push 0,Push 2,Mkap,Update 0,Push 0,Eval,Update 2,Pop 2,Unwind])
 
+>>> compileSc . head . parse $ "x = 42"
+("x",0,[Pushint 42,Update 0,Pop 0,Unwind])
+
 >>> compileSc . head . parse $ "f x y = letrec a = Pack{0,2} x b; b = Pack{0,2} y a in fst (snd (snd a))"
 ("f",2,[Alloc 2,Push 0,Push 3,Pack 0 2,Update 1,Push 1,Push 4,Pack 0 2,Update 0,Push 1,Pushglobal "snd",Mkap,Pushglobal "snd",Mkap,Pushglobal "fst",Mkap,Eval,Update 4,Pop 4,Unwind])
 
@@ -690,6 +693,9 @@ initialCode = [Pushglobal "main", Eval, Print]
 
 >>> compileSc . head . parse $ "minus3 = negate 3"
 ("minus3",0,[Pushbasic 3,Neg,Mkint,Update 0,Pop 0,Unwind])
+
+>>> compileSc . head . parse $ "f b = not b"
+("f",1,[Push 0,Eval,Get,Not,Mkbool,Update 1,Pop 1,Unwind])
 
 >>> compileSc . head . parse $ "and x y = x && y"
 ("and",2,[Push 1,Eval,Get,Push 0,Eval,Get,And,Mkbool,Update 2,Pop 2,Unwind])
