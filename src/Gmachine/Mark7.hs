@@ -373,8 +373,9 @@ gmreturn state = putCode i
   where stack = getStack state
         dump = getDump state
         ((i, s, v), d) = S.pop dump
-        (a, _) = S.pop stack
-        stack' = S.push a s
+        k = S.getDepth stack
+        (ak, _) = S.pop (S.discard (k-1) stack)
+        stack' = S.push ak s
 
 
 gmprint :: GmState -> GmState
@@ -691,10 +692,10 @@ initialCode = [Pushglobal "main", Eval, Print]
 ("main",0,[Pushbasic 5,Pushbasic 4,Mul,Pushbasic 3,Add,Mkint,Update 0,Pop 0,Unwind])
 
 >>> compileSc . head . parse $ "minus3 = negate 3"
-("minus3",0,[Pushbasic 3,Neg,Mkint,Return])
+("minus3",0,[Pushbasic 3,Neg,Mkint,Update 0,Pop 0,Unwind])
 
 >>> compileSc . head . parse $ "f b = not b"
-("f",1,[Push 0,Eval,Get,Not,Mkbool,Return])
+("f",1,[Push 0,Eval,Get,Not,Mkbool,Update 1,Pop 1,Unwind])
 
 >>> compileSc . head . parse $ "and x y = x && y"
 ("and",2,[Push 1,Eval,Get,Push 0,Eval,Get,And,Mkbool,Update 2,Pop 2,Unwind])
@@ -717,8 +718,8 @@ compileR e env = case e of
   ELet recursive defs e
     | recursive -> compileLetrecR compileR defs e env
     | otherwise -> compileLetR    compileR defs e env
-  EAp (EVar "negate") _ -> compiled ++ trailer
-  EAp (EVar "not") _ -> compiled ++ trailer
+  EAp (EVar "negate") _ -> compileE e env ++ [Update n, Pop n, Unwind]
+  EAp (EVar "not") _ -> compileE e env ++ [Update n, Pop n, Unwind]
   EAp (EAp (EVar op) _) _
     | op `elem` aDomain builtInDyadic
       -> compileE e env ++ [Update n, Pop n, Unwind]
@@ -728,11 +729,6 @@ compileR e env = case e of
     -> compileE expr env ++ [Casejump (compileD compileAR alts env)]
   _ -> compileE e env ++ [Update n, Pop n, Unwind]
   where n = length env
-        compiled = compileE e env
-        trailer
-          | stackTopIsWHNF = [Return]
-          | otherwise      = [Update n, Pop n, Unwind]
-        stackTopIsWHNF = last compiled `elem` [Mkint, Mkbool]
 
 compileLetrecR :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLetrecR comp defs expr env
