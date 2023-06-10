@@ -72,7 +72,7 @@ data Instruction
   | Eval
   | Add | Sub | Mul | Div | Neg
   | Eq | Ne | Lt | Le | Gt | Ge
-  | And | Or | Not
+  -- | And | Or | Not
   | Cond GmCode GmCode
   | Pack Tag Arity
   | Casejump [(Tag, GmCode)]
@@ -765,7 +765,9 @@ compileE e env = case e of
           dyadic | binop `elem` [Add, Sub, Mul, Div] = Mkint
                  | otherwise                         = Mkbool
   EAp (EVar "negate") _ -> compileB e env ++ [Mkint]
-  -- EAp (EVar "not") _ -> compileB e env ++ [Mkbool]
+  EAp (EAp (EVar op) _) _
+    | op `elem` ["&&", "||"] -> compileB e env ++ [Mkbool]
+  EAp (EVar "not") _ -> compileB e env ++ [Mkbool]
   EAp (EAp (EAp (EVar "if") e0) e1) e2
     -> compileB e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]
   EAp (EConstr t a) _ -> compileC e env -- in this case, action is as same as compileC's.
@@ -809,8 +811,8 @@ builtInDyadic
     , (">",  Gt)
     , ("<=", Le)
     , ("<",  Lt)
---     , ("&&", And)
---     , ("||", Or)
+    -- , ("&&", And)
+    -- , ("||", Or)
     ]
 
 {- |
@@ -969,6 +971,12 @@ compileB expr env = case expr of
     | op `elem` aDomain builtInDyadic
       -> compileB e1 env ++ compileB e0 env ++ [op']
          where op' = aLookup builtInDyadic op (error "invalid dyadic operator")
+  (EAp (EAp (EVar "&&") e0) e1)
+    -> compileB e0 env ++ [Cond (compileB e1 env) [Pushbasic 1]] -- 1: False
+  (EAp (EAp (EVar "||") e0) e1)
+    -> compileB e0 env ++ [Cond [Pushbasic 2] (compileB e1 env)] -- 2: True
+  (EAp (EVar "not") e)
+    -> compileB e env ++ [Cond [Pushbasic 1] [Pushbasic 2]] -- 1: False, 2: True
   (EAp (EVar "negate") e)
     -> compileB e env ++ [Neg]
   -- (EAp (EVar "not") e)
@@ -1045,9 +1053,9 @@ showInstruction i = case i of
   Le             -> iStr "Le"
   Gt             -> iStr "Gt"
   Ge             -> iStr "Ge"
-  And            -> iStr "And"
-  Or             -> iStr "Or"
-  Not            -> iStr "Not"
+  -- And            -> iStr "And"
+  -- Or             -> iStr "Or"
+  -- Not            -> iStr "Not"
   Cond t e       -> iConcat [iStr "Cond "
                             , shortShowInstructions 3 t
                             , shortShowInstructions 3 e
