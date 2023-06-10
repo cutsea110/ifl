@@ -695,16 +695,16 @@ initialCode = [Pushglobal "main", Eval, Print]
 ("minus3",0,[Pushbasic 3,Neg,Mkint,Update 0,Pop 0,Unwind])
 
 >>> compileSc . head . parse $ "f b = not b"
-("f",1,[Push 0,Eval,Get,Not,Mkbool,Update 1,Pop 1,Unwind])
+("f",1,[Push 0,Eval,Get,Cond [Pushbasic 1] [Pushbasic 2],Mkbool,Update 1,Pop 1,Unwind])
 
 >>> compileSc . head . parse $ "and x y = x && y"
-("and",2,[Push 1,Eval,Get,Push 0,Eval,Get,And,Mkbool,Update 2,Pop 2,Unwind])
+("and",2,[Push 0,Eval,Get,Cond [Push 1,Eval,Get] [Pushbasic 1],Mkbool,Update 2,Pop 2,Unwind])
 
 >>> compileSc . head . parse $ "or x y = x || y"
-("or",2,[Push 1,Eval,Get,Push 0,Eval,Get,Or,Mkbool,Update 2,Pop 2,Unwind])
+("or",2,[Push 0,Eval,Get,Cond [Pushbasic 2] [Push 1,Eval,Get],Mkbool,Update 2,Pop 2,Unwind])
 
 >>> compileSc . head . parse $ "xor x y = (x || y) && not (x && y)"
-("xor",2,[Push 1,Eval,Get,Push 0,Eval,Get,And,Not,Push 1,Eval,Get,Push 0,Eval,Get,Or,And,Mkbool,Update 2,Pop 2,Unwind])
+("xor",2,[Push 0,Eval,Get,Cond [Pushbasic 2] [Push 1,Eval,Get],Cond [Push 0,Eval,Get,Cond [Push 1,Eval,Get] [Pushbasic 1],Cond [Pushbasic 1] [Pushbasic 2]] [Pushbasic 1],Mkbool,Update 2,Pop 2,Unwind])
 
 >>> compileSc . head . parse $ "fac n = if (n == 0) 1 (n * fac (n-1))"
 ("fac",1,[Pushbasic 0,Push 0,Eval,Get,Eq,Cond [Pushint 1,Update 1,Pop 1,Unwind] [Pushint 1,Push 1,Pushglobal "-",Mkap,Mkap,Pushglobal "fac",Mkap,Eval,Get,Push 0,Eval,Get,Mul,Mkint,Update 1,Pop 1,Unwind]])
