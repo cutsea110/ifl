@@ -204,9 +204,9 @@ dispatch Lt             = comparison (<)
 dispatch Le             = comparison (<=)
 dispatch Gt             = comparison (>)
 dispatch Ge             = comparison (>=)
-dispatch And            = logical2 (&&)
-dispatch Or             = logical2 (||)
-dispatch Not            = logical1 not
+-- dispatch And            = logical2 (&&)
+-- dispatch Or             = logical2 (||)
+-- dispatch Not            = logical1 not
 dispatch (Cond t f)     = cond t f
 dispatch (Pack t n)     = pack t n
 dispatch (Casejump bs)  = casejump bs
@@ -257,29 +257,29 @@ comparison op state = putVStack vstack'' state
         b | op n0 n1  = 2 -- True
           | otherwise = 1 -- False
 
-logical2 :: (Bool -> Bool -> Bool) -> GmState -> GmState
-logical2 op state = putVStack vstack'' state
-  where vstack = getVStack state
-        vstack'' = S.push b vstack'
-        ((n0:n1:_), vstack') = S.nPop 2 vstack
-        box n = case n of
-          1 -> False
-          2 -> True
-          _ -> error $ "not integer which can be regarded as boolean: " ++ show n
-        b | op (box n0) (box n1)  = 2 -- True
-          | otherwise             = 1 -- False
-
-logical1 :: (Bool -> Bool) -> GmState -> GmState
-logical1 op state = putVStack vstack'' state
-  where vstack = getVStack state
-        vstack'' = S.push b vstack'
-        (n, vstack') = S.pop vstack
-        box n = case n of
-          1 -> False
-          2 -> True
-          _ -> error $ "not integer which can be regarded as boolean: " ++ show n
-        b | op (box n) = 2 -- True
-          | otherwise  = 1 -- False
+-- logical2 :: (Bool -> Bool -> Bool) -> GmState -> GmState
+-- logical2 op state = putVStack vstack'' state
+--   where vstack = getVStack state
+--         vstack'' = S.push b vstack'
+--         ((n0:n1:_), vstack') = S.nPop 2 vstack
+--         box n = case n of
+--           1 -> False
+--           2 -> True
+--           _ -> error $ "not integer which can be regarded as boolean: " ++ show n
+--         b | op (box n0) (box n1)  = 2 -- True
+--           | otherwise             = 1 -- False
+--
+-- logical1 :: (Bool -> Bool) -> GmState -> GmState
+-- logical1 op state = putVStack vstack'' state
+--   where vstack = getVStack state
+--         vstack'' = S.push b vstack'
+--         (n, vstack') = S.pop vstack
+--         box n = case n of
+--           1 -> False
+--           2 -> True
+--           _ -> error $ "not integer which can be regarded as boolean: " ++ show n
+--         b | op (box n) = 2 -- True
+--           | otherwise  = 1 -- False
 
 
 cond :: GmCode -> GmCode -> GmState -> GmState
@@ -719,7 +719,7 @@ compileR e env = case e of
     | recursive -> compileLetrecR compileR defs e env
     | otherwise -> compileLetR    compileR defs e env
   EAp (EVar "negate") _ -> compileE e env ++ [Update n, Pop n, Unwind]
-  EAp (EVar "not") _ -> compileE e env ++ [Update n, Pop n, Unwind]
+--   EAp (EVar "not") _ -> compileE e env ++ [Update n, Pop n, Unwind]
   EAp (EAp (EVar op) _) _
     | op `elem` aDomain builtInDyadic
       -> compileE e env ++ [Update n, Pop n, Unwind]
@@ -765,7 +765,7 @@ compileE e env = case e of
           dyadic | binop `elem` [Add, Sub, Mul, Div] = Mkint
                  | otherwise                         = Mkbool
   EAp (EVar "negate") _ -> compileB e env ++ [Mkint]
-  EAp (EVar "not") _ -> compileB e env ++ [Mkbool]
+  -- EAp (EVar "not") _ -> compileB e env ++ [Mkbool]
   EAp (EAp (EAp (EVar "if") e0) e1) e2
     -> compileB e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]
   EAp (EConstr t a) _ -> compileC e env -- in this case, action is as same as compileC's.
@@ -809,8 +809,8 @@ builtInDyadic
     , (">",  Gt)
     , ("<=", Le)
     , ("<",  Lt)
-    , ("&&", And)
-    , ("||", Or)
+--     , ("&&", And)
+--     , ("||", Or)
     ]
 
 {- |
@@ -971,8 +971,8 @@ compileB expr env = case expr of
          where op' = aLookup builtInDyadic op (error "invalid dyadic operator")
   (EAp (EVar "negate") e)
     -> compileB e env ++ [Neg]
-  (EAp (EVar "not") e)
-    -> compileB e env ++ [Not]
+  -- (EAp (EVar "not") e)
+  --   -> compileB e env ++ [Not]
   (EAp (EAp (EAp (EVar "if") e0) e1) e2)
     -> compileB e0 env ++ [Cond (compileB e1 env) (compileB e2 env)]
   e -> compileE e env ++ [Get]
