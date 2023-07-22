@@ -77,8 +77,6 @@ data Instruction
   | Casejump [(Tag, GmCode)]
   | Split Arity
   | Pushbasic Int
-  | Mkbool
-  | Mkint
   | UpdateBool Int
   | UpdateInt Int
   | Get
@@ -210,8 +208,6 @@ dispatch (Pack t n)     = pack t n
 dispatch (Casejump bs)  = casejump bs
 dispatch (Split n)      = split n
 dispatch (Pushbasic n)  = pushbasic n
-dispatch Mkbool         = mkbool
-dispatch Mkint          = mkint
 dispatch (UpdateBool n) = updatebool n
 dispatch (UpdateInt n)  = updateint n
 dispatch Get            = gmget
@@ -684,25 +680,25 @@ initialCode = [Pushglobal "main", Eval, Print]
 ("f",2,[Alloc 2,Push 0,Push 3,Pack 0 2,Update 1,Push 1,Push 4,Pack 0 2,Update 0,Push 1,Pushglobal "snd",Mkap,Pushglobal "snd",Mkap,Pushglobal "fst",Mkap,Eval,Update 4,Pop 4,Unwind])
 
 >>> compileSc . head . parse $ "main = 3+4*5"
-("main",0,[Pushbasic 5,Pushbasic 4,Mul,Pushbasic 3,Add,Mkint,Update 0,Pop 0,Unwind])
+("main",0,[Pushbasic 5,Pushbasic 4,Mul,Pushbasic 3,Add,UpdateInt 0,Pop 0,Unwind])
 
 >>> compileSc . head . parse $ "minus3 = negate 3"
-("minus3",0,[Pushbasic 3,Neg,Mkint,Update 0,Pop 0,Unwind])
+("minus3",0,[Pushbasic 3,Neg,UpdateInt 0,Pop 0,Unwind])
 
 >>> compileSc . head . parse $ "f b = not b"
-("f",1,[Push 0,Eval,Get,Cond [Pushbasic 1] [Pushbasic 2],Mkbool,Update 1,Pop 1,Unwind])
+("f",1,[Push 0,Eval,Get,Cond [Pushbasic 1] [Pushbasic 2],UpdateBool 1,Pop 1,Unwind])
 
 >>> compileSc . head . parse $ "and x y = x && y"
-("and",2,[Push 0,Eval,Get,Cond [Push 1,Eval,Get] [Pushbasic 1],Mkbool,Update 2,Pop 2,Unwind])
+("and",2,[Push 0,Eval,Get,Cond [Push 1,Eval,Get] [Pushbasic 1],UpdateBool 2,Pop 2,Unwind])
 
 >>> compileSc . head . parse $ "or x y = x || y"
-("or",2,[Push 0,Eval,Get,Cond [Pushbasic 2] [Push 1,Eval,Get],Mkbool,Update 2,Pop 2,Unwind])
+("or",2,[Push 0,Eval,Get,Cond [Pushbasic 2] [Push 1,Eval,Get],UpdateBool 2,Pop 2,Unwind])
 
 >>> compileSc . head . parse $ "xor x y = (x || y) && not (x && y)"
-("xor",2,[Push 0,Eval,Get,Cond [Pushbasic 2] [Push 1,Eval,Get],Cond [Push 0,Eval,Get,Cond [Push 1,Eval,Get] [Pushbasic 1],Cond [Pushbasic 1] [Pushbasic 2]] [Pushbasic 1],Mkbool,Update 2,Pop 2,Unwind])
+("xor",2,[Push 0,Eval,Get,Cond [Pushbasic 2] [Push 1,Eval,Get],Cond [Push 0,Eval,Get,Cond [Push 1,Eval,Get] [Pushbasic 1],Cond [Pushbasic 1] [Pushbasic 2]] [Pushbasic 1],UpdateBool 2,Pop 2,Unwind])
 
 >>> compileSc . head . parse $ "fac n = if (n == 0) 1 (n * fac (n-1))"
-("fac",1,[Pushbasic 0,Push 0,Eval,Get,Eq,Cond [Pushint 1,Update 1,Pop 1,Unwind] [Pushint 1,Push 1,Pushglobal "-",Mkap,Mkap,Pushglobal "fac",Mkap,Eval,Get,Push 0,Eval,Get,Mul,Mkint,Update 1,Pop 1,Unwind]])
+("fac",1,[Pushbasic 0,Push 0,Eval,Get,Eq,Cond [Pushint 1,Update 1,Pop 1,Unwind] [Pushint 1,Push 1,Pushglobal "-",Mkap,Mkap,Pushglobal "fac",Mkap,Eval,Get,Push 0,Eval,Get,Mul,UpdateInt 1,Pop 1,Unwind]])
 -}
 compileSc :: (Name, [Name], CoreExpr) -> GmCompiledSC
 compileSc (name, env, body) = (name, length env, compileR body (zip env [0..]))
@@ -1055,8 +1051,6 @@ showInstruction i = case i of
   Casejump bs    -> iConcat [ iStr "Casejump ", showAlts bs]
   Split n        -> iStr "Split " `iAppend` iNum n
   Pushbasic n    -> iStr "Pushbasic " `iAppend` iNum n
-  Mkbool         -> iStr "Mkbool"
-  Mkint          -> iStr "Mkint"
   UpdateInt n    -> iStr "UpdateInt" `iAppend` iNum n
   UpdateBool n   -> iStr "UpdateBool" `iAppend` iNum n
   Get            -> iStr "Get"
