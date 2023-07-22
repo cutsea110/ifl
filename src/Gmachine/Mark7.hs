@@ -751,16 +751,15 @@ compileE e env = case e of
   ELet recursive defs e
     | recursive -> compileLetrec compileE defs e env
     | otherwise -> compileLet    compileE defs e env
+  EAp (EVar "negate") _ -> compileB e env ++ [UpdateInt n]
+  EAp (EVar "not") _ -> compileB e env ++ [UpdateBool n]
   EAp (EAp (EVar op) _) _
     | op `elem` aDomain builtInDyadic
       -> compileB e env ++ [dyadic]
+    | op `elem` ["&&", "||"] -> compileB e env ++ [UpdateBool n]
     where binop = aLookup builtInDyadic op (error "unknown dyadic")
           dyadic | binop `elem` [Add, Sub, Mul, Div] = UpdateInt n
                  | otherwise                         = UpdateBool n
-  EAp (EVar "negate") _ -> compileB e env ++ [UpdateInt n]
-  EAp (EAp (EVar op) _) _
-    | op `elem` ["&&", "||"] -> compileB e env ++ [UpdateBool n]
-  EAp (EVar "not") _ -> compileB e env ++ [UpdateBool n]
   EAp (EAp (EAp (EVar "if") e0) e1) e2
     -> compileB e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]
   EAp (EConstr t a) _ -> compileC e env -- in this case, action is as same as compileC's.
