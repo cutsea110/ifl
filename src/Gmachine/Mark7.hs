@@ -714,8 +714,11 @@ compileR e env = case e of
     | recursive -> compileLetrecR compileR defs e env
     | otherwise -> compileLetR    compileR defs e env
   EAp (EVar "negate") _ -> compileE e env ++ [Return]
+  EAp (EVar "not")    _ -> compileE e env ++ [Return]
   EAp (EAp (EVar op) _) _
     | op `elem` aDomain builtInDyadic
+      -> compileE e env ++ [Return]
+    | op `elem` ["&&", "||"]
       -> compileE e env ++ [Return]
   EAp (EAp (EAp (EVar "if") e0) e1) e2
     -> compileB e0 env ++ [Cond (compileR e1 env) (compileR e2 env)]
@@ -760,8 +763,8 @@ compileE e env = case e of
                  | otherwise                         = UpdateBool n
   EAp (EVar "negate") _ -> compileB e env ++ [UpdateInt n]
   EAp (EAp (EVar op) _) _
-    | op `elem` ["&&", "||"] -> compileB e env ++ [Mkbool]
-  EAp (EVar "not") _ -> compileB e env ++ [Mkbool]
+    | op `elem` ["&&", "||"] -> compileB e env ++ [UpdateBool n]
+  EAp (EVar "not") _ -> compileB e env ++ [UpdateBool n]
   EAp (EAp (EAp (EVar "if") e0) e1) e2
     -> compileB e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]
   EAp (EConstr t a) _ -> compileC e env -- in this case, action is as same as compileC's.
