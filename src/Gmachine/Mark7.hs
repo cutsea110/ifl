@@ -716,7 +716,7 @@ compileR e env = case e of
   EAp (EVar "negate") _ -> compileE e env ++ [Update n, Pop n, Unwind]
   EAp (EAp (EVar op) _) _
     | op `elem` aDomain builtInDyadic
-      -> compileE e env ++ [Update n, Pop n, Unwind]
+      -> compileE e env ++ [Return]
   EAp (EAp (EAp (EVar "if") e0) e1) e2
     -> compileB e0 env ++ [Cond (compileR e1 env) (compileR e2 env)]
   ECase expr alts
@@ -756,8 +756,8 @@ compileE e env = case e of
     | op `elem` aDomain builtInDyadic
       -> compileB e env ++ [dyadic]
     where binop = aLookup builtInDyadic op (error "unknown dyadic")
-          dyadic | binop `elem` [Add, Sub, Mul, Div] = Mkint
-                 | otherwise                         = Mkbool
+          dyadic | binop `elem` [Add, Sub, Mul, Div] = UpdateInt n
+                 | otherwise                         = UpdateBool n
   EAp (EVar "negate") _ -> compileB e env ++ [Mkint]
   EAp (EAp (EVar op) _) _
     | op `elem` ["&&", "||"] -> compileB e env ++ [Mkbool]
@@ -768,6 +768,7 @@ compileE e env = case e of
   ECase expr alts
     -> compileE expr env ++ [Casejump (compileD compileA alts env)]
   _ -> compileC e env ++ [Eval]
+  where n = length env
 
 --
 -- D scheme compiles the code for the alternatives in a case expression.
@@ -1053,6 +1054,8 @@ showInstruction i = case i of
   Pushbasic n    -> iStr "Pushbasic " `iAppend` iNum n
   Mkbool         -> iStr "Mkbool"
   Mkint          -> iStr "Mkint"
+  UpdateInt n    -> iStr "UpdateInt" `iAppend` iNum n
+  UpdateBool n   -> iStr "UpdateBool" `iAppend` iNum n
   Get            -> iStr "Get"
   Return         -> iStr "Return"
   Print          -> iStr "Print"
