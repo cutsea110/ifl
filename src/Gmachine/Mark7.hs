@@ -79,6 +79,8 @@ data Instruction
   | Pushbasic Int
   | Mkbool
   | Mkint
+  | UpdateBool Int
+  | UpdateInt Int
   | Get
   | Return
   | Print
@@ -210,6 +212,8 @@ dispatch (Split n)      = split n
 dispatch (Pushbasic n)  = pushbasic n
 dispatch Mkbool         = mkbool
 dispatch Mkint          = mkint
+dispatch (UpdateBool n) = updatebool n
+dispatch (UpdateInt n)  = updateint n
 dispatch Get            = gmget
 dispatch Return         = gmreturn
 dispatch Print          = gmprint
@@ -323,6 +327,26 @@ mkint state = putStack stack'
         (n, vstack') = S.pop vstack
         (heap', a) = hAlloc heap (NNum n)
         stack' = S.push a stack
+
+updatebool :: Int -> GmState -> GmState
+updatebool n = sub . mkbool
+  where 
+    sub state = putHeap heap' (putStack s' state)
+      where s = getStack state
+            (a, s') = S.pop s
+            a' = S.getStack s' !! n
+            b = hLookup (getHeap state) a
+            heap' = hUpdate (getHeap state) a' b
+
+updateint :: Int -> GmState -> GmState
+updateint n = sub . mkint
+  where 
+    sub state = putHeap heap' (putStack s' state)
+      where s = getStack state
+            (a, s') = S.pop s
+            a' = S.getStack s' !! n
+            i = hLookup (getHeap state) a
+            heap' = hUpdate (getHeap state) a' i
 
 gmget :: GmState -> GmState
 gmget state = newState (hLookup heap a) (putStack stack' state)
