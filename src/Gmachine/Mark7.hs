@@ -713,7 +713,7 @@ compileR e env = case e of
   ELet recursive defs e
     | recursive -> compileLetrecR compileR defs e env
     | otherwise -> compileLetR    compileR defs e env
-  EAp (EVar "negate") _ -> compileE e env ++ [Update n, Pop n, Unwind]
+  EAp (EVar "negate") _ -> compileE e env ++ [Return]
   EAp (EAp (EVar op) _) _
     | op `elem` aDomain builtInDyadic
       -> compileE e env ++ [Return]
@@ -758,7 +758,7 @@ compileE e env = case e of
     where binop = aLookup builtInDyadic op (error "unknown dyadic")
           dyadic | binop `elem` [Add, Sub, Mul, Div] = UpdateInt n
                  | otherwise                         = UpdateBool n
-  EAp (EVar "negate") _ -> compileB e env ++ [Mkint]
+  EAp (EVar "negate") _ -> compileB e env ++ [UpdateInt n]
   EAp (EAp (EVar op) _) _
     | op `elem` ["&&", "||"] -> compileB e env ++ [Mkbool]
   EAp (EVar "not") _ -> compileB e env ++ [Mkbool]
