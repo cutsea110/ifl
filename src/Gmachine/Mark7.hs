@@ -1050,8 +1050,8 @@ showInstruction i = case i of
   Casejump bs    -> iConcat [ iStr "Casejump ", showAlts bs]
   Split n        -> iStr "Split " `iAppend` iNum n
   Pushbasic n    -> iStr "Pushbasic " `iAppend` iNum n
-  UpdateInt n    -> iStr "UpdateInt" `iAppend` iNum n
-  UpdateBool n   -> iStr "UpdateBool" `iAppend` iNum n
+  UpdateInt n    -> iStr "UpdateInt " `iAppend` iNum n
+  UpdateBool n   -> iStr "UpdateBool " `iAppend` iNum n
   Get            -> iStr "Get"
   Return         -> iStr "Return"
   Print          -> iStr "Print"
