@@ -138,23 +138,24 @@ getGlobals state = globals state
 putGlobals :: GmGlobals -> GmState -> GmState
 putGlobals globals' state = state { globals = globals' }
 
-type GmStats = Int
+data GmStats
+  = GmStats { getSteps :: Int
+            } deriving Show
 
 statInitial :: GmStats
-statInitial = 0
+statInitial = GmStats { getSteps = 0 }
 
 statIncSteps :: GmStats -> GmStats
-statIncSteps s = s + 1
+statIncSteps s = s { getSteps = getSteps s + 1 }
 
 statGetSteps :: GmStats -> Int
-statGetSteps s = s
+statGetSteps s = getSteps s
 
 getStats :: GmState -> GmStats
 getStats state = stats state
 
 putStats :: GmStats -> GmState -> GmState
 putStats stats' state = state { stats = stats' }
-
 
 
 eval :: GmState -> [GmState]
