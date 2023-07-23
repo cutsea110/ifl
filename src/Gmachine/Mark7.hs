@@ -141,12 +141,12 @@ putGlobals :: GmGlobals -> GmState -> GmState
 putGlobals globals' state = state { globals = globals' }
 
 data GmStats
-  = GmStats { getSteps :: Int
+  = GmStats { getSteps         :: Int
             , getMaxStackDepth :: Int
             }
 
 statInitial :: GmStats
-statInitial = GmStats { getSteps = 0
+statInitial = GmStats { getSteps         = 0
                       , getMaxStackDepth = 0
                       }
 
