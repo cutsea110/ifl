@@ -35,31 +35,30 @@ import qualified Gmachine.Mark7 as GMark7 (runProg)
 type Executer = String -> IO ()
 
 executer :: Compiler -> Bool -> Executer
-executer e verbose = hPutStr stdout .
-  (case e of
-     Mark1         -> Mark1.runProg
-     Mark2         -> Mark2.runProg
-     Mark3         -> Mark3.runProg
-     Mark4         -> Mark4.runProg
-     Mark5         -> Mark5.runProg
-     Mark5cnv      -> Mark5.runProgWithConv
-     Mark5Alt      -> Mark5Alt.runProg
-     Mark5Altcnv   -> Mark5Alt.runProgWithConv
-     Mark5GC       -> Mark5GC.runProg
-     Mark5GCcnv    -> Mark5GC.runProgWithConv
-     Mark5RevGC    -> Mark5RevGC.runProg
-     Mark5RevGCcnv -> Mark5RevGC.runProgWithConv
-     Mark5Cp       -> Mark5Cp.runProg
-     Mark5Cpcnv    -> Mark5Cp.runProgWithConv
-     GMark1        -> GMark1.runProg
-     GMark2        -> GMark2.runProg
-     GMark3        -> GMark3.runProg
-     GMark4        -> GMark4.runProg
-     GMark5        -> GMark5.runProg
-     GMark6        -> GMark6.runProg verbose
-     GMark7        -> GMark7.runProg verbose
-     (Noco name)   -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
-  )
+executer e verbose = hPutStr stdout . run
+  where run = case e of
+          Mark1         -> Mark1.runProg
+          Mark2         -> Mark2.runProg
+          Mark3         -> Mark3.runProg
+          Mark4         -> Mark4.runProg
+          Mark5         -> Mark5.runProg
+          Mark5cnv      -> Mark5.runProgWithConv
+          Mark5Alt      -> Mark5Alt.runProg
+          Mark5Altcnv   -> Mark5Alt.runProgWithConv
+          Mark5GC       -> Mark5GC.runProg
+          Mark5GCcnv    -> Mark5GC.runProgWithConv
+          Mark5RevGC    -> Mark5RevGC.runProg
+          Mark5RevGCcnv -> Mark5RevGC.runProgWithConv
+          Mark5Cp       -> Mark5Cp.runProg
+          Mark5Cpcnv    -> Mark5Cp.runProgWithConv
+          GMark1        -> GMark1.runProg
+          GMark2        -> GMark2.runProg
+          GMark3        -> GMark3.runProg
+          GMark4        -> GMark4.runProg
+          GMark5        -> GMark5.runProg
+          GMark6        -> GMark6.runProg verbose
+          GMark7        -> GMark7.runProg verbose
+          (Noco name)   -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
 -- COMMAND LINE OPTIONS
