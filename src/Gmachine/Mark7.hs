@@ -1095,7 +1095,7 @@ showState s
 
 showOutput :: GmState -> IseqRep
 showOutput s
-  = iConcat [iStr "Output:\"", iStr (outputAll (getOutput s)), iStr "\""]
+  = iConcat [iStr "Output: \"", iStr (outputAll (getOutput s)), iStr "\""]
 
 showDump :: GmState -> IseqRep
 showDump s
@@ -1123,7 +1123,7 @@ shortShowVStack s
 
 showVStack :: GmState -> IseqRep
 showVStack s
-  = iConcat [ iStr "VStack:["
+  = iConcat [ iStr "VStack: ["
             , iInterleave (iStr ", ") (map iNum (S.getStack (getVStack s)))
             , iStr "]"
             ]
@@ -1147,7 +1147,7 @@ shortShowStack stack
 
 showStack :: GmState -> IseqRep
 showStack s
-  = iConcat [ iStr "Stack: ["
+  = iConcat [ iStr " Stack: ["
             , iIndent $ iInterleave iNewline items
             , iStr "]"
             ]
