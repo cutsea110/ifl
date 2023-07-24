@@ -328,7 +328,7 @@ showSC s (name, addr)
 
 showInstructions :: GmCode -> IseqRep
 showInstructions is
-  = iConcat [ iStr "  Code:{"
+  = iConcat [ iStr "  Code: {"
             , iIndent (iInterleave iNewline (map showInstruction is))
             , iStr "}", iNewline
             ]
@@ -352,7 +352,7 @@ showState s
 
 showStack :: GmState -> IseqRep
 showStack s
-  = iConcat [ iStr "Stack: ["
+  = iConcat [ iStr " Stack: ["
             , iIndent $ iInterleave iNewline items
             , iStr "]"
             ]

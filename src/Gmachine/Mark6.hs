@@ -851,7 +851,7 @@ showSC s (name, addr)
 
 showInstructions :: GmCode -> IseqRep
 showInstructions is
-  = iConcat [ iStr "  Code:{"
+  = iConcat [ iStr "  Code: {"
             , iIndent (iInterleave iNewline (map showInstruction is))
             , iStr "}", iNewline
             ]
@@ -910,7 +910,7 @@ showState s
 
 showOutput :: GmState -> IseqRep
 showOutput s
-  = iConcat [iStr "Output:\"", iStr (outputAll (getOutput s)), iStr "\""]
+  = iConcat [iStr "Output: \"", iStr (outputAll (getOutput s)), iStr "\""]
 
 showDump :: GmState -> IseqRep
 showDump s
@@ -947,7 +947,7 @@ shortShowStack stack
 
 showStack :: GmState -> IseqRep
 showStack s
-  = iConcat [ iStr "Stack: ["
+  = iConcat [ iStr " Stack: ["
             , iIndent $ iInterleave iNewline items
             , iStr "]"
             ]
