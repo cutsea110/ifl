@@ -50,7 +50,9 @@ getStack :: GmState -> GmStack
 getStack state = stack state
 
 putStack :: GmStack -> GmState -> GmState
-putStack stack' state = state { stack = stack' }
+putStack stack' state = state { stack = stack', stats = stats' }
+  where dwh = S.getHighWaterMark stack'
+        stats' = statUpdateMaxStackDepth dwh (getStats state)
 
 type GmHeap = Heap Node
 
@@ -76,19 +78,32 @@ getGlobals state = globals state
 putGlobals :: GmGlobals -> GmState -> GmState
 putGlobals globals' state = state { globals = globals' }
 
-type GmStats = Int
+data GmStats = GmStats { getSteps         :: Int
+                       , getMaxStackDepth :: Int
+                       }
 
 statInitial :: GmStats
-statInitial = 0
+statInitial = GmStats { getSteps         = 0
+                      , getMaxStackDepth = 0
+                      }
 
 statIncSteps :: GmStats -> GmStats
-statIncSteps s = s + 1
+statIncSteps s = s { getSteps = getSteps s + 1 }
 
 statGetSteps :: GmStats -> Int
-statGetSteps s = s
+statGetSteps s = getSteps s
 
 getStats :: GmState -> GmStats
 getStats state = stats state
+
+statGetMaxStackDepth :: GmStats -> Int
+statGetMaxStackDepth s = getMaxStackDepth s
+
+statUpdateMaxStackDepth :: Int -> GmStats -> GmStats
+statUpdateMaxStackDepth depth s
+  | depth > depth' = s { getMaxStackDepth = depth }
+  | otherwise      = s
+  where depth' = statGetMaxStackDepth s
 
 putStats :: GmStats -> GmState -> GmState
 putStats stats' state = state { stats = stats' }
@@ -368,7 +383,7 @@ showStats s = iConcat [ iStr "---------------"
                       , iNewline, iStr "            Heap size = "
                       , iNum (hSize (heap s))
                       , iNewline, iStr "           Stack size = "
-                      , iNum (S.getHighWaterMark (getStack s))
+                      , iNum (statGetMaxStackDepth (getStats s))
                       ]
 
 {- |
