@@ -1,6 +1,6 @@
 module Main where
 
-import Control.Monad (forM_, when)
+import Control.Monad (forM_, unless, when)
 import Data.Char (toLower)
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
@@ -153,7 +153,7 @@ main = do
   args <- getArgs
   (opts, rest) <- compilerOpts args
 
-  when (not (optVerbose opts)) $ do
+  unless (optVerbose opts) $ do
     hSetBuffering stdout NoBuffering
 
   case rest of
