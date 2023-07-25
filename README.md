@@ -14,14 +14,14 @@ $ cabal run -- ifl
 
 > cabal v2-run ifl -- [OPTION...] <program-file>
 OPTION
-  -c Compiler  --compiler=Compiler  compiler name (mark1 | mark2 | mark3 | mark4 | mark5 | mark5cnv | mark5alt | mark5altcnv | mark5gc | mark5gccnv | mark5revgc | mark5revgccnv | mark5cp | gmark1 | gmark2 | gmark3 | gmark4 | gmark5 | gmark6)
+  -c Compiler  --compiler=Compiler  compiler name (mark1 | mark2 | mark3 | mark4 | mark5 | mark5cnv | mark5alt | mark5altcnv | mark5gc | mark5gccnv | mark5revgc | mark5revgccnv | mark5cp | gmark1 | gmark2 | gmark3 | gmark4 | gmark5 | gmark6 | gmark7)
   -v           --verbose            chatty output on stderr
   -V, -?       --version            show version
 ```
 
 # Tips
 
-How to confirm compiled code of any program for debug on Gmachine.Mark6.
+How to confirm compiled code of any program for debug on Gmachine.Mark7.
 
 ```
 ghci> let p = "fib n = if (n<2) 1 (fib (n-1) + fib (n-2))"
