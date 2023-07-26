@@ -1,4 +1,10 @@
-module TIM.Mark1 where
+module TIM.Mark1
+  ( parse
+  , compile
+  , eval
+  , showResults
+  , runProg
+  ) where
 
 import Heap
 import Language
