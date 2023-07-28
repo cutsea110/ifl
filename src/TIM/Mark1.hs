@@ -18,11 +18,13 @@ runProg verbose = showR . eval . compile . parse
 data Instruction = Take Int
                  | Enter TimAMode
                  | Push TimAMode
+                 deriving (Eq, Show)
 
 data TimAMode = Arg Int
               | Label Name
               | Code [Instruction]
               | IntConst Int
+              deriving (Eq, Show)
 
 data TimState = TimState { instructions :: [Instruction]
                          , frame        :: FramePtr
@@ -37,12 +39,15 @@ data TimState = TimState { instructions :: [Instruction]
 data FramePtr = FrameAddr Addr
               | FrameInt Int
               | FrameNull
+              deriving (Eq, Show)
 
 type TimStack = [Closure]
 type Closure = ([Instruction], FramePtr)
 
 data TimValueStack = DummyTimValueStack
+                   deriving (Eq, Show)
 data TimDump = DummyTimDump
+             deriving (Eq, Show)
 type TimHeap = Heap Frame
 type Frame = [Closure]
 type CodeStore = Assoc Name [Instruction]
