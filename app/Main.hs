@@ -4,11 +4,13 @@ import Control.Monad (forM_, unless, when)
 import Data.Char (toLower)
 import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
-import System.Console.GetOpt
+import System.Console.GetOpt (OptDescr(..), ArgDescr(NoArg, ReqArg), ArgOrder(Permute)
+                             , getOpt, usageInfo
+                             )
 import System.Environment (getArgs)
 import System.IO (getContents, hPutStr, hPutStrLn
                  , stdout, stderr
-                 , hSetBuffering, BufferMode(..)
+                 , hSetBuffering, BufferMode(NoBuffering)
                  )
 
 import qualified Template.Mark1 as Mark1 (runProg)
