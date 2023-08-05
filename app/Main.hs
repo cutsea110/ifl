@@ -163,5 +163,6 @@ main = do
     hSetBuffering stdout NoBuffering
 
   case rest of
-    [] -> hPutStr stderr helpMessage
-    (src:_) -> run opts src
+    []    -> hPutStr stderr helpMessage
+    [src] -> run opts src
+    _     -> error "Too many arguments"
