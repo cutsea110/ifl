@@ -39,7 +39,7 @@ import qualified TIM.Mark1 as TIMark1 (runProg)
 type Executer = String -> IO ()
 
 executer :: Compiler -> Bool -> Executer
-executer e verbose = hPutStr stdout . run
+executer e verbose = putStr . run
   where run = case e of
           Mark1         -> Mark1.runProg
           Mark2         -> Mark2.runProg
