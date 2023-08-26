@@ -60,6 +60,7 @@ fGet :: TimHeap -> FramePtr -> Int -> Closure
 fGet heap (FrameAddr addr) n = f !! (n-1)
   where
     f = hLookup heap addr
+fGet _ _ _ = error "fGet: not implemented"
 
 fUpdate :: TimHeap -> FramePtr -> Int -> Closure -> TimHeap
 fUpdate heap (FrameAddr addr) n closure
@@ -67,6 +68,7 @@ fUpdate heap (FrameAddr addr) n closure
   where
     frame = hLookup heap addr
     new_frame = take (n-1) frame ++ [closure] ++ drop n frame
+fUpdate _ _ _ _ = error "fUpdate: not implemented"
 
 fList :: Frame -> [Closure]
 fList f = f
