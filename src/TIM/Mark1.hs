@@ -235,12 +235,15 @@ intCode = []
 
 showFullResults :: [TimState] -> String
 showFullResults states
-  = iDisplay $ iConcat [ iStr "Supercombinator definitions", iNewline, iNewline
-                       , showSCDefns frist_state, iNewline, iNewline
-                       , iStr "State transitions", iNewline
-                       , iLayn (map showState states), iNewline, iNewline
-                       , showStats (last states)
-                       ]
+  = unlines (map iDisplay
+             ([ iStr "Supercombinator definitions", iNewline, iNewline
+              , showSCDefns frist_state, iNewline, iNewline
+              , iStr "State transitions", iNewline
+              ] ++
+              iLayn' (map showState states) ++
+              [ showStats (last states)
+              ])
+            )
   where (frist_state:rest_states) = states
 
 showSCDefns :: TimState -> IseqRep
