@@ -168,7 +168,7 @@ compileR :: CoreExpr -> TimCompilerEnv -> [Instruction]
 compileR (EAp e1 e2) env = Push (compileA e2 env) : compileR e1 env
 compileR (EVar v) env = [Enter (compileA (EVar v) env)]
 compileR (ENum n) env = [Enter (compileA (ENum n) env)]
-compileR e        env = error $ "compileR: can't do this yet"
+compileR e        env = error $ "compileR: can't do this yet: " ++ show e
 
 compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
 compileA (EVar v) env = aLookup env v $ error $ "Unknown variable " ++ v
