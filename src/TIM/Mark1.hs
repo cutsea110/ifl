@@ -216,11 +216,11 @@ step state@TimState { instructions = instrs
        $ state
     where
       (instr', fptr') = amToClosure am fptr hp cstore
-  _          -> error $ "invalid instructions"
   (Push am:istr)
     -> putInstructions istr
        . putStack (amToClosure am fptr hp cstore : stk)
        $ state
+  _          -> error $ "invalid instructions: " ++ show instrs
 
 
 amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> Closure
