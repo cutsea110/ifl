@@ -8,6 +8,7 @@ module TIM.Mark1
   ) where
 
 import Heap
+import Iseq
 import Language
 import Utils
 
@@ -232,14 +233,129 @@ amToClosure (IntConst n) fptr heap cstore = (intCode, FrameInt n)
 intCode :: [Instruction]
 intCode = []
 
+showFullResults :: [TimState] -> String
+showFullResults states
+  = iDisplay $ iConcat [ iStr "Supercombinator definitions", iNewline, iNewline
+                       , showSCDefns frist_state, iNewline, iNewline
+                       , iStr "State transitions", iNewline
+                       , iLayn (map showState states), iNewline, iNewline
+                       , showStats (last states)
+                       ]
+  where (frist_state:rest_states) = states
+
+showSCDefns :: TimState -> IseqRep
+showSCDefns state@TimState { codes = cstore }
+  = iInterleave iNewline (map showSC cstore)
+
+showSC :: (Name, [Instruction]) -> IseqRep
+showSC (name, instrs)
+  = iConcat [ iStr "Code for ", iStr name, iStr ":", iNewline
+            , iStr "   ", showInstructions Full instrs, iNewline, iNewline
+            ]
+
+showState :: TimState -> IseqRep
+showState state@TimState { instructions = instr
+                         , frame        = fptr
+                         , stack        = stk
+                         , valstack     = vstk
+                         , dump         = dmp
+                         , heap         = hp
+                         , codes        = cstore
+                         , stats        = stat
+                         }
+  = iConcat [ iStr "Code:  "
+            , showInstructions Terse instr, iNewline
+            , showFrame hp fptr
+            , showStack stk
+            , showValueStack vstk
+            , showDump dmp
+            , iNewline
+            ]
+
+showInstructions :: HowMuchToPrint -> [Instruction] -> IseqRep
+showInstructions None il = iStr "{..}"
+showInstructions Terse il
+  = iConcat [ iStr "{", iIndent (iInterleave (iStr ", ") body), iStr "}"]
+  where
+    instrs = map (showInstruction None) il
+    body | length il <= nTerse = instrs
+         | otherwise           = take nTerse instrs ++ [iStr ".."]
+showInstructions Full il
+  = iConcat [iStr "{ ", iIndent (iInterleave sep instrs), iStr " }"]
+  where
+    instrs = map (showInstruction Full) il
+    sep = iStr "," `iAppend` iNewline
+
+showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
+showInstruction d (Take n)  = iStr "Take " `iAppend` iNum n
+showInstruction d (Enter x) = iStr "Enter " `iAppend` showArg d x
+showInstruction d (Push x)  = iStr "Push " `iAppend` showArg d x
+
+showArg :: HowMuchToPrint -> TimAMode -> IseqRep
+showArg d (Arg n)   = iStr "Arg " `iAppend` iNum n
+showArg d (Code il) = iStr "Code " `iAppend` showInstructions d il
+showArg d (Label s) = iStr "Label " `iAppend` iStr s
+showArg d (IntConst n) = iStr "IntConst " `iAppend` iNum n
+
+nTerse :: Int
+nTerse = 3
+
+showFrame :: TimHeap -> FramePtr -> IseqRep
+showFrame heap FrameNull = iStr "Null frame ptr" `iAppend` iNewline
+showFrame heap (FrameAddr addr)
+  = iConcat [ iStr "Frame: <"
+            , iIndent (iInterleave iNewline (map showClosure (fList (hLookup heap addr))))
+            , iStr ">", iNewline
+            ]
+showFrame heap (FrameInt n)
+  = iConcat [ iStr "Frame ptr (int): ", iNum n, iNewline ]
+
+showStack :: TimStack -> IseqRep
+showStack stack
+  = iConcat [ iStr "Arg stack: ["
+            , iIndent (iInterleave iNewline (map showClosure stack))
+            , iStr "]", iNewline
+            ]
+
+showValueStack :: TimValueStack -> IseqRep
+showValueStack vstack = iNil
+
+showDump :: TimDump -> IseqRep
+showDump dump = iNil
+
+showClosure :: Closure -> IseqRep
+showClosure (i, f)
+  = iConcat [ iStr "("
+            , showInstructions Terse i
+            , iStr ", "
+            , showFramePtr f, iStr ")"
+            ]
+
+showFramePtr :: FramePtr -> IseqRep
+showFramePtr FrameNull     = iStr "null"
+showFramePtr (FrameAddr a) = iStr (show a)
+showFramePtr (FrameInt n)  = iStr "int " `iAppend` iNum n
+
+showStats :: TimState -> IseqRep
+showStats state@TimState { heap = hp,  stats = stats }
+  = iConcat [ iStr "Steps taken = ", iNum (statGetSteps stats), iNewline
+            , iStr "No of frames allocated = ", iNum (hSize hp), iNewline
+            ]
+
 showResults :: [TimState] -> String
-showResults = undefined
+showResults states
+  = iDisplay $ iConcat [ showState last_state, iNewline
+                       , showStats last_state
+                       ]
+  where last_state = last states
 
 showSimpleResults :: [TimState] -> String
 showSimpleResults = undefined
 
-showFullResults :: [TimState] -> String
-showFullResults = undefined
-
 fullRun :: String -> String
 fullRun = showFullResults . eval . compile . parse
+
+data HowMuchToPrint = None
+                    | Terse
+                    | Full
+                    deriving (Eq, Show)
