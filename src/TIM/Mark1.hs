@@ -91,7 +91,54 @@ statGetSteps :: TimStats -> Int
 statGetSteps s = s
 
 compile :: CoreProgram -> TimState
-compile = undefined
+compile program
+  = TimState { instructions = [Enter $ Label "main"]
+             , frame        = FrameNull
+             , stack        = initialArgStack
+             , valstack     = initialValueStack
+             , dump         = initialDump
+             , heap         = hInitial
+             , codes        = compiled_code
+             , stats        = statInitial
+             }
+  where
+    sc_defs = preludeDefs ++ program
+    compiled_sc_defs = map (compileSc initial_env) sc_defs
+    compiled_code = compiled_sc_defs ++ compiledPrimitives
+    initial_env = [(name, Label name) | (name, _, _) <- sc_defs]
+                  ++ [(name, Label name) | (name, _) <- compiledPrimitives]
+
+initialArgStack :: TimStack
+initialArgStack = []
+
+initialValueStack :: TimValueStack
+initialValueStack = DummyTimValueStack
+
+initialDump :: TimDump
+initialDump = DummyTimDump
+
+compiledPrimitives :: [(Name, [Instruction])]
+compiledPrimitives = []
+
+type TimCompilerEnv = [(Name, TimAMode)]
+
+compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, [Instruction])
+compileSc env (name, args, body)
+  = (name, Take (length args) : instructions)
+  where
+    instructions = compileR body new_env
+    new_env = zip args (map Arg [1..]) ++ env
+
+compileR :: CoreExpr -> TimCompilerEnv -> [Instruction]
+compileR (EAp e1 e2) env = Push (compileA e2 env) : compileR e1 env
+compileR (EVar v) env = [Enter (compileA (EVar v) env)]
+compileR (ENum n) env = [Enter (compileA (ENum n) env)]
+compileR e        env = error $ "compileR: can't do this yet: " ++ show e
+
+compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
+compileA (EVar v) env = aLookup env v $ error $ "Unknown variable " ++ v
+compileA (ENum n) env = IntConst n
+compileA e        env = Code $ compileR e env
 
 eval :: TimState -> [TimState]
 eval = undefined
