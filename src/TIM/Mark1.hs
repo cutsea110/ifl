@@ -14,8 +14,8 @@ import Utils
 
 runProg :: Bool -> String -> String
 runProg verbose = showR . eval . compile . parse
-  where showR | verbose   = showResults
-              | otherwise = showSimpleResults
+  where showR | verbose   = showFullResults
+              | otherwise = showResults
 
 data Instruction = Take Int
                  | Enter TimAMode
@@ -351,9 +351,6 @@ showResults states
                        , showStats last_state
                        ]
   where last_state = last states
-
-showSimpleResults :: [TimState] -> String
-showSimpleResults = undefined
 
 fullRun :: String -> String
 fullRun = showFullResults . eval . compile . parse
