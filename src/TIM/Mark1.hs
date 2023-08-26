@@ -38,6 +38,36 @@ data TimState = TimState { instructions :: [Instruction]
                          }
               deriving (Eq, Show)
 
+getInstructions :: TimState -> [Instruction]
+getInstructions = instructions
+putInstructions :: [Instruction] -> TimState -> TimState
+putInstructions instrs state = state { instructions = instrs }
+getFrame :: TimState -> FramePtr
+getFrame = frame
+putFrame :: FramePtr -> TimState -> TimState
+putFrame fr state = state { frame = fr }
+getStack :: TimState -> TimStack
+getStack = stack
+putStack :: TimStack -> TimState -> TimState
+putStack stk state = state { stack = stk }
+getDump :: TimState -> TimDump
+getDump = dump
+putDump :: TimDump -> TimState -> TimState
+putDump dmp state = state { dump = dmp }
+getHeap :: TimState -> TimHeap
+getHeap = heap
+putHeap :: TimHeap -> TimState -> TimState
+putHeap hp state = state { heap = hp }
+getCodes :: TimState -> CodeStore
+getCodes = codes
+putCodes :: CodeStore -> TimState -> TimState
+putCodes cds state = state { codes = cds }
+getStats :: TimState -> TimStats
+getStats = stats
+putStats :: TimStats -> TimState -> TimState
+putStats sts state = state { stats = sts }
+
+
 data FramePtr = FrameAddr Addr      -- The address of a frame
               | FrameInt Int        -- An integer value
               | FrameNull           -- Uninitialized
@@ -162,7 +192,45 @@ applyToStats stats_fun state
   = state { stats = stats_fun $ stats state }
 
 step :: TimState -> TimState
-step = undefined
+step state@TimState { instructions = instrs
+                    , frame        = fptr
+                    , stack        = stk
+                    , heap         = hp
+                    , codes        = cstore
+                    }
+  = case instrs of
+  (Take n:instr)
+    | length stk >= n
+      -> putInstructions instr
+         . putFrame fptr'
+         . putStack stk'
+         . putHeap hp'
+         $ state
+    | otherwise       -> error "Too few args for Take instruction"
+    where
+      (hp', fptr') = fAlloc hp (take n stk)
+      stk' = drop n stk
+  [Enter am]
+    -> putInstructions instr'
+       . putFrame fptr'
+       $ state
+    where
+      (instr', fptr') = amToClosure am fptr hp cstore
+  _          -> error $ "invalid instructions"
+  (Push am:istr)
+    -> putInstructions istr
+       . putStack (amToClosure am fptr hp cstore : stk)
+       $ state
+
+
+amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> Closure
+amToClosure (Arg n)   fptr heap cstore = fGet heap fptr n
+amToClosure (Code il) fptr heap cstore = (il, fptr)
+amToClosure (Label l) fptr heap cstore = (codeLookup cstore l, fptr)
+amToClosure (IntConst n) fptr heap cstore = (intCode, FrameInt n)
+
+intCode :: [Instruction]
+intCode = []
 
 showResults :: [TimState] -> String
 showResults = undefined
