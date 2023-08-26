@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module TIM.Mark1
   ( parse
   , compile
@@ -35,6 +36,7 @@ data TimState = TimState { instructions :: [Instruction]
                          , codes        :: CodeStore
                          , stats        :: TimStats
                          }
+              deriving (Eq, Show)
 
 data FramePtr = FrameAddr Addr      -- The address of a frame
               | FrameInt Int        -- An integer value
@@ -49,6 +51,9 @@ data TimValueStack = DummyTimValueStack
 data TimDump = DummyTimDump
              deriving (Eq, Show)
 type TimHeap = Heap Frame
+instance {-# Overlapping #-} Show (Heap Frame) where
+  show (allocs, size, _, cts) = show (allocs, size, cts)
+
 type Frame = [Closure]
 
 fAlloc :: TimHeap -> Frame -> (TimHeap, FramePtr)
@@ -133,7 +138,7 @@ compileR :: CoreExpr -> TimCompilerEnv -> [Instruction]
 compileR (EAp e1 e2) env = Push (compileA e2 env) : compileR e1 env
 compileR (EVar v) env = [Enter (compileA (EVar v) env)]
 compileR (ENum n) env = [Enter (compileA (ENum n) env)]
-compileR e        env = error $ "compileR: can't do this yet: " ++ show e
+compileR e        env = error $ "compileR: can't do this yet"
 
 compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
 compileA (EVar v) env = aLookup env v $ error $ "Unknown variable " ++ v
