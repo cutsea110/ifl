@@ -146,7 +146,23 @@ compileA (ENum n) env = IntConst n
 compileA e        env = Code $ compileR e env
 
 eval :: TimState -> [TimState]
-eval = undefined
+eval state = state : rest_states
+  where rest_states | timFinal state = []
+                    | otherwise      = eval next_state
+        next_state = doAdmin $ step state
+
+doAdmin :: TimState -> TimState
+doAdmin state = applyToStats statIncSteps state
+
+timFinal :: TimState -> Bool
+timFinal state = null $ instructions state
+
+applyToStats :: (TimStats -> TimStats) -> TimState -> TimState
+applyToStats stats_fun state
+  = state { stats = stats_fun $ stats state }
+
+step :: TimState -> TimState
+step = undefined
 
 showResults :: [TimState] -> String
 showResults = undefined
