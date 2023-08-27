@@ -115,16 +115,21 @@ codeLookup :: CodeStore -> Name -> [Instruction]
 codeLookup cstore l
   = aLookup cstore l $ error $ "Attempt to jump to unknown label " ++ show l
 
-type TimStats = Int  -- The number of steps
+data TimStats = TimStats { getSteps :: Int  -- The number of steps
+                         }
+              deriving (Eq, Show)
+
+setSteps :: Int -> TimStats -> TimStats
+setSteps n sts = sts { getSteps = n }
 
 statInitial :: TimStats
-statInitial = 0
+statInitial = TimStats { getSteps = 0 }
 
 statIncSteps :: TimStats -> TimStats
-statIncSteps s = s + 1
+statIncSteps sts = sts { getSteps = getSteps sts + 1 }
 
 statGetSteps :: TimStats -> Int
-statGetSteps s = s
+statGetSteps s = getSteps s
 
 compile :: CoreProgram -> TimState
 compile program
