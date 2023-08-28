@@ -50,7 +50,10 @@ putFrame fr state = state { frame = fr }
 getStack :: TimState -> TimStack
 getStack = stack
 putStack :: TimStack -> TimState -> TimState
-putStack stk state = state { stack = stk }
+putStack stk state = state { stack = stk, stats = sts }
+  where
+    dwh = length stk
+    sts = statUpdateMaxStackDepth dwh (getStats state)
 getDump :: TimState -> TimDump
 getDump = dump
 putDump :: TimDump -> TimState -> TimState
@@ -136,8 +139,12 @@ statIncSteps sts = sts { getSteps = getSteps sts + 1 }
 statGetMaxStackDepth :: TimStats -> Int
 statGetMaxStackDepth s = getMaxStackDepth s
 
-statSetMaxStackDepth :: Int -> TimStats -> TimStats
-statSetMaxStackDepth n sts = sts { getMaxStackDepth = n }
+statUpdateMaxStackDepth :: Int -> TimStats -> TimStats
+statUpdateMaxStackDepth depth s
+  | depth > depth' = s { getMaxStackDepth = depth }
+  | otherwise      = s
+  where depth' = statGetMaxStackDepth s
+
 
 
 compile :: CoreProgram -> TimState
