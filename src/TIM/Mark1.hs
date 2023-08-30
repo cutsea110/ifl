@@ -364,7 +364,7 @@ showStats :: TimState -> IseqRep
 showStats state@TimState { heap = hp,  stats = stats }
   = iConcat [ iStr "Steps taken = ", iNum (statGetSteps stats), iNewline
             , iStr "No of frames allocated = ", iNum (hSize hp), iNewline
-            , iStr "Stack size = ", iNum (statGetMaxStackDepth stats), iNewline
+            , iStr "Max stack depth = ", iNum (statGetMaxStackDepth stats), iNewline
             ]
 
 showResults :: [TimState] -> String
