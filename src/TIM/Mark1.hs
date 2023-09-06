@@ -119,7 +119,7 @@ codeLookup cstore l
   = aLookup cstore l $ error $ "Attempt to jump to unknown label " ++ show l
 
 data TimStats
-  = TimStats { getSteps :: Int  -- The number of steps
+  = TimStats { getSteps :: Int          -- The number of steps
              , getMaxStackDepth :: Int  -- The maximum stack depth
              }
   deriving (Eq, Show)
