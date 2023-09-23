@@ -119,13 +119,19 @@ codeLookup cstore l
   = aLookup cstore l $ error $ "Attempt to jump to unknown label " ++ show l
 
 data TimStats
-  = TimStats { getSteps :: Int          -- The number of steps
+  = TimStats { getSteps         :: Int  -- The number of steps
+             , getExecTime      :: Int  -- The execution time
+             , getHeapAllocated :: Int  -- The amount of heap allocated
              , getMaxStackDepth :: Int  -- The maximum stack depth
              }
   deriving (Eq, Show)
 
 statInitial :: TimStats
-statInitial = TimStats { getSteps = 0, getMaxStackDepth = 0 }
+statInitial = TimStats { getSteps = 0
+                       , getExecTime = 0
+                       , getHeapAllocated = 0
+                       , getMaxStackDepth = 0
+                       }
 
 statGetSteps :: TimStats -> Int
 statGetSteps s = getSteps s
@@ -135,6 +141,18 @@ statSetSteps n sts = sts { getSteps = n }
 
 statIncSteps :: TimStats -> TimStats
 statIncSteps sts = sts { getSteps = getSteps sts + 1 }
+
+statGetExecTime :: TimStats -> Int
+statGetExecTime s = getExecTime s
+
+statIncExecTime :: TimStats -> TimStats
+statIncExecTime sts = sts { getExecTime = getExecTime sts + 1 }
+
+statGetHeapAllocated :: TimStats -> Int
+statGetHeapAllocated s = getHeapAllocated s
+
+statIncHeapAllocated :: Int -> TimStats -> TimStats
+statIncHeapAllocated n sts = sts { getHeapAllocated = getHeapAllocated sts + n }
 
 statGetMaxStackDepth :: TimStats -> Int
 statGetMaxStackDepth s = getMaxStackDepth s
@@ -181,7 +199,8 @@ type TimCompilerEnv = [(Name, TimAMode)]
 
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, [Instruction])
 compileSc env (name, args, body)
-  = (name, Take (length args) : instructions)
+  | null args = (name, instructions)
+  | otherwise = (name, Take (length args) : instructions)
   where
     instructions = compileR body new_env
     new_env = zip args (map Arg [1..]) ++ env
@@ -223,25 +242,29 @@ step state@TimState { instructions = instrs
   = case instrs of
   (Take n:instr)
     | length stk >= n
-      -> putInstructions instr
-         . putFrame fptr'
-         . putStack stk'
-         . putHeap hp'
-         $ state
+      -- Take は exec time にカウントしない (exercise 4.2)
+      -> applyToStats (statIncHeapAllocated $ n + 1)
+         (putInstructions instr
+          . putFrame fptr'
+          . putStack stk'
+          . putHeap hp'
+          $ state)
     | otherwise       -> error "Too few args for Take instruction"
     where
       (hp', fptr') = fAlloc hp (take n stk)
       stk' = drop n stk
   [Enter am]
-    -> putInstructions instr'
-       . putFrame fptr'
-       $ state
+    -> applyToStats statIncExecTime
+       (putInstructions instr'
+        . putFrame fptr'
+        $ state)
     where
       (instr', fptr') = amToClosure am fptr hp cstore
   (Push am:istr)
-    -> putInstructions istr
-       . putStack (amToClosure am fptr hp cstore : stk)
-       $ state
+    -> applyToStats statIncExecTime
+       (putInstructions istr
+         . putStack (amToClosure am fptr hp cstore : stk)
+         $ state)
   _          -> error $ "invalid instructions: " ++ show instrs
 
 
@@ -361,10 +384,10 @@ showFramePtr (FrameAddr a) = iStr (show a)
 showFramePtr (FrameInt n)  = iStr "int " `iAppend` iNum n
 
 showStats :: TimState -> IseqRep
-showStats state@TimState { heap = hp,  stats = stats }
+showStats state@TimState { stats = stats }
   = iConcat [ iStr "Steps taken = ", iNum (statGetSteps stats), iNewline
-            , iStr "Heap size = ", iNum (hSize hp), iNewline
-            , iStr "No of frames allocated = ", iNum (hSize hp), iNewline
+            , iStr "Exec time = ", iNum (statGetExecTime stats), iNewline
+            , iStr "Heap allocated = ", iNum (statGetHeapAllocated stats), iNewline
             , iStr "Max stack depth = ", iNum (statGetMaxStackDepth stats), iNewline
             ]
 
