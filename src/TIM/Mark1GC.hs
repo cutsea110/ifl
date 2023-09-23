@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
-module TIM.Mark1Gc
+module TIM.Mark1GC
   ( parse
   , compile
   , eval
