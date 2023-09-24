@@ -138,6 +138,7 @@ data TimStats
              , getExecTime      :: Int  -- The execution time
              , getHeapAllocated :: Int  -- The amount of heap allocated
              , getMaxStackDepth :: Int  -- The maximum stack depth
+             , getGCCount       :: Int  -- The count of garbage collections
              }
   deriving (Eq, Show)
 
@@ -178,7 +179,11 @@ statUpdateMaxStackDepth depth s
   | otherwise      = s
   where depth' = statGetMaxStackDepth s
 
+statGetGCCount :: TimStats -> Int
+statGetGCCount s = getGCCount s
 
+statIncGCCount :: TimStats -> TimStats
+statIncGCCount sts = sts { getGCCount = getGCCount sts + 1 }
 
 compile :: CoreProgram -> TimState
 compile program
@@ -241,7 +246,15 @@ doAdmin :: TimState -> TimState
 doAdmin state = gc $ applyToStats statIncSteps state
 
 gc :: TimState -> TimState
-gc state = state -- TODO
+gc state@TimState { instructions = instrs
+                  , frame        = fptr
+                  , heap         = from
+                  }
+  | needGC    = applyToStats statIncGCCount $ state { frame = fptr',  heap = to' }
+  | otherwise = state
+  where
+    needGC = getHeapAllocated (getStats state) >= threshold
+    ((from', to'), fptr') = evacuateFramePtr from hInitial (instrs, fptr)
 
 -- | NOTE: Closure = ([Instruction], FramePtr) なので
 -- [Instruction] の中で使われるものを recursive に辿っていき from の FramePtr を to の FramePtr に置換
