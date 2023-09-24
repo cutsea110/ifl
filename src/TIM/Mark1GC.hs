@@ -7,10 +7,16 @@ module TIM.Mark1GC
   , runProg
   ) where
 
+import Data.List (mapAccumL, nub)
+
 import Heap
 import Iseq
 import Language
 import Utils
+
+-- for GC
+threshold :: Int
+threshold = 100
 
 runProg :: Bool -> String -> String
 runProg verbose = showR . eval . compile . parse
@@ -88,7 +94,9 @@ type TimHeap = Heap Frame
 instance {-# Overlapping #-} Show (Heap Frame) where
   show (allocs, size, _, cts) = show (allocs, size, cts)
 
-type Frame = [Closure]
+data Frame = Frame [Closure]
+           | Forward Addr
+           deriving (Eq, Show)
 
 fAlloc :: TimHeap -> Frame -> (TimHeap, FramePtr)
 fAlloc heap xs = (heap', FrameAddr addr)
@@ -96,21 +104,28 @@ fAlloc heap xs = (heap', FrameAddr addr)
     (heap', addr) = hAlloc heap xs
 
 fGet :: TimHeap -> FramePtr -> Int -> Closure
-fGet heap (FrameAddr addr) n = f !! (n-1)
+fGet heap (FrameAddr addr) n = case frm of
+  Frame f      -> f !! (n-1)
+  Forward addr -> error $ "fGet: Unexpected " ++ show frm
   where
-    f = hLookup heap addr
+    frm = hLookup heap addr
 fGet _ _ _ = error "fGet: not implemented"
 
 fUpdate :: TimHeap -> FramePtr -> Int -> Closure -> TimHeap
 fUpdate heap (FrameAddr addr) n closure
   = hUpdate heap addr new_frame
   where
-    frame = hLookup heap addr
-    new_frame = take (n-1) frame ++ [closure] ++ drop n frame
+    frame = case frm of
+      Frame f      -> f
+      Forward addr -> error $ "fUpdate: Unexpected " ++ show frm
+      where
+        frm = hLookup heap addr
+    new_frame = Frame $ take (n-1) frame ++ [closure] ++ drop n frame
 fUpdate _ _ _ _ = error "fUpdate: not implemented"
 
 fList :: Frame -> [Closure]
-fList f = f
+fList (Frame f) = f
+fList (Forward _) = error "TODO: fList Forward"
 
 type CodeStore = Assoc Name [Instruction]
 
@@ -223,7 +238,34 @@ eval state = state : rest_states
         next_state = doAdmin $ step state
 
 doAdmin :: TimState -> TimState
-doAdmin state = applyToStats statIncSteps state
+doAdmin state = gc $ applyToStats statIncSteps state
+
+gc :: TimState -> TimState
+gc state = state -- TODO
+
+-- | NOTE: Closure = ([Instruction], FramePtr) なので
+-- [Instruction] の中で使われるものを recursive に辿っていき from の FramePtr を to の FramePtr に置換
+evacuateFramePtr :: TimHeap -> TimHeap -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
+evacuateFramePtr from to (instrs, fptr) = case fptr of
+  FrameAddr addr -> undefined
+    where
+      liveArgs :: [([Instruction], FramePtr)]
+      liveArgs = nub $ foldl f [] instrs
+        where f acc (Push (Arg n))  = fGet from fptr n : acc
+              f acc (Enter (Arg n)) = fGet from fptr n : acc
+              f acc _               = acc
+              
+  -- Heap には含まないので from と to で変わらない
+  FrameInt n -> ((from, to), fptr)
+  FrameNull  -> ((from, to), fptr)
+
+evacuateFrom :: (TimHeap, TimHeap) -> Addr -> ((TimHeap, TimHeap), Addr)
+evacuateFrom (from, to) a = case hLookup from a of
+  Frame clss -> case hAlloc to (Frame clss) of
+    (to', a') -> case hUpdate from a (Forward a') of
+      from' -> ((from', to'), a')
+  Forward a' -> ((from, to), a')
+
 
 timFinal :: TimState -> Bool
 timFinal state = null $ instructions state
@@ -251,7 +293,7 @@ step state@TimState { instructions = instrs
           $ state)
     | otherwise       -> error "Too few args for Take instruction"
     where
-      (hp', fptr') = fAlloc hp (take n stk)
+      (hp', fptr') = fAlloc hp (Frame $ take n stk)
       stk' = drop n stk
   [Enter am]
     -> applyToStats statIncExecTime
