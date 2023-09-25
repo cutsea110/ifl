@@ -290,7 +290,20 @@ evacuateFramePtr from to (instrs, fptr) = case fptr of
   FrameNull  -> ((from, to), fptr)
 
 scavenge :: TimHeap -> TimHeap -> TimHeap
-scavenge from to@(_, _, _, hp) = undefined
+scavenge from to@(_, _, _, hp) = foldl phi to hp
+  where
+    phi :: TimHeap -> (Addr, Frame) -> TimHeap
+    phi t (a', f) = case f of
+      Frame cls -> hUpdate t a' (Frame $ map conv cls)
+        where
+          conv :: Closure -> Closure
+          conv cls@(is, fp) = case fp of
+            FrameAddr a -> case hLookup from a of
+              Forward a' -> (is, FrameAddr a')
+              _          -> error $ "scavenge: not Forward"
+            FrameInt _  -> cls
+            FrameNull   -> cls
+      Forward _ -> error $ "scavenge: found Forward in new heap: " ++ show f
 
 timFinal :: TimState -> Bool
 timFinal state = null $ instructions state
