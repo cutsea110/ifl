@@ -7,8 +7,8 @@ module TIM.Mark1GC
   , runProg
   ) where
 
-import Data.Bool (bool)
 import Data.List (mapAccumL, nub)
+import Debug.Trace (trace)
 
 import Heap
 import Iseq
@@ -124,9 +124,9 @@ fUpdate heap (FrameAddr addr) n closure
     new_frame = Frame $ take (n-1) frame ++ [closure] ++ drop n frame
 fUpdate _ _ _ _ = error "fUpdate: not implemented"
 
-fList :: Frame -> [Closure]
-fList (Frame f) = f
-fList (Forward _) = error "TODO: fList Forward"
+fList :: Frame -> Either Addr [Closure]
+fList (Frame f)   = Right f
+fList (Forward a) = Left a
 
 type CodeStore = Assoc Name [Instruction]
 
@@ -148,6 +148,7 @@ statInitial = TimStats { getSteps = 0
                        , getExecTime = 0
                        , getHeapAllocated = 0
                        , getMaxStackDepth = 0
+                       , getGCCount = 0
                        }
 
 statGetSteps :: TimStats -> Int
@@ -255,9 +256,28 @@ gc :: TimState -> TimState
 gc state@TimState { instructions = instrs, frame = fptr, heap = from }
   = case evacuateFramePtr from hInitial (instrs, fptr) of
   ((from1, to1), fptr1) -> case scavenge from1 to1 of
-    to2 -> state { frame = fptr1
-                 , heap = to2
-                 }
+    to2 -> trace (gcPrint instrs fptr from from1 to1 to2) $
+      state { frame = fptr1
+            , heap = to2
+            }
+  where
+    gcPrint is fp f0 f1 t1 t2
+      = iDisplay $ iConcat
+      [ iStr "vvvvvvvvvvvvvvvvvvvvvvvv", iNewline
+      , iStr "instr: ", iNewline
+      , showInstructions Full is, iNewline
+      , iStr "frame ptr: ", iNewline
+      , showFramePtr fp, iNewline
+      , iStr "before", iNewline
+      , showHeap f0, iNewline
+      , iStr "evacuated: from1", iNewline
+      , showHeap f1, iNewline
+      , iStr "evacuated: to1", iNewline
+      , showHeap t1, iNewline
+      , iStr "scavenged: to2", iNewline
+      , showHeap t2, iNewline
+      , iStr "^^^^^^^^^^^^^^^^^^^^^^^^", iNewline
+      ]
 
 -- | NOTE: Closure = ([Instruction], FramePtr) なので
 -- [Instruction] の中で使われるものを recursive に辿っていき from の FramePtr を to の FramePtr に置換
@@ -431,11 +451,31 @@ showFrame :: TimHeap -> FramePtr -> IseqRep
 showFrame heap FrameNull = iStr "Null frame ptr" `iAppend` iNewline
 showFrame heap (FrameAddr addr)
   = iConcat [ iStr "Frame: <"
-            , iIndent (iInterleave iNewline (map showClosure (fList (hLookup heap addr))))
+            , iIndent (either showAddr (iInterleave iNewline . map showClosure) (fList (hLookup heap addr)))
             , iStr ">", iNewline
             ]
+  where
+    showAddr :: Addr -> IseqRep
+    showAddr a = iStr "FW #->" `iAppend` iNum a
 showFrame heap (FrameInt n)
   = iConcat [ iStr "Frame ptr (int): ", iNum n, iNewline ]
+
+showHeap :: TimHeap -> IseqRep
+showHeap heap@(_, _, _, hp)
+  = iConcat [ iStr "Heap: ["
+            , iIndent (iInterleave iNewline $ map showHeapItem hp)
+            , iStr "]"
+            ]
+  where
+    showHeapItem :: (Addr, Frame) -> IseqRep
+    showHeapItem (addr, fr)
+      = iConcat [ showFWAddr addr, iStr ": "
+                , showFrame heap (FrameAddr addr)
+                ]
+
+showFWAddr :: Addr -> IseqRep
+showFWAddr addr = iStr (space (4 - length str) ++ str)
+  where str = show addr
 
 showStack :: TimStack -> IseqRep
 showStack stack
@@ -469,6 +509,7 @@ showStats state@TimState { stats = stats }
             , iStr "Exec time = ", iNum (statGetExecTime stats), iNewline
             , iStr "Heap allocated = ", iNum (statGetHeapAllocated stats), iNewline
             , iStr "Max stack depth = ", iNum (statGetMaxStackDepth stats), iNewline
+            , iStr "GC count = ", iNum (statGetGCCount stats), iNewline
             ]
 
 showResults :: [TimState] -> String

@@ -32,7 +32,7 @@ import qualified Gmachine.Mark6 as GMark6 (runProg)
 import qualified Gmachine.Mark7 as GMark7 (runProg)
 
 import qualified TIM.Mark1 as TIMark1 (runProg)
-import qualified TIM.Mark1 as TIMark1GC (runProg)
+import qualified TIM.Mark1GC as TIMark1GC (runProg)
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -64,7 +64,7 @@ executer e verbose = putStr . run
           GMark6        -> GMark6.runProg verbose
           GMark7        -> GMark7.runProg verbose
           TIMark1       -> TIMark1.runProg verbose
-          TIMark1GC     -> TIMark1.runProg verbose
+          TIMark1GC     -> TIMark1GC.runProg verbose
           (Noco name)   -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
