@@ -293,6 +293,68 @@ gc state@TimState { instructions = instrs, frame = fptr, stack = stk, dump = dmp
 
 -- | NOTE: Closure = ([Instruction], FramePtr) なので
 -- [Instruction] の中で使われるものを recursive に辿っていき from の FramePtr を to の FramePtr に置換
+{- |
+>>> let h = hInitial :: Heap Frame
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull)])
+>>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 2)], FrameAddr 1)])
+>>> let ((from, to), fp) = evacuateFramePtr h2 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> from
+(2,2,[(1,Forward 2),(2,Forward 1)])
+>>> to
+(2,2,[(1,Frame [([Push (Arg 2)],FrameAddr 1)]),(2,Frame [([],FrameNull)])])
+>>> fp
+FrameAddr 1
+
+>>> let (h3, a3) = hAlloc h (Frame [([Push (Arg 1)], FrameNull),([Push (Arg 2)], FrameInt 42),([Push (Arg 3)], FrameAddr 2)])
+>>> let (h4, a4) = hAlloc h3 (Frame [([Push (Arg 1)], FrameAddr 1)])
+>>> let ((from2, to2), fp2) = evacuateFramePtr h4 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> from2
+(2,2,[(1,Forward 2),(2,Forward 1)])
+>>> to2
+(2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 1)]),(2,Frame [([Push (Arg 1)],FrameNull),([],FrameNull),([],FrameNull)])])
+>>> fp2
+FrameAddr 1
+
+>>> let ((from3, to3), fp3) = evacuateFramePtr h4 hInitial ([Push (Arg 2)], FrameAddr 2)
+>>> from3
+(2,2,[(2,Forward 1),(1,Frame [([Push (Arg 1)],FrameNull),([Push (Arg 2)],FrameInt 42),([Push (Arg 3)],FrameAddr 2)])])
+>>> to3
+(1,1,[(1,Frame [([],FrameNull)])])
+>>> fp3
+FrameAddr 1
+
+>>> let ((from4, to4), fp4) = evacuateFramePtr h4 hInitial ([Push (Arg 1)], FrameAddr 1)
+>>> from4
+(2,2,[(1,Forward 1),(2,Frame [([Push (Arg 1)],FrameAddr 1)])])
+>>> to4
+(1,1,[(1,Frame [([Push (Arg 1)],FrameNull),([],FrameNull),([],FrameNull)])])
+>>> fp4
+FrameAddr 1
+
+>>> let ((from5, to5), fp5) = evacuateFramePtr h4 hInitial ([Push (Arg 2)], FrameAddr 1)
+>>> from5
+(2,2,[(1,Forward 1),(2,Frame [([Push (Arg 1)],FrameAddr 1)])])
+>>> to5
+(1,1,[(1,Frame [([],FrameNull),([Push (Arg 2)],FrameInt 42),([],FrameNull)])])
+>>> fp5
+FrameAddr 1
+
+>>> let ((from6, to6), fp6) = evacuateFramePtr h4 hInitial ([Push (Arg 3)], FrameAddr 1)
+>>> from6
+(2,2,[(2,Forward 2),(1,Forward 1)])
+>>> to6
+(2,2,[(1,Frame [([],FrameNull),([],FrameNull),([Push (Arg 3)],FrameAddr 2)]),(2,Frame [([],FrameNull)])])
+>>> fp6
+FrameAddr 1
+
+>>> let ((from7, to7), fp7) = evacuateFramePtr h4 hInitial ([Push (Arg 1), Enter (Arg 3)], FrameAddr 1)
+>>> from7
+(2,2,[(2,Forward 2),(1,Forward 1)])
+>>> to7
+(2,2,[(1,Frame [([Push (Arg 1)],FrameNull),([],FrameNull),([Push (Arg 3)],FrameAddr 2)]),(2,Frame [([],FrameNull)])])
+>>> fp7
+FrameAddr 1
+-}
 evacuateFramePtr :: TimHeap -> TimHeap -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
 evacuateFramePtr from to (instrs, fptr) = case fptr of
   FrameAddr a -> case hLookup from a of
@@ -321,6 +383,18 @@ evacuateFramePtr from to (instrs, fptr) = case fptr of
   FrameInt n -> ((from, to), fptr)
   FrameNull  -> ((from, to), fptr)
 
+{- |
+>>> let h = hInitial :: Heap Frame
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull)])
+>>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 2)], FrameAddr 1)])
+>>> let ((from, to), stk) = evacuateStack h2 hInitial [([Push (Arg 1)], FrameAddr 2), ([Push (Arg 2)], FrameAddr 1)]
+>>> from
+(2,2,[(1,Forward 2),(2,Forward 1)])
+>>> to
+(2,2,[(1,Frame [([Push (Arg 2)],FrameAddr 1)]),(2,Frame [([],FrameNull)])])
+>>> stk
+[([Push (Arg 1)],FrameAddr 1),([Push (Arg 2)],FrameAddr 2)]
+-}
 evacuateStack :: TimHeap -> TimHeap -> TimStack -> ((TimHeap, TimHeap), TimStack)
 evacuateStack from to stk = case mapAccumL update (from, to) stk of
   (hs,fps) -> (hs, zipWith (\(is, _) fp -> (is, fp)) stk fps)
@@ -332,6 +406,12 @@ evacuateStack from to stk = case mapAccumL update (from, to) stk of
 evacuateDump :: TimHeap -> TimHeap -> TimDump -> ((TimHeap, TimHeap), TimDump)
 evacuateDump from to dump = ((from, to), dump)
 
+{- |
+>>> let from = (2,2,[3..],[(1,Forward 2),(2,Forward 1)])
+>>> let to = (2,2,[3..],[(1,Frame [([Push (Arg 2)],FrameAddr 1)]),(2,Frame [([Push (Arg 1)],FrameNull)])])
+>>> scavenge from to
+(2,2,[(2,Frame [([Push (Arg 1)],FrameNull)]),(1,Frame [([Push (Arg 2)],FrameAddr 2)])])
+-}
 scavenge :: TimHeap -> TimHeap -> TimHeap
 scavenge from to@(_, _, _, hp) = foldl phi to hp
   where
