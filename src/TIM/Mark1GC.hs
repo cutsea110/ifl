@@ -7,6 +7,7 @@ module TIM.Mark1GC
   , runProg
   ) where
 
+import Data.Bool (bool)
 import Data.List (mapAccumL, nub)
 
 import Heap
@@ -243,15 +244,16 @@ eval state = state : rest_states
         next_state = doAdmin $ step state
 
 doAdmin :: TimState -> TimState
-doAdmin state = gc $ applyToStats statIncSteps state
+doAdmin state = bool id (applyToStats statIncGCCount . gc) needGC $ applyToStats statIncSteps state
+  where
+    needGC = getHeapAllocated (getStats state) >= threshold
 
 gc :: TimState -> TimState
 gc state@TimState { instructions = instrs
                   , frame        = fptr
                   , heap         = from
                   }
-  | needGC    = applyToStats statIncGCCount $ state { frame = fptr',  heap = to' }
-  | otherwise = state
+  = state { frame = fptr',  heap = to' }
   where
     needGC = getHeapAllocated (getStats state) >= threshold
     ((from', to'), fptr') = evacuateFramePtr from hInitial (instrs, fptr)
