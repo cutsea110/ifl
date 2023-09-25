@@ -249,7 +249,7 @@ doAdmin state
   | needGC = applyToStats statIncGCCount $ gc state'
   | otherwise = state'
   where
-    needGC = getHeapAllocated (getStats state) >= threshold
+    needGC = hSize (getHeap state) >= threshold
     state' = applyToStats statIncSteps state
 
 gc :: TimState -> TimState
