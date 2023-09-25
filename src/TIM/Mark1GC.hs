@@ -295,7 +295,7 @@ evacuateFramePtr from to (instrs, fptr) = case fptr of
       update :: (TimHeap, TimHeap) -> (Int, Closure) -> ((TimHeap, TimHeap), Closure)
       update (f, t) (i, cls@(is, fp))
         | i `elem` liveArgs = case evacuateFramePtr f t cls of
-            (hs, fp') -> (hs, (is, fp'))
+            (hs, _) -> (hs, (is, fp)) -- NOTE: ここで fp' としないで scavenge がやる
         | otherwise         = ((f, t), ([], FrameNull))
       liveArgs :: [Int]
       liveArgs = nub $ foldl g [] instrs
@@ -319,7 +319,7 @@ scavenge from to@(_, _, _, hp) = foldl phi to hp
           conv cls@(is, fp) = case fp of
             FrameAddr a -> case hLookup from a of
               Forward a' -> (is, FrameAddr a')
-              _          -> error $ "scavenge: not Forward"
+              _          -> error $ "scavenge: not Forward: " ++ show cls
             FrameInt _  -> cls
             FrameNull   -> cls
       Forward _ -> error $ "scavenge: found Forward in new heap: " ++ show f
@@ -415,7 +415,6 @@ showState state@TimState { instructions = instr
             , showStack stk
             , showValueStack vstk
             , showDump dmp
-            -- , showHeap hp
             , iNewline
             ]
 
