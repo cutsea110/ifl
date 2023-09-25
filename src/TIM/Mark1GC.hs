@@ -244,9 +244,12 @@ eval state = state : rest_states
         next_state = doAdmin $ step state
 
 doAdmin :: TimState -> TimState
-doAdmin state = bool id (applyToStats statIncGCCount . gc) needGC $ applyToStats statIncSteps state
+doAdmin state
+  | needGC = applyToStats statIncGCCount $ gc state'
+  | otherwise = state'
   where
     needGC = getHeapAllocated (getStats state) >= threshold
+    state' = applyToStats statIncSteps state
 
 gc :: TimState -> TimState
 gc state@TimState { instructions = instrs, frame = fptr, heap = from }
@@ -260,28 +263,34 @@ gc state@TimState { instructions = instrs, frame = fptr, heap = from }
 -- [Instruction] の中で使われるものを recursive に辿っていき from の FramePtr を to の FramePtr に置換
 evacuateFramePtr :: TimHeap -> TimHeap -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
 evacuateFramePtr from to (instrs, fptr) = case fptr of
-  FrameAddr addr -> undefined
+  FrameAddr a -> case hLookup from a of
+    Frame clss -> case hAlloc to (Frame []) of
+      (to', a') -> case hUpdate from a (Forward a') of
+        from' -> case mapAccumL update (from', to') (zip [1..] clss) of
+          ((from'', to''), clss') -> case hUpdate to'' a' (Frame clss') of
+            to''' -> ((from'', to'''), FrameAddr a')
+
+    -- すでに置き換え済
+    Forward a'  -> ((from, to), FrameAddr a')
     where
-      liveArgs :: [([Instruction], FramePtr)]
-      liveArgs = nub $ foldl f [] instrs
-        where f acc (Push (Arg n))  = fGet from fptr n : acc
-              f acc (Enter (Arg n)) = fGet from fptr n : acc
-              f acc _               = acc
+      update :: (TimHeap, TimHeap) -> (Int, Closure) -> ((TimHeap, TimHeap), Closure)
+      update (f, t) (i, cls@(is, fp))
+        | i `elem` liveArgs = case evacuateFramePtr f t cls of
+            (hs, fp') -> (hs, (is, fp'))
+        | otherwise         = ((f, t), ([], FrameNull))
+      liveArgs :: [Int]
+      liveArgs = nub $ foldl g [] instrs
+        where
+          g ns (Push (Arg n))  = n : ns
+          g ns (Enter (Arg n)) = n : ns
+          g ns _               = ns
               
   -- Heap には含まないので from と to で変わらない
   FrameInt n -> ((from, to), fptr)
   FrameNull  -> ((from, to), fptr)
 
-evacuateFrom :: (TimHeap, TimHeap) -> Addr -> ((TimHeap, TimHeap), Addr)
-evacuateFrom (from, to) a = case hLookup from a of
-  Frame clss -> case hAlloc to (Frame clss) of
-    (to', a') -> case hUpdate from a (Forward a') of
-      from' -> ((from', to'), a')
-  Forward a' -> ((from, to), a')
-
-
 scavenge :: TimHeap -> TimHeap -> TimHeap
-scavenge from to = undefined
+scavenge from to@(_, _, _, hp) = undefined
 
 timFinal :: TimState -> Bool
 timFinal state = null $ instructions state
