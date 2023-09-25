@@ -267,7 +267,8 @@ gc state@TimState { instructions = instrs, frame = fptr, stack = stk, dump = dmp
   where
     gcPrint is fp f0 f1 t1 f2 t2 f3 t3 t4 fp'
       = iDisplay $ iConcat
-      [ iStr "vvvvvvvvvvvvvvvvvvvvvvvv", iNewline
+      [ iNewline
+      , iStr "vvvvvvvvvvvvvvvvvvvvvvvv", iNewline
       , iStr "instr: ", iNewline
       , showInstructions Full is, iNewline
       , iStr "frame ptr: ", showFramePtr fp, iNewline
