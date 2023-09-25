@@ -249,14 +249,12 @@ doAdmin state = bool id (applyToStats statIncGCCount . gc) needGC $ applyToStats
     needGC = getHeapAllocated (getStats state) >= threshold
 
 gc :: TimState -> TimState
-gc state@TimState { instructions = instrs
-                  , frame        = fptr
-                  , heap         = from
-                  }
-  = state { frame = fptr',  heap = to' }
-  where
-    needGC = getHeapAllocated (getStats state) >= threshold
-    ((from', to'), fptr') = evacuateFramePtr from hInitial (instrs, fptr)
+gc state@TimState { instructions = instrs, frame = fptr, heap = from }
+  = case evacuateFramePtr from hInitial (instrs, fptr) of
+  ((from1, to1), fptr1) -> case scavenge from1 to1 of
+    to2 -> state { frame = fptr1
+                 , heap = to2
+                 }
 
 -- | NOTE: Closure = ([Instruction], FramePtr) なので
 -- [Instruction] の中で使われるものを recursive に辿っていき from の FramePtr を to の FramePtr に置換
@@ -281,6 +279,9 @@ evacuateFrom (from, to) a = case hLookup from a of
       from' -> ((from', to'), a')
   Forward a' -> ((from, to), a')
 
+
+scavenge :: TimHeap -> TimHeap -> TimHeap
+scavenge from to = undefined
 
 timFinal :: TimState -> Bool
 timFinal state = null $ instructions state
