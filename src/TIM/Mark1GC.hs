@@ -253,15 +253,17 @@ doAdmin state
     state' = applyToStats statIncSteps state
 
 gc :: TimState -> TimState
-gc state@TimState { instructions = instrs, frame = fptr, heap = from }
+gc state@TimState { instructions = instrs, frame = fptr, heap = from, stack = stk }
   = case evacuateFramePtr from hInitial (instrs, fptr) of
-  ((from1, to1), fptr1) -> case scavenge from1 to1 of
-    to2 -> trace (gcPrint instrs fptr from from1 to1 to2) $
-      state { frame = fptr1
-            , heap = to2
-            }
+  ((from1, to1), fptr1) -> case evacuateStack from1 to1 stk of
+    ((from2, to2), stk1) -> case scavenge from2 to2 of
+      to3 -> trace (gcPrint instrs fptr from from1 to1 from2 to2 to3 fptr1) $
+        state { frame = fptr1
+              , stack = stk1
+              , heap = to3
+              }
   where
-    gcPrint is fp f0 f1 t1 t2
+    gcPrint is fp f0 f1 t1 f2 t2 t3 fp'
       = iDisplay $ iConcat
       [ iStr "vvvvvvvvvvvvvvvvvvvvvvvv", iNewline
       , iStr "instr: ", iNewline
@@ -275,6 +277,7 @@ gc state@TimState { instructions = instrs, frame = fptr, heap = from }
       , showHeap t1, iNewline
       , iStr "scavenged: to2", iNewline
       , showHeap t2, iNewline
+      , iStr "new frame ptr: ", showFramePtr fp', iNewline
       , iStr "^^^^^^^^^^^^^^^^^^^^^^^^", iNewline
       ]
 
@@ -307,6 +310,13 @@ evacuateFramePtr from to (instrs, fptr) = case fptr of
   -- Heap には含まないので from と to で変わらない
   FrameInt n -> ((from, to), fptr)
   FrameNull  -> ((from, to), fptr)
+
+evacuateStack :: TimHeap -> TimHeap -> TimStack -> ((TimHeap, TimHeap), TimStack)
+evacuateStack from to stk = case mapAccumL update (from, to) stk of
+  (hs,fps) -> (hs, zipWith (\(is, _) fp -> (is, fp)) stk fps)
+  where
+    update :: (TimHeap, TimHeap) -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
+    update (f, t) (is, fp) = evacuateFramePtr f t (is, fp)
 
 scavenge :: TimHeap -> TimHeap -> TimHeap
 scavenge from to@(_, _, _, hp) = foldl phi to hp
