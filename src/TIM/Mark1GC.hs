@@ -253,17 +253,19 @@ doAdmin state
     state' = applyToStats statIncSteps state
 
 gc :: TimState -> TimState
-gc state@TimState { instructions = instrs, frame = fptr, heap = from, stack = stk }
+gc state@TimState { instructions = instrs, frame = fptr, stack = stk, dump = dmp, heap = from }
   = case evacuateFramePtr from hInitial (instrs, fptr) of
   ((from1, to1), fptr1) -> case evacuateStack from1 to1 stk of
-    ((from2, to2), stk1) -> case scavenge from2 to2 of
-      to3 -> trace (gcPrint instrs fptr from from1 to1 from2 to2 to3 fptr1) $
-        state { frame = fptr1
-              , stack = stk1
-              , heap = to3
-              }
+    ((from2, to2), stk1) -> case evacuateDump from2 to2 dmp of
+      ((from3, to3), dmp1) -> case scavenge from3 to3 of
+        to4 -> trace (gcPrint instrs fptr from from1 to1 from2 to2 from3 to3 to4 fptr1) $
+          state { frame = fptr1
+                , stack = stk1
+                , dump = dmp1
+                , heap = to4
+                }
   where
-    gcPrint is fp f0 f1 t1 f2 t2 t3 fp'
+    gcPrint is fp f0 f1 t1 f2 t2 f3 t3 t4 fp'
       = iDisplay $ iConcat
       [ iStr "vvvvvvvvvvvvvvvvvvvvvvvv", iNewline
       , iStr "instr: ", iNewline
@@ -275,8 +277,16 @@ gc state@TimState { instructions = instrs, frame = fptr, heap = from, stack = st
       , showHeap f1, iNewline
       , iStr "evacuated: to1", iNewline
       , showHeap t1, iNewline
-      , iStr "scavenged: to2", iNewline
+      , iStr "evacuated: from2", iNewline
+      , showHeap f2, iNewline
+      , iStr "evacuated: to2", iNewline
       , showHeap t2, iNewline
+      , iStr "evacuated: from3", iNewline
+      , showHeap f3, iNewline
+      , iStr "evacuated: to3", iNewline
+      , showHeap t3, iNewline
+      , iStr "evacuated: to3", iNewline
+      , showHeap t4, iNewline
       , iStr "new frame ptr: ", showFramePtr fp', iNewline
       , iStr "^^^^^^^^^^^^^^^^^^^^^^^^", iNewline
       ]
@@ -317,6 +327,10 @@ evacuateStack from to stk = case mapAccumL update (from, to) stk of
   where
     update :: (TimHeap, TimHeap) -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
     update (f, t) (is, fp) = evacuateFramePtr f t (is, fp)
+
+-- | NOTE: Dump はまだ使われてないので id 的な実装になっている
+evacuateDump :: TimHeap -> TimHeap -> TimDump -> ((TimHeap, TimHeap), TimDump)
+evacuateDump from to dump = ((from, to), dump)
 
 scavenge :: TimHeap -> TimHeap -> TimHeap
 scavenge from to@(_, _, _, hp) = foldl phi to hp
