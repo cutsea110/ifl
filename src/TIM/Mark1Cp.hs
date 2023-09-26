@@ -298,7 +298,7 @@ gc state@TimState { instructions = instrs
       ]
 
 -- | NOTE: Closure = ([Instruction], FramePtr) なので
--- [Instruction] の中で使われるものを recursive に辿っていき from の FramePtr を to の FramePtr に置換
+-- [Instruction] の中で使われる FramePtr はコピーし、それ以外は ([], FrameNull) で潰す
 {- |
 >>> let h = hInitial :: Heap Frame
 >>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull)])
@@ -412,6 +412,8 @@ evacuateStack from to stk = case mapAccumL update (from, to) stk of
 evacuateDump :: TimHeap -> TimHeap -> TimDump -> ((TimHeap, TimHeap), TimDump)
 evacuateDump from to dump = ((from, to), dump)
 
+-- | 新しいヒープ中の FramePtr を 古いヒープから探して、
+--   新しいヒープのどのアドレスに Forward されているか見て付け替えていく
 {- |
 >>> let from = (2,2,[3..],[(1,Forward 2),(2,Forward 1)])
 >>> let to = (2,2,[3..],[(1,Frame [([Push (Arg 2)],FrameAddr 1)]),(2,Frame [([Push (Arg 1)],FrameNull)])])
