@@ -253,7 +253,12 @@ doAdmin state
     state' = applyToStats statIncSteps state
 
 gc :: TimState -> TimState
-gc state@TimState { instructions = instrs, frame = fptr, stack = stk, dump = dmp, heap = from }
+gc state@TimState { instructions = instrs
+                  , frame = fptr
+                  , stack = stk
+                  , dump = dmp
+                  , heap = from
+                  }
   = case evacuateFramePtr from hInitial (instrs, fptr) of
   ((from1, to1), fptr1) -> case evacuateStack from1 to1 stk of
     ((from2, to2), stk1) -> case evacuateDump from2 to2 dmp of
