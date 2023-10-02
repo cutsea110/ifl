@@ -246,7 +246,7 @@ eval state = state : rest_states
 
 doAdmin :: TimState -> TimState
 doAdmin state
-  | needGC = applyToStats statIncGCCount $ gc state'
+  | needGC    = applyToStats statIncGCCount $ gc state'
   | otherwise = state'
   where
     needGC = hSize (getHeap state) >= threshold
@@ -279,19 +279,19 @@ gc state@TimState { instructions = instrs
       , iStr "frame ptr: ", showFramePtr fp, iNewline
       , iStr "before", iNewline
       , showHeap f0, iNewline
-      , iStr "evacuated: from1", iNewline
+      , iStr "evacuated frameptr: from1", iNewline
       , showHeap f1, iNewline
-      , iStr "evacuated: to1", iNewline
+      , iStr "evacuated frameptr: to1", iNewline
       , showHeap t1, iNewline
-      , iStr "evacuated: from2", iNewline
+      , iStr "evacuated stack: from2", iNewline
       , showHeap f2, iNewline
-      , iStr "evacuated: to2", iNewline
+      , iStr "evacuated stack: to2", iNewline
       , showHeap t2, iNewline
-      , iStr "evacuated: from3", iNewline
+      , iStr "evacuated dump: from3", iNewline
       , showHeap f3, iNewline
-      , iStr "evacuated: to3", iNewline
+      , iStr "evacuated dump: to3", iNewline
       , showHeap t3, iNewline
-      , iStr "evacuated: to3", iNewline
+      , iStr "scavenged: to4", iNewline
       , showHeap t4, iNewline
       , iStr "new frame ptr: ", showFramePtr fp', iNewline
       , iStr "^^^^^^^^^^^^^^^^^^^^^^^^", iNewline
