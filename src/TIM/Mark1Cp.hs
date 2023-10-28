@@ -140,7 +140,10 @@ data TimStats
              , getExecTime      :: Int  -- The execution time
              , getHeapAllocated :: Int  -- The amount of heap allocated
              , getMaxStackDepth :: Int  -- The maximum stack depth
-             , getGCCount       :: Int  -- The count of garbage collections
+             , getGCInfo        :: [( Int  -- The number of steps
+                                    , Size -- The size of the heap before GC
+                                    , Size -- The size of the heap after GC
+                                    )]
              }
   deriving (Eq, Show)
 
@@ -149,7 +152,7 @@ statInitial = TimStats { getSteps = 0
                        , getExecTime = 0
                        , getHeapAllocated = 0
                        , getMaxStackDepth = 0
-                       , getGCCount = 0
+                       , getGCInfo = []
                        }
 
 statGetSteps :: TimStats -> Int
@@ -182,11 +185,14 @@ statUpdateMaxStackDepth depth s
   | otherwise      = s
   where depth' = statGetMaxStackDepth s
 
-statGetGCCount :: TimStats -> Int
-statGetGCCount s = getGCCount s
+statGetGCInfo :: TimStats -> [(Int, Size, Size)]
+statGetGCInfo s = getGCInfo s
 
-statIncGCCount :: TimStats -> TimStats
-statIncGCCount sts = sts { getGCCount = getGCCount sts + 1 }
+statGetGCCount :: TimStats -> Int
+statGetGCCount s = length $ getGCInfo s
+
+statIncGCCount :: (Int, Size, Size) -> TimStats -> TimStats
+statIncGCCount tpl sts = sts { getGCInfo = getGCInfo sts ++ [tpl] }
 
 compile :: CoreProgram -> TimState
 compile program
@@ -247,11 +253,15 @@ eval state = state : rest_states
 
 doAdmin :: TimState -> TimState
 doAdmin state
-  | needGC    = applyToStats statIncGCCount $ gc state'
+  | needGC    = applyToStats (statIncGCCount (stepAt, orgSize, newSize)) gcedState
   | otherwise = state'
   where
-    needGC = hSize (getHeap state) >= threshold
     state' = applyToStats statIncSteps state
+    needGC = orgSize >= threshold
+    gcedState = gc state'
+    orgSize = hSize $ getHeap state'
+    newSize = hSize $ getHeap gcedState
+    stepAt = statGetSteps $ getStats state'
 
 gc :: TimState -> TimState
 gc state@TimState { instructions = instrs
@@ -642,13 +652,22 @@ showFramePtr FrameNull     = iStr "null"
 showFramePtr (FrameAddr a) = iStr "#" `iAppend` iNum a
 showFramePtr (FrameInt n)  = iStr "int " `iAppend` iNum n
 
+showGCInfo :: [(Int, Size, Size)] -> IseqRep
+showGCInfo [] = iNil
+showGCInfo xs = iConcat [ iStr " { "
+                        , iIndent (iInterleave iNewline $ map showResize xs)
+                        , iStr " }"
+                        ]
+  where showResize (n, f, t) = iConcat [ iNum n, iStr " : ", iNum f, iStr " -> ", iNum t ]
+
 showStats :: TimState -> IseqRep
 showStats state@TimState { stats = stats }
   = iConcat [ iStr "Total number of steps = ", iNum (statGetSteps stats), iNewline
             , iStr "            Exec time = ", iNum (statGetExecTime stats), iNewline
             , iStr "       Heap allocated = ", iNum (statGetHeapAllocated stats), iNewline
             , iStr "      Max stack depth = ", iNum (statGetMaxStackDepth stats), iNewline
-            , iStr "              GC call = ", iNum (statGetGCCount stats), iNewline
+            , iStr "              GC call = ", iNum (statGetGCCount stats)
+            ,                                  showGCInfo (statGetGCInfo stats), iNewline
             ]
 
 showResults :: [TimState] -> String
