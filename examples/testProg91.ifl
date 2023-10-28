@@ -1,0 +1,9 @@
+-- timark1cp で threshold=10として実行すると gc count = 2 発生する
+true  a b = a;
+false a b = b;
+bool t f c = c t f;
+lark a b = a (b b);
+y = S lark lark;
+and x y = bool y    false x;
+or  x y = bool true y     x;
+main = bool 3 7 (and (or (and true false) (or false true)) (and (or false true) (and true false)))
