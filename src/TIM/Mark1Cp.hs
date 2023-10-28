@@ -399,6 +399,18 @@ FrameAddr 1
 >>> to''
 (2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 1)]),(2,Frame [([Push (Arg 1)],FrameAddr 2)])])
 -}
+{- | The case for Self-Cyclic Reference
+>>> let h = hInitial :: Heap Frame
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameAddr 2)])
+>>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 1)], FrameAddr 2)]) -- self-cyclic reference
+>>> let ((from, to), fp) = evacuateFramePtr h2 hInitial ([Push (Arg 1)], FrameAddr 1)
+>>> from
+(2,2,[(2,Forward 2),(1,Forward 1)])
+>>> to
+(2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 2)]),(2,Frame [([Push (Arg 1)],FrameAddr 2)])])
+>>> fp
+FrameAddr 1
+-}
 evacuateFramePtr :: TimHeap -> TimHeap -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
 evacuateFramePtr from to (instrs, fptr) = case fptr of
   FrameAddr a -> case hLookup from a of
