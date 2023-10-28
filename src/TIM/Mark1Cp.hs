@@ -453,7 +453,7 @@ step state@TimState { instructions = instrs
   = case instrs of
   (Take n:instr)
     | length stk >= n
-      -- Take は exec time にカウントしない (exercise 4.2)
+      -- NOTE: Take は exec time にカウントしない (exercise 4.2)
       -> applyToStats (statIncHeapAllocated $ n + 1)
          (putInstructions instr
           . putFrame fptr'
