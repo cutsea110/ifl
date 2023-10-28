@@ -653,12 +653,13 @@ showFramePtr (FrameAddr a) = iStr "#" `iAppend` iNum a
 showFramePtr (FrameInt n)  = iStr "int " `iAppend` iNum n
 
 showGCInfo :: [(Int, Size, Size)] -> IseqRep
-showGCInfo [] = iNil
-showGCInfo xs = iConcat [ iStr " { "
-                        , iIndent (iInterleave iNewline $ map showResize xs)
-                        , iStr " }"
-                        ]
-  where showResize (n, f, t) = iConcat [ iNum n, iStr " : ", iNum f, iStr " -> ", iNum t ]
+showGCInfo xs | null xs   = iConcat [ iNum 0, iNewline ]
+              | otherwise = iConcat [ iNum (length xs)
+                                    , iStr " { "
+                                    , iIndent (iInterleave iNewline $ map showResize xs)
+                                    , iStr " }"
+                                    ]
+  where showResize (n, f, t) = iConcat [ iNum n, iStr ") ", iNum f, iStr " -> ", iNum t ]
 
 showStats :: TimState -> IseqRep
 showStats state@TimState { stats = stats }
@@ -666,8 +667,7 @@ showStats state@TimState { stats = stats }
             , iStr "            Exec time = ", iNum (statGetExecTime stats), iNewline
             , iStr "       Heap allocated = ", iNum (statGetHeapAllocated stats), iNewline
             , iStr "      Max stack depth = ", iNum (statGetMaxStackDepth stats), iNewline
-            , iStr "              GC call = ", iNum (statGetGCCount stats)
-            ,                                  showGCInfo (statGetGCInfo stats), iNewline
+            , iStr "              GC call = ", showGCInfo (statGetGCInfo stats), iNewline
             ]
 
 showResults :: [TimState] -> String
