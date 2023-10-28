@@ -404,7 +404,7 @@ evacuateFramePtr from to (instrs, fptr) = case fptr of
       update :: (TimHeap, TimHeap) -> (Int, Closure) -> ((TimHeap, TimHeap), Closure)
       update (f, t) (i, cls@(is, fp))
         | i `elem` liveArgs = case evacuateFramePtr f t cls of
-            (hs, _) -> (hs, (is, fp)) -- NOTE: ここで fp' としないで scavenge がやる
+            (hs, _) -> (hs, (is, fp)) -- NOTE: ここで fp' としない (scavenge がやる)
         | otherwise         = ((f, t), ([], FrameNull))
       liveArgs :: [Int]
       liveArgs = nub $ foldl g [] instrs
