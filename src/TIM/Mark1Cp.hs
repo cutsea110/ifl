@@ -93,6 +93,7 @@ data TimDump = DummyTimDump
              deriving (Eq, Show)
 type TimHeap = Heap Frame
 instance {-# Overlapping #-} Show (Heap Frame) where
+  -- NOTE: addr field is infinite list, so we shouldn't show it.
   show (allocs, size, _, cts) = show (allocs, size, cts)
 
 data Frame = Frame [Closure]
