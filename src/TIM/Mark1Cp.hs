@@ -410,6 +410,14 @@ FrameAddr 1
 (2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 2)]),(2,Frame [([Push (Arg 1)],FrameAddr 2)])])
 >>> fp
 FrameAddr 1
+
+>>> let ((from', to'), fp') = evacuateFramePtr h2 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> from'
+(2,2,[(2,Forward 1),(1,Frame [([Push (Arg 1)],FrameAddr 2)])])
+>>> to'
+(1,1,[(1,Frame [([Push (Arg 1)],FrameAddr 2)])])
+>>> fp'
+FrameAddr 1
 -}
 evacuateFramePtr :: TimHeap -> TimHeap -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
 evacuateFramePtr from to (instrs, fptr) = case fptr of
