@@ -221,6 +221,9 @@ initialValueStack = DummyTimValueStack
 initialDump :: TimDump
 initialDump = DummyTimDump
 
+initCodeStore :: CodeStore
+initCodeStore = []
+
 compiledPrimitives :: [(Name, [Instruction])]
 compiledPrimitives = []
 
@@ -269,11 +272,12 @@ gc state@TimState { instructions = instrs
                   , stack        = stk
                   , dump         = dmp
                   , heap         = from
+                  , codes        = cstore
                   }
-  = case evacuateFramePtr from hInitial (instrs, fptr) of
-  ((from1, to1), fptr1) -> case evacuateStack from1 to1 stk of
-    ((from2, to2), stk1) -> case evacuateDump from2 to2 dmp of
-      ((from3, to3), dmp1) -> case scavenge from3 to3 of
+  = case evacuateStack cstore from hInitial stk of
+  ((from1, to1), stk1) -> case evacuateDump cstore from1 to1 dmp of
+    ((from2, to2), dmp1) -> case evacuateFramePtr True cstore from2 to2  (instrs, fptr) of
+      ((from3, to3),  fptr1) -> case scavenge from3 to3 of
         to4 -> trace (gcPrint instrs fptr from from1 to1 from2 to2 from3 to3 to4 fptr1) $
           state { frame = fptr1
                 , stack = stk1
@@ -288,19 +292,20 @@ gc state@TimState { instructions = instrs
       , iStr "instr: ", iNewline
       , showInstructions Full is, iNewline
       , iStr "frame ptr: ", showFramePtr fp, iNewline
+      , iStr "arg stack: ", showStack stk, iNewline
       , iStr "before", iNewline
       , showHeap f0, iNewline
-      , iStr "evacuated frameptr: from1", iNewline
+      , iStr "evacuated stack: from1", iNewline
       , showHeap f1, iNewline
-      , iStr "evacuated frameptr: to1", iNewline
+      , iStr "evacuated stack: to1", iNewline
       , showHeap t1, iNewline
-      , iStr "evacuated stack: from2", iNewline
+      , iStr "evacuated dump: from2", iNewline
       , showHeap f2, iNewline
-      , iStr "evacuated stack: to2", iNewline
+      , iStr "evacuated dump: to2", iNewline
       , showHeap t2, iNewline
-      , iStr "evacuated dump: from3", iNewline
+      , iStr "evacuated frameptr: from3", iNewline
       , showHeap f3, iNewline
-      , iStr "evacuated dump: to3", iNewline
+      , iStr "evacuated frameptr: to3", iNewline
       , showHeap t3, iNewline
       , iStr "scavenged: to4", iNewline
       , showHeap t4, iNewline
@@ -312,27 +317,28 @@ gc state@TimState { instructions = instrs
 -- [Instruction] の中で使われる FramePtr はコピーし、それ以外は ([], FrameNull) で潰す
 {- |
 >>> let h = hInitial :: Heap Frame
+>>> let cs = initCodeStore
 >>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull)])
 >>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 2)], FrameAddr 1)])
->>> let ((from, to), fp) = evacuateFramePtr h2 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2)
 >>> from
 (2,2,[(1,Forward 2),(2,Forward 1)])
 >>> to
-(2,2,[(1,Frame [([Push (Arg 2)],FrameAddr 1)]),(2,Frame [([],FrameNull)])])
+(2,2,[(1,Frame [([Push (Arg 2)],FrameAddr 1)]),(2,Frame [([Push (Arg 1)],FrameNull)])])
 >>> fp
 FrameAddr 1
 
 >>> let (h3, a3) = hAlloc h (Frame [([Push (Arg 1)], FrameNull),([Push (Arg 2)], FrameInt 42),([Push (Arg 3)], FrameAddr 2)])
 >>> let (h4, a4) = hAlloc h3 (Frame [([Push (Arg 1)], FrameAddr 1)])
->>> let ((from2, to2), fp2) = evacuateFramePtr h4 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> let ((from2, to2), fp2) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 1)], FrameAddr 2)
 >>> from2
 (2,2,[(1,Forward 2),(2,Forward 1)])
 >>> to2
-(2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 1)]),(2,Frame [([Push (Arg 1)],FrameNull),([],FrameNull),([],FrameNull)])])
+(2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 1)]),(2,Frame [([Push (Arg 1)],FrameNull),([Push (Arg 2)],FrameInt 42),([Push (Arg 3)],FrameAddr 2)])])
 >>> fp2
 FrameAddr 1
 
->>> let ((from3, to3), fp3) = evacuateFramePtr h4 hInitial ([Push (Arg 2)], FrameAddr 2)
+>>> let ((from3, to3), fp3) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 2)], FrameAddr 2)
 >>> from3
 (2,2,[(2,Forward 1),(1,Frame [([Push (Arg 1)],FrameNull),([Push (Arg 2)],FrameInt 42),([Push (Arg 3)],FrameAddr 2)])])
 >>> to3
@@ -340,7 +346,7 @@ FrameAddr 1
 >>> fp3
 FrameAddr 1
 
->>> let ((from4, to4), fp4) = evacuateFramePtr h4 hInitial ([Push (Arg 1)], FrameAddr 1)
+>>> let ((from4, to4), fp4) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 1)], FrameAddr 1)
 >>> from4
 (2,2,[(1,Forward 1),(2,Frame [([Push (Arg 1)],FrameAddr 1)])])
 >>> to4
@@ -348,7 +354,7 @@ FrameAddr 1
 >>> fp4
 FrameAddr 1
 
->>> let ((from5, to5), fp5) = evacuateFramePtr h4 hInitial ([Push (Arg 2)], FrameAddr 1)
+>>> let ((from5, to5), fp5) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 2)], FrameAddr 1)
 >>> from5
 (2,2,[(1,Forward 1),(2,Frame [([Push (Arg 1)],FrameAddr 1)])])
 >>> to5
@@ -356,27 +362,28 @@ FrameAddr 1
 >>> fp5
 FrameAddr 1
 
->>> let ((from6, to6), fp6) = evacuateFramePtr h4 hInitial ([Push (Arg 3)], FrameAddr 1)
+>>> let ((from6, to6), fp6) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 3)], FrameAddr 1)
 >>> from6
 (2,2,[(2,Forward 2),(1,Forward 1)])
 >>> to6
-(2,2,[(1,Frame [([],FrameNull),([],FrameNull),([Push (Arg 3)],FrameAddr 2)]),(2,Frame [([],FrameNull)])])
+(2,2,[(1,Frame [([],FrameNull),([],FrameNull),([Push (Arg 3)],FrameAddr 2)]),(2,Frame [([Push (Arg 1)],FrameAddr 1)])])
 >>> fp6
 FrameAddr 1
 
->>> let ((from7, to7), fp7) = evacuateFramePtr h4 hInitial ([Push (Arg 1), Enter (Arg 3)], FrameAddr 1)
+>>> let ((from7, to7), fp7) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 1), Enter (Arg 3)], FrameAddr 1)
 >>> from7
 (2,2,[(2,Forward 2),(1,Forward 1)])
 >>> to7
-(2,2,[(1,Frame [([Push (Arg 1)],FrameNull),([],FrameNull),([Push (Arg 3)],FrameAddr 2)]),(2,Frame [([],FrameNull)])])
+(2,2,[(1,Frame [([Push (Arg 1)],FrameNull),([],FrameNull),([Push (Arg 3)],FrameAddr 2)]),(2,Frame [([Push (Arg 1)],FrameAddr 1)])])
 >>> fp7
 FrameAddr 1
 -}
 {- | The case for Cyclic Reference
 >>> let h = hInitial :: Heap Frame
+>>> let cs = initCodeStore
 >>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameAddr 2)])
 >>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 1)], FrameAddr 1)])
->>> let ((from, to), fp) = evacuateFramePtr h2 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2)
 >>> from
 (2,2,[(1,Forward 2),(2,Forward 1)])
 >>> to
@@ -387,13 +394,13 @@ FrameAddr 1
 >>> let (h3, a3) = hAlloc h2 (Frame [([Push (Arg 1)], FrameAddr 2)])
 >>> h3
 (3,3,[(3,Frame [([Push (Arg 1)],FrameAddr 2)]),(2,Frame [([Push (Arg 1)],FrameAddr 1)]),(1,Frame [([Push (Arg 1)],FrameAddr 2)])])
->>> let ((from', to'), fp') = evacuateFramePtr h3 hInitial ([Push (Arg 1)], FrameAddr 3)
+>>> let ((from', to'), fp') = evacuateFramePtr True cs h3 hInitial ([Push (Arg 1)], FrameAddr 3)
 >>> from'
 (3,3,[(1,Forward 3),(2,Forward 2),(3,Forward 1)])
 >>> to'
 (3,3,[(1,Frame [([Push (Arg 1)],FrameAddr 2)]),(2,Frame [([Push (Arg 1)],FrameAddr 1)]),(3,Frame [([Push (Arg 1)],FrameAddr 2)])])
 
->>> let ((from'', to''), fp'') = evacuateFramePtr h3 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> let ((from'', to''), fp'') = evacuateFramePtr True cs h3 hInitial ([Push (Arg 1)], FrameAddr 2)
 >>> from''
 (3,3,[(1,Forward 2),(2,Forward 1),(3,Frame [([Push (Arg 1)],FrameAddr 2)])])
 >>> to''
@@ -401,9 +408,10 @@ FrameAddr 1
 -}
 {- | The case for Self-Cyclic Reference
 >>> let h = hInitial :: Heap Frame
+>>> let cs = initCodeStore
 >>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameAddr 2)])
 >>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 1)], FrameAddr 2)]) -- self-cyclic reference
->>> let ((from, to), fp) = evacuateFramePtr h2 hInitial ([Push (Arg 1)], FrameAddr 1)
+>>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 1)
 >>> from
 (2,2,[(2,Forward 2),(1,Forward 1)])
 >>> to
@@ -411,7 +419,7 @@ FrameAddr 1
 >>> fp
 FrameAddr 1
 
->>> let ((from', to'), fp') = evacuateFramePtr h2 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> let ((from', to'), fp') = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2)
 >>> from'
 (2,2,[(2,Forward 1),(1,Frame [([Push (Arg 1)],FrameAddr 2)])])
 >>> to'
@@ -419,8 +427,33 @@ FrameAddr 1
 >>> fp'
 FrameAddr 1
 -}
-evacuateFramePtr :: TimHeap -> TimHeap -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
-evacuateFramePtr from to (instrs, fptr) = case fptr of
+{- | check CodeStore
+>>> let h = hInitial :: Heap Frame
+>>> let cs = [("f", [Push (Arg 1), Enter (Arg 3)])]
+>>> let (h1, a1) = hAlloc h (Frame [([Take 1], FrameNull),([Take 2],FrameNull),([Take 3],FrameNull)])
+>>> let (h2, a2) = hAlloc h1 (Frame [([Enter (Label "f")], FrameAddr 1)])
+>>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> from
+(2,2,[(1,Forward 2),(2,Forward 1)])
+>>> to
+(2,2,[(1,Frame [([Enter (Label "f")],FrameAddr 1)]),(2,Frame [([Take 1],FrameNull),([Take 2],FrameNull),([Take 3],FrameNull)])])
+>>> fp
+FrameAddr 1
+-}
+{- | check Code
+>>> let h = hInitial :: Heap Frame
+>>> let (h1, a1) = hAlloc h (Frame [([Take 1], FrameNull),([Take 2],FrameNull),([Take 3],FrameNull)])
+>>> let (h2, a2) = hAlloc h1 (Frame [([Enter (Code [Push (Arg 1), Enter (Arg 3)])], FrameAddr 1)])
+>>> let ((from, to), fp) = evacuateFramePtr True initCodeStore h2 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> from
+(2,2,[(1,Forward 2),(2,Forward 1)])
+>>> to
+(2,2,[(1,Frame [([Enter (Code [Push (Arg 1),Enter (Arg 3)])],FrameAddr 1)]),(2,Frame [([Take 1],FrameNull),([Take 2],FrameNull),([Take 3],FrameNull)])])
+>>> fp
+FrameAddr 1
+-}
+evacuateFramePtr :: Bool -> CodeStore -> TimHeap -> TimHeap -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
+evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
   FrameAddr a -> case hLookup from a of
     Frame clss -> case hAlloc to (Frame []) of
       (to', a') -> case hUpdate from a (Forward a') of
@@ -433,15 +466,21 @@ evacuateFramePtr from to (instrs, fptr) = case fptr of
     where
       update :: (TimHeap, TimHeap) -> (Int, Closure) -> ((TimHeap, TimHeap), Closure)
       update (f, t) (i, cls@(is, fp))
-        | i `elem` liveArgs = case evacuateFramePtr f t cls of
+        | not liveCheck || i `elem` liveArgs = case evacuateFramePtr False cstore f t cls of
             (hs, _) -> (hs, (is, fp)) -- NOTE: ここで fp' としない (scavenge がやる)
         | otherwise         = ((f, t), ([], FrameNull))
       liveArgs :: [Int]
       liveArgs = nub $ foldl g [] instrs
         where
-          g ns (Push (Arg n))  = n : ns
-          g ns (Enter (Arg n)) = n : ns
-          g ns _               = ns
+          g ns (Push am)  = h ns am
+          g ns (Enter am) = h ns am
+          g ns _          = ns
+
+          h ns (Arg n)   = n:ns
+          h ns (Code cs) = foldl g [] cs ++ ns
+          h ns (Label l) = foldl g [] (codeLookup cstore l) ++ ns
+          h ns _         = ns
+
               
   -- Heap には含まないので from と to で変わらない
   FrameInt n -> ((from, to), fptr)
@@ -449,26 +488,27 @@ evacuateFramePtr from to (instrs, fptr) = case fptr of
 
 {- |
 >>> let h = hInitial :: Heap Frame
+>>> let cs = initCodeStore
 >>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull)])
 >>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 2)], FrameAddr 1)])
->>> let ((from, to), stk) = evacuateStack h2 hInitial [([Push (Arg 1)], FrameAddr 2), ([Push (Arg 2)], FrameAddr 1)]
+>>> let ((from, to), stk) = evacuateStack cs h2 hInitial [([Push (Arg 1)], FrameAddr 2), ([Push (Arg 2)], FrameAddr 1)]
 >>> from
 (2,2,[(1,Forward 2),(2,Forward 1)])
 >>> to
-(2,2,[(1,Frame [([Push (Arg 2)],FrameAddr 1)]),(2,Frame [([],FrameNull)])])
+(2,2,[(1,Frame [([Push (Arg 2)],FrameAddr 1)]),(2,Frame [([Push (Arg 1)],FrameNull)])])
 >>> stk
 [([Push (Arg 1)],FrameAddr 1),([Push (Arg 2)],FrameAddr 2)]
 -}
-evacuateStack :: TimHeap -> TimHeap -> TimStack -> ((TimHeap, TimHeap), TimStack)
-evacuateStack from to stk = case mapAccumL update (from, to) stk of
+evacuateStack :: CodeStore -> TimHeap -> TimHeap -> TimStack -> ((TimHeap, TimHeap), TimStack)
+evacuateStack cstore from to stk = case mapAccumL update (from, to) stk of
   (hs,fps) -> (hs, zipWith (\(is, _) fp -> (is, fp)) stk fps)
   where
     update :: (TimHeap, TimHeap) -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
-    update (f, t) (is, fp) = evacuateFramePtr f t (is, fp)
+    update (f, t) (is, fp) = evacuateFramePtr False cstore f t (is, fp)
 
 -- | NOTE: Dump はまだ使われてないので id 的な実装になっている
-evacuateDump :: TimHeap -> TimHeap -> TimDump -> ((TimHeap, TimHeap), TimDump)
-evacuateDump from to dump = ((from, to), dump)
+evacuateDump :: CodeStore -> TimHeap -> TimHeap -> TimDump -> ((TimHeap, TimHeap), TimDump)
+evacuateDump cstore from to dump = ((from, to), dump)
 
 -- | 新しいヒープ中の FramePtr を 古いヒープから探して、
 --   新しいヒープのどのアドレスに Forward されているか見て付け替えていく
