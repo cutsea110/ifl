@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
-module TIM.Mark1Cp
+module TIM.Mark2
   ( parse
   , compile
   , eval
@@ -257,7 +257,7 @@ doAdmin state
   | otherwise = state'
   where
     state' = applyToStats statIncSteps state
-    needGC = False -- orgSize >= threshold -- FIXME!!
+    needGC = False -- orgSize >= threshold -- FIXME!
     gcedState = gc state'
     orgSize = hSize $ getHeap state'
     newSize = hSize $ getHeap gcedState
