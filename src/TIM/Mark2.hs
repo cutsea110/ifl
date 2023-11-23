@@ -27,7 +27,20 @@ runProg verbose = showR . eval . compile . parse
 data Instruction = Take Int
                  | Enter TimAMode
                  | Push TimAMode
+                 | PushV ValueAMode
+                 | Return
+                 | Op Op
+                 | Cond [Instruction] [Instruction]
                  deriving (Eq, Show)
+
+data Op = Add | Sub | Mul | Div | Neg
+        | Eq | Ne | Lt | Le | Gt | Ge
+        deriving (Eq, Show)
+
+data ValueAMode = FramePtr
+                | IntVConst Int
+                deriving (Eq, Show)
+
 
 data TimAMode = Arg Int
               | Label Name
@@ -61,6 +74,10 @@ putStack stk state = state { stack = stk, stats = sts }
   where
     dwh = length stk
     sts = statUpdateMaxStackDepth dwh (getStats state)
+getVStack :: TimState -> TimValueStack
+getVStack = valstack
+putVStack :: TimValueStack -> TimState -> TimState
+putVStack vstk state = state { valstack = vstk }
 getDump :: TimState -> TimDump
 getDump = dump
 putDump :: TimDump -> TimState -> TimState
@@ -87,8 +104,7 @@ data FramePtr = FrameAddr Addr      -- The address of a frame
 type TimStack = [Closure]
 type Closure = ([Instruction], FramePtr)
 
-data TimValueStack = DummyTimValueStack
-                   deriving (Eq, Show)
+type TimValueStack = [Int]
 data TimDump = DummyTimDump
              deriving (Eq, Show)
 type TimHeap = Heap Frame
@@ -213,10 +229,10 @@ compile program
                   ++ [(name, Label name) | (name, _) <- compiledPrimitives]
 
 initialArgStack :: TimStack
-initialArgStack = []
+initialArgStack = [([], FrameNull)] -- initial continuation
 
 initialValueStack :: TimValueStack
-initialValueStack = DummyTimValueStack
+initialValueStack = []
 
 initialDump :: TimDump
 initialDump = DummyTimDump
@@ -505,6 +521,7 @@ step :: TimState -> TimState
 step state@TimState { instructions = instrs
                     , frame        = fptr
                     , stack        = stk
+                    , valstack     = vstk
                     , heap         = hp
                     , codes        = cstore
                     }
@@ -534,6 +551,56 @@ step state@TimState { instructions = instrs
        (putInstructions istr
          . putStack (amToClosure am fptr hp cstore : stk)
          $ state)
+  (PushV fp:istr)
+    -> applyToStats statIncExecTime $ case fp of
+      FramePtr -> putInstructions istr
+                  . putVStack (n:vstk)
+                  $ state
+        where n = case fptr of
+                FrameInt n -> n
+                _          -> error "PushV applied to non-int frame"
+      IntVConst n -> putInstructions istr
+                     . putVStack (n:vstk)
+                     $ state
+  [Return]
+    -> applyToStats statIncExecTime
+       (putInstructions instr'
+        . putFrame fptr'
+        . putStack stk'
+        $ state)
+    where
+      ((instr', fptr'), stk') = case stk of
+        [] -> error "Return applied to empty stack"
+        (i, f):s -> ((i, f), s)
+  (Op op:istr)
+    -> applyToStats statIncExecTime
+       (putInstructions istr
+        . putVStack newVstk
+        $ state)
+    where
+      newVstk
+        | op `elem` [Add, Sub, Mul, Div] = case vstk of
+            (n1:n2:ns) -> op' n1 n2:ns
+            _          -> error "Binary op applied to empty stack"
+        | op == Neg = case vstk of
+            (n:ns) -> negate n:ns
+            _      -> error "Unary op applied to empty stack"
+      op' = case op of
+        Add -> (+)
+        Sub -> (-)
+        Mul -> (*)
+        Div -> div
+        _   -> error "unsupported op"
+  [Cond i1 i2]
+    -> applyToStats statIncExecTime
+       (putInstructions instr'
+       . putVStack vstk'
+       $ state)
+    where
+      (instr', vstk') = case vstk of
+        (0:ns) -> (i1, ns)
+        (_:ns) -> (i2, ns)
+        _     -> error "Cond applied to empty stack"
   _          -> error $ "invalid instructions: " ++ show instrs
 
 
@@ -544,7 +611,7 @@ amToClosure (Label l) fptr heap cstore = (codeLookup cstore l, fptr)
 amToClosure (IntConst n) fptr heap cstore = (intCode, FrameInt n)
 
 intCode :: [Instruction]
-intCode = []
+intCode = [PushV FramePtr, Return]
 
 showFullResults :: [TimState] -> String
 showFullResults states
@@ -606,6 +673,14 @@ showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
 showInstruction d (Take n)  = iStr "Take " `iAppend` iNum n
 showInstruction d (Enter x) = iStr "Enter " `iAppend` showArg d x
 showInstruction d (Push x)  = iStr "Push " `iAppend` showArg d x
+showInstruction d (PushV x) = iStr "PushV " `iAppend` showValueAMode x
+showInstruction d Return    = iStr "Return"
+showInstruction d (Op op)   = iStr "Op " `iAppend` iStr (show op)
+showInstruction d (Cond t f) = iStr "Cond " `iAppend` showInstructions d t `iAppend` iStr " " `iAppend` showInstructions d f
+
+showValueAMode :: ValueAMode -> IseqRep
+showValueAMode FramePtr      = iStr "FramePtr"
+showValueAMode (IntVConst n) = iStr "IntVConst " `iAppend` iNum n
 
 showArg :: HowMuchToPrint -> TimAMode -> IseqRep
 showArg d (Arg n)   = iStr "Arg " `iAppend` iNum n
