@@ -241,7 +241,26 @@ initCodeStore :: CodeStore
 initCodeStore = []
 
 compiledPrimitives :: [(Name, [Instruction])]
-compiledPrimitives = []
+compiledPrimitives = [ ("+", [ Take 2
+                             , Push (Code [ Push (Code [Op Add, Return])
+                                          , Enter (Arg 1)])
+                             , Enter (Arg 2)])
+                     , ("-", [ Take 2
+                             , Push (Code [ Push (Code [Op Sub, Return])
+                                          , Enter (Arg 1)])
+                             , Enter (Arg 2)])
+                     , ("*", [ Take 2
+                             , Push (Code [ Push (Code [Op Mul, Return])
+                                          , Enter (Arg 1)])
+                             , Enter (Arg 2)])
+                     , ("/", [ Take 2
+                             , Push (Code [ Push (Code [Op Div, Return])
+                                          , Enter (Arg 1)])
+                             , Enter (Arg 2)])
+                     , ("negate", [ Take 1
+                                  , Push (Code [Op Neg, Return])
+                                  , Enter (Arg 1)])
+                     ]
 
 type TimCompilerEnv = [(Name, TimAMode)]
 
@@ -615,10 +634,10 @@ step state@TimState { instructions = instrs
   (Op op:istr)
     -> applyToStats statIncExecTime
        (putInstructions istr
-        . putVStack newVstk
+        . putVStack vstk'
         $ state)
     where
-      newVstk
+      vstk'
         | op `elem` [Add, Sub, Mul, Div] = case vstk of
             (n1:n2:ns) -> op' n1 n2:ns
             _          -> error "Binary op applied to empty stack"
@@ -630,7 +649,7 @@ step state@TimState { instructions = instrs
         Sub -> (-)
         Mul -> (*)
         Div -> div
-        _   -> error "unsupported op"
+        _   -> error $ "unsupported op: " ++ show op
   [Cond i1 i2]
     -> applyToStats statIncExecTime
        (putInstructions instr'
@@ -710,12 +729,12 @@ showInstructions Full il
     sep = iStr "," `iAppend` iNewline
 
 showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
-showInstruction d (Take n)  = iStr "Take " `iAppend` iNum n
-showInstruction d (Enter x) = iStr "Enter " `iAppend` showArg d x
-showInstruction d (Push x)  = iStr "Push " `iAppend` showArg d x
-showInstruction d (PushV x) = iStr "PushV " `iAppend` showValueAMode x
-showInstruction d Return    = iStr "Return"
-showInstruction d (Op op)   = iStr "Op " `iAppend` iStr (show op)
+showInstruction d (Take n)   = iStr "Take " `iAppend` iNum n
+showInstruction d (Enter x)  = iStr "Enter " `iAppend` showArg d x
+showInstruction d (Push x)   = iStr "Push " `iAppend` showArg d x
+showInstruction d (PushV x)  = iStr "PushV " `iAppend` showValueAMode x
+showInstruction d Return     = iStr "Return"
+showInstruction d (Op op)    = iStr "Op " `iAppend` iStr (show op)
 showInstruction d (Cond t f) = iStr "Cond " `iAppend` showInstructions d t `iAppend` iStr " " `iAppend` showInstructions d f
 
 showValueAMode :: ValueAMode -> IseqRep
@@ -723,9 +742,9 @@ showValueAMode FramePtr      = iStr "FramePtr"
 showValueAMode (IntVConst n) = iStr "IntVConst " `iAppend` iNum n
 
 showArg :: HowMuchToPrint -> TimAMode -> IseqRep
-showArg d (Arg n)   = iStr "Arg " `iAppend` iNum n
-showArg d (Code il) = iStr "Code " `iAppend` showInstructions d il
-showArg d (Label s) = iStr "Label " `iAppend` iStr s
+showArg d (Arg n)      = iStr "Arg " `iAppend` iNum n
+showArg d (Code il)    = iStr "Code " `iAppend` showInstructions d il
+showArg d (Label s)    = iStr "Label " `iAppend` iStr s
 showArg d (IntConst n) = iStr "IntConst " `iAppend` iNum n
 
 nTerse :: Int
@@ -769,7 +788,10 @@ showStack stack
             ]
 
 showValueStack :: TimValueStack -> IseqRep
-showValueStack vstack = iNil
+showValueStack vstack = iConcat [ iStr "Value stack: ["
+                                , iIndent (iInterleave iNewline (map iNum vstack))
+                                , iStr "]", iNewline
+                                ]
 
 showDump :: TimDump -> IseqRep
 showDump dump = iNil
