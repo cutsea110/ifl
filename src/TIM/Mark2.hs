@@ -260,6 +260,30 @@ compiledPrimitives = [ ("+", [ Take 2
                      , ("negate", [ Take 1
                                   , Push (Code [Op Neg, Return])
                                   , Enter (Arg 1)])
+                     , ("==", [ Take 2
+                              , Push (Code [ Push (Code [Op Eq, Return])
+                                           , Enter (Arg 1)])
+                              , Enter (Arg 2)])
+                     , ("/=", [ Take 2
+                              , Push (Code [ Push (Code [Op Ne, Return])
+                                           , Enter (Arg 1)])
+                              , Enter (Arg 2)])
+                     , ("<", [ Take 2
+                             , Push (Code [ Push (Code [Op Lt, Return])
+                                          , Enter (Arg 1)])
+                             , Enter (Arg 2)])
+                     , ("<=", [ Take 2
+                              , Push (Code [ Push (Code [Op Le, Return])
+                                           , Enter (Arg 1)])
+                              , Enter (Arg 2)])
+                     , (">", [ Take 2
+                             , Push (Code [ Push (Code [Op Gt, Return])
+                                          , Enter (Arg 1)])
+                             , Enter (Arg 2)])
+                     , (">=", [ Take 2
+                              , Push (Code [ Push (Code [Op Ge, Return])
+                                           , Enter (Arg 1)])
+                              , Enter (Arg 2)])
                      ]
 
 type TimCompilerEnv = [(Name, TimAMode)]
@@ -638,7 +662,7 @@ step state@TimState { instructions = instrs
         $ state)
     where
       vstk'
-        | op `elem` [Add, Sub, Mul, Div] = case vstk of
+        | op `elem` [Add, Sub, Mul, Div, Eq, Ne, Lt, Le, Gt, Ge] = case vstk of
             (n1:n2:ns) -> op' n1 n2:ns
             _          -> error "Binary op applied to empty stack"
         | op == Neg = case vstk of
@@ -649,7 +673,15 @@ step state@TimState { instructions = instrs
         Sub -> (-)
         Mul -> (*)
         Div -> div
+        Eq  -> b2i (==)
+        Ne  -> b2i (/=)
+        Lt  -> b2i (<)
+        Le  -> b2i (<=)
+        Gt  -> b2i (>)
+        Ge  -> b2i (>=)
         _   -> error $ "unsupported op: " ++ show op
+        where
+          b2i cmp x y = if x `cmp` y then 0 else 1
   [Cond i1 i2]
     -> applyToStats statIncExecTime
        (putInstructions instr'
