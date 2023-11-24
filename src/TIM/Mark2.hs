@@ -789,7 +789,7 @@ showStack stack
 
 showValueStack :: TimValueStack -> IseqRep
 showValueStack vstack = iConcat [ iStr "Value stack: ["
-                                , iIndent (iInterleave iNewline (map iNum vstack))
+                                , iIndent (iInterleave (iStr ",") (map iNum vstack))
                                 , iStr "]", iNewline
                                 ]
 
