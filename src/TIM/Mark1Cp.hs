@@ -260,7 +260,7 @@ doAdmin state
   | otherwise = state'
   where
     state' = applyToStats statIncSteps state
-    needGC = False -- orgSize >= threshold -- FIXME!!
+    needGC = orgSize >= threshold
     gcedState = gc state'
     orgSize = hSize $ getHeap state'
     newSize = hSize $ getHeap gcedState
