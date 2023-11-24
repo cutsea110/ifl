@@ -1,0 +1,4 @@
+compose2 f g x = f (g x x);
+-- compose2 f g x = f (c1 g x);
+-- c1 g x = g x x;
+main = compose2 I K 3
