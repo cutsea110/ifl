@@ -640,8 +640,8 @@ step state@TimState { instructions = instrs
                   . putVStack (n:vstk)
                   $ state
         where n = case fptr of
-                FrameInt n -> n
-                _          -> error "PushV applied to non-int frame"
+                FrameInt n' -> n'
+                _           -> error "PushV applied to non-int frame"
       IntVConst n -> putInstructions istr
                      . putVStack (n:vstk)
                      $ state
@@ -696,9 +696,9 @@ step state@TimState { instructions = instrs
 
 
 amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> Closure
-amToClosure (Arg n)   fptr heap cstore = fGet heap fptr n
-amToClosure (Code il) fptr heap cstore = (il, fptr)
-amToClosure (Label l) fptr heap cstore = (codeLookup cstore l, fptr)
+amToClosure (Arg n)      fptr heap cstore = fGet heap fptr n
+amToClosure (Code il)    fptr heap cstore = (il, fptr)
+amToClosure (Label l)    fptr heap cstore = (codeLookup cstore l, fptr)
 amToClosure (IntConst n) fptr heap cstore = (intCode, FrameInt n)
 
 intCode :: [Instruction]
