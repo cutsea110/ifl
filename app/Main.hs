@@ -18,10 +18,10 @@ import qualified Template.Mark2 as Mark2 (runProg)
 import qualified Template.Mark3 as Mark3 (runProg)
 import qualified Template.Mark4 as Mark4 (runProg)
 import qualified Template.Mark5 as Mark5 (runProg, runProgWithConv)
-import qualified Template.Mark5Alt as Mark5Alt (runProg, runProgWithConv)
-import qualified Template.Mark5GC as Mark5GC (runProg, runProgWithConv)
+import qualified Template.Mark5Alt   as Mark5Alt (runProg, runProgWithConv)
+import qualified Template.Mark5GC    as Mark5GC (runProg, runProgWithConv)
 import qualified Template.Mark5RevGC as Mark5RevGC (runProg, runProgWithConv)
-import qualified Template.Mark5Cp as Mark5Cp (runProg, runProgWithConv)
+import qualified Template.Mark5Cp    as Mark5Cp (runProg, runProgWithConv)
 
 import qualified Gmachine.Mark1 as GMark1 (runProg)
 import qualified Gmachine.Mark2 as GMark2 (runProg)
@@ -31,9 +31,9 @@ import qualified Gmachine.Mark5 as GMark5 (runProg)
 import qualified Gmachine.Mark6 as GMark6 (runProg)
 import qualified Gmachine.Mark7 as GMark7 (runProg)
 
-import qualified TIM.Mark1 as TIMark1 (runProg)
+import qualified TIM.Mark1   as TIMark1 (runProg)
 import qualified TIM.Mark1Cp as TIMark1Cp (runProg)
-import qualified TIM.Mark2 as TIMark2 (runProg)
+import qualified TIM.Mark2   as TIMark2 (runProg)
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -151,7 +151,7 @@ run opts fp = do
   executer compiler verbose prog
   where
     compiler = optCompiler opts
-    verbose = optVerbose opts
+    verbose  = optVerbose opts
     preprint :: IO ()
     preprint = do
       hPutStrLn stderr $ "Program Source: " ++ fp
