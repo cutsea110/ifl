@@ -478,7 +478,7 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
 
           h ns (Arg n)   = n:ns
           h ns (Code cs) = foldl g [] cs ++ ns
-          h ns (Label l) = foldl g [] (codeLookup cstore l) ++ ns
+          h ns (Label l) = ns
           h ns _         = ns
 
               
