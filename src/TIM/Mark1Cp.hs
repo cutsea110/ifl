@@ -7,7 +7,7 @@ module TIM.Mark1Cp
   , runProg
   ) where
 
-import Data.List (mapAccumL, nub)
+import Data.List (mapAccumL, nub, sort)
 import Debug.Trace (trace)
 
 import Heap
@@ -29,9 +29,16 @@ data Instruction = Take Int
                  | Push TimAMode
                  deriving (Eq, Show)
 
+type UsedSlots = [Int]
+type CompiledCode = (UsedSlots, [Instruction])
+slotsOfCompiledCode :: CompiledCode -> UsedSlots
+slotsOfCompiledCode = fst
+instrsOfCompiledCode :: CompiledCode -> [Instruction]
+instrsOfCompiledCode = snd
+
 data TimAMode = Arg Int
               | Label Name
-              | Code [Instruction]
+              | Code CompiledCode
               | IntConst Int
               deriving (Eq, Show)
 
@@ -129,11 +136,11 @@ fList :: Frame -> Either Addr [Closure]
 fList (Frame f)   = Right f
 fList (Forward a) = Left a
 
-type CodeStore = Assoc Name [Instruction]
+type CodeStore = Assoc Name CompiledCode
 
 codeLookup :: CodeStore -> Name -> [Instruction]
-codeLookup cstore l
-  = aLookup cstore l $ error $ "Attempt to jump to unknown label " ++ show l
+codeLookup cstore l = instrsOfCompiledCode cs
+  where cs = aLookup cstore l $ error $ "Attempt to jump to unknown label " ++ show l
 
 data TimStats
   = TimStats { getSteps         :: Int  -- The number of steps
@@ -224,24 +231,44 @@ initialDump = DummyTimDump
 initCodeStore :: CodeStore
 initCodeStore = []
 
-compiledPrimitives :: [(Name, [Instruction])]
+compiledPrimitives :: [(Name, CompiledCode)]
 compiledPrimitives = []
 
 type TimCompilerEnv = [(Name, TimAMode)]
 
-compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, [Instruction])
+compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
 compileSc env (name, args, body)
-  | null args = (name, instructions)
-  | otherwise = (name, Take (length args) : instructions)
+  | null args = (name, cs)
+  | otherwise = (name, (ns, Take (length args) : il))
   where
-    instructions = compileR body new_env
+    cs = compileR body new_env
+    ns = slotsOfCompiledCode cs
+    il = instrsOfCompiledCode cs
     new_env = zip args (map Arg [1..]) ++ env
 
-compileR :: CoreExpr -> TimCompilerEnv -> [Instruction]
-compileR (EAp e1 e2) env = Push (compileA e2 env) : compileR e1 env
-compileR (EVar v) env = [Enter (compileA (EVar v) env)]
-compileR (ENum n) env = [Enter (compileA (ENum n) env)]
-compileR e        env = error $ "compileR: can't do this yet: " ++ show e
+compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode
+compileR (EAp e1 e2) env = (nub $ sort $ ns1 ++ ns2, Push (compileA e2 env) : il1)
+  where cs1 = compileR e1 env
+        ns1 = slotsOfCompiledCode cs1
+        il1 = instrsOfCompiledCode cs1
+        arg = compileA e2 env
+        ns2 = case arg of
+          Arg i   -> [i]
+          Code cs -> slotsOfCompiledCode cs
+          _       -> []
+compileR (EVar v)    env = (ns, [Enter arg])
+  where arg = compileA (EVar v) env
+        ns = case arg of
+          Arg i   -> [i]
+          Code cs -> slotsOfCompiledCode cs -- NOTE: 今はあり得無さそう?
+          _       -> []
+compileR (ENum n)    env = (ns, [Enter arg])
+  where arg = compileA (ENum n) env
+        ns = case arg of
+          Arg i   -> [i]
+          Code cs -> slotsOfCompiledCode cs -- NOTE: 今はあり得無さそう?
+          _       -> []
+compileR e           env = error $ "compileR: can't do this yet: " ++ show e
 
 compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
 compileA (EVar v) env = aLookup env v $ error $ "Unknown variable " ++ v
@@ -429,7 +456,7 @@ FrameAddr 1
 -}
 {- | check CodeStore
 >>> let h = hInitial :: Heap Frame
->>> let cs = [("f", [Push (Arg 1), Enter (Arg 3)])]
+>>> let cs = [("f", ([1,3], [Push (Arg 1), Enter (Arg 3)]))]
 >>> let (h1, a1) = hAlloc h (Frame [([Take 1], FrameNull),([Take 2],FrameNull),([Take 3],FrameNull)])
 >>> let (h2, a2) = hAlloc h1 (Frame [([Enter (Label "f")], FrameAddr 1)])
 >>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2)
@@ -443,12 +470,12 @@ FrameAddr 1
 {- | check Code
 >>> let h = hInitial :: Heap Frame
 >>> let (h1, a1) = hAlloc h (Frame [([Take 1], FrameNull),([Take 2],FrameNull),([Take 3],FrameNull)])
->>> let (h2, a2) = hAlloc h1 (Frame [([Enter (Code [Push (Arg 1), Enter (Arg 3)])], FrameAddr 1)])
+>>> let (h2, a2) = hAlloc h1 (Frame [([Enter (Code ([1,3], [Push (Arg 1), Enter (Arg 3)]))], FrameAddr 1)])
 >>> let ((from, to), fp) = evacuateFramePtr True initCodeStore h2 hInitial ([Push (Arg 1)], FrameAddr 2)
 >>> from
 (2,2,[(1,Forward 2),(2,Forward 1)])
 >>> to
-(2,2,[(1,Frame [([Enter (Code [Push (Arg 1),Enter (Arg 3)])],FrameAddr 1)]),(2,Frame [([Take 1],FrameNull),([Take 2],FrameNull),([Take 3],FrameNull)])])
+(2,2,[(1,Frame [([Enter (Code ([1,3],[Push (Arg 1),Enter (Arg 3)]))],FrameAddr 1)]),(2,Frame [([Take 1],FrameNull),([Take 2],FrameNull),([Take 3],FrameNull)])])
 >>> fp
 FrameAddr 1
 -}
@@ -477,7 +504,7 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
           g ns _          = ns
 
           h ns (Arg n)   = n:ns
-          h ns (Code cs) = foldl g [] cs ++ ns
+          h ns (Code cs) = slotsOfCompiledCode cs ++ ns
           h ns (Label l) = ns
           h ns _         = ns
 
@@ -579,7 +606,7 @@ step state@TimState { instructions = instrs
 
 amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> Closure
 amToClosure (Arg n)      fptr heap cstore = fGet heap fptr n
-amToClosure (Code il)    fptr heap cstore = (il, fptr)
+amToClosure (Code cs)    fptr heap cstore = (instrsOfCompiledCode cs, fptr)
 amToClosure (Label l)    fptr heap cstore = (codeLookup cstore l, fptr)
 amToClosure (IntConst n) fptr heap cstore = (intCode, FrameInt n)
 
@@ -603,11 +630,14 @@ showSCDefns :: TimState -> IseqRep
 showSCDefns state@TimState { codes = cstore }
   = iInterleave iNewline (map showSC cstore)
 
-showSC :: (Name, [Instruction]) -> IseqRep
-showSC (name, instrs)
+showSC :: (Name, CompiledCode) -> IseqRep
+showSC (name, cs)
   = iConcat [ iStr "Code for ", iStr name, iStr ":", iNewline
+            , iStr "   ", showUsedSlots ns, iNewline
             , iStr "   ", showInstructions Full instrs, iNewline, iNewline
             ]
+    where instrs = instrsOfCompiledCode cs
+          ns     = slotsOfCompiledCode cs
 
 showState :: TimState -> IseqRep
 showState state@TimState { instructions = instr
@@ -627,6 +657,12 @@ showState state@TimState { instructions = instr
             , showDump dmp
             , iNewline
             ]
+
+showUsedSlots :: [Int] -> IseqRep
+showUsedSlots ns = iConcat [ iStr "["
+                           , iInterleave (iStr ",") (map iNum ns)
+                           , iStr "]"
+                           ]
 
 showInstructions :: HowMuchToPrint -> [Instruction] -> IseqRep
 showInstructions None il = iStr "{..}"
@@ -649,7 +685,12 @@ showInstruction d (Push x)  = iStr "Push " `iAppend` showArg d x
 
 showArg :: HowMuchToPrint -> TimAMode -> IseqRep
 showArg d (Arg n)   = iStr "Arg " `iAppend` iNum n
-showArg d (Code il) = iStr "Code " `iAppend` showInstructions d il
+showArg d (Code il) = iConcat [ iStr "Code "
+                              , showUsedSlots ns
+                              , iStr " "
+                              , showInstructions d (instrsOfCompiledCode il)
+                              ]
+  where ns = slotsOfCompiledCode il
 showArg d (Label s) = iStr "Label " `iAppend` iStr s
 showArg d (IntConst n) = iStr "IntConst " `iAppend` iNum n
 
