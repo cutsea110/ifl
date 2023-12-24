@@ -248,25 +248,27 @@ initCodeStore :: CodeStore
 initCodeStore = []
 
 compiledPrimitives :: [(Name, CompiledCode)]
-compiledPrimitives = [ ("+", binOp Add)
-                     , ("-", binOp Sub)
-                     , ("*", binOp Mul)
-                     , ("/", binOp Div)
-                     , ("negate", uniOp Neg)
-                     , ("==", binOp Eq)
-                     , ("/=", binOp Ne)
-                     , ("<", binOp Lt)
-                     , ("<=", binOp Le)
-                     , (">", binOp Gt)
-                     , (">=", binOp Ge)
+compiledPrimitives = [ ("+",      binOp Add)
+                     , ("-",      binOp Sub)
+                     , ("*",      binOp Mul)
+                     , ("/",      binOp Div)
+                     , ("negate", unaryOp Neg)
+                     , ("==",     binOp Eq)
+                     , ("/=",     binOp Ne)
+                     , ("<",      binOp Lt)
+                     , ("<=",     binOp Le)
+                     , (">",      binOp Gt)
+                     , (">=",     binOp Ge)
                      ]
-  where binOp op = ([1,2], [ Take 2
-                           , Push (Code ([1], [ Push (Code ([], [Op op, Return]))
-                                              , Enter (Arg 1)]))
-                           , Enter (Arg 2)])
-        uniOp op = ([1], [ Take 1
-                         , Push (Code ([], [Op op, Return]))
-                         , Enter (Arg 1)])
+  where binOp op
+          = ([1,2], [ Take 2
+                    , Push (Code ([1], [ Push (Code ([], [Op op, Return]))
+                                       , Enter (Arg 1)]))
+                    , Enter (Arg 2)])
+        unaryOp op
+          = ([1], [ Take 1
+                  , Push (Code ([], [Op op, Return]))
+                  , Enter (Arg 1)])
         
 type TimCompilerEnv = [(Name, TimAMode)]
 
