@@ -248,51 +248,26 @@ initCodeStore :: CodeStore
 initCodeStore = []
 
 compiledPrimitives :: [(Name, CompiledCode)]
-compiledPrimitives = [ ("+", ([1,2], [ Take 2
-                                     , Push (Code ([1], [ Push (Code ([], [Op Add, Return]))
-                                                        , Enter (Arg 1)]))
-                                     , Enter (Arg 2)]))
-                     , ("-", ([1,2], [ Take 2
-                                     , Push (Code ([1], [ Push (Code ([], [Op Sub, Return]))
-                                                      , Enter (Arg 1)]))
-                                     , Enter (Arg 2)]))
-                     , ("*", ([1,2], [ Take 2
-                                     , Push (Code ([1], [ Push (Code ([], [Op Mul, Return]))
-                                                        , Enter (Arg 1)]))
-                                     , Enter (Arg 2)]))
-                     , ("/", ([1,2], [ Take 2
-                                     , Push (Code ([1], [ Push (Code ([], [Op Div, Return]))
-                                                        , Enter (Arg 1)]))
-                                     , Enter (Arg 2)]))
-                     , ("negate", ([1], [ Take 1
-                                        , Push (Code ([], [Op Neg, Return]))
-                                        , Enter (Arg 1)]))
-                     , ("==", ([1,2], [ Take 2
-                                      , Push (Code ([1], [ Push (Code ([], [Op Eq, Return]))
-                                                         , Enter (Arg 1)]))
-                                      , Enter (Arg 2)]))
-                     , ("/=", ([1,2], [ Take 2
-                                      , Push (Code ([1], [ Push (Code ([], [Op Ne, Return]))
-                                                         , Enter (Arg 1)]))
-                                      , Enter (Arg 2)]))
-                     , ("<", ([1,2], [ Take 2
-                                     , Push (Code ([1], [ Push (Code ([], [Op Lt, Return]))
-                                                        , Enter (Arg 1)]))
-                                     , Enter (Arg 2)]))
-                     , ("<=", ([1,2], [ Take 2
-                                      , Push (Code ([1], [ Push (Code ([], [Op Le, Return]))
-                                                         , Enter (Arg 1)]))
-                                      , Enter (Arg 2)]))
-                     , (">", ([1,2], [ Take 2
-                                     , Push (Code ([1], [ Push (Code ([], [Op Gt, Return]))
-                                                        , Enter (Arg 1)]))
-                                     , Enter (Arg 2)]))
-                     , (">=", ([1,2], [ Take 2
-                                      , Push (Code ([1], [ Push (Code ([], [Op Ge, Return]))
-                                                         , Enter (Arg 1)]))
-                                      , Enter (Arg 2)]))
+compiledPrimitives = [ ("+", binOp Add)
+                     , ("-", binOp Sub)
+                     , ("*", binOp Mul)
+                     , ("/", binOp Div)
+                     , ("negate", uniOp Neg)
+                     , ("==", binOp Eq)
+                     , ("/=", binOp Ne)
+                     , ("<", binOp Lt)
+                     , ("<=", binOp Le)
+                     , (">", binOp Gt)
+                     , (">=", binOp Ge)
                      ]
-
+  where binOp op = ([1,2], [ Take 2
+                           , Push (Code ([1], [ Push (Code ([], [Op op, Return]))
+                                              , Enter (Arg 1)]))
+                           , Enter (Arg 2)])
+        uniOp op = ([1], [ Take 1
+                         , Push (Code ([], [Op op, Return]))
+                         , Enter (Arg 1)])
+        
 type TimCompilerEnv = [(Name, TimAMode)]
 
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
