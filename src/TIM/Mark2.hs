@@ -261,10 +261,10 @@ compiledPrimitives = [ ("+",      binOp Add)
                      , (">=",     binOp Ge)
                      ]
   where binOp op
-          = ([1,2], [ Take 2
-                    , Push (Code ([1], [ Push (Code ([], [Op op, Return]))
-                                       , Enter (Arg 1)]))
-                    , Enter (Arg 2)])
+          = ([1, 2], [ Take 2
+                     , Push (Code ([1], [ Push (Code ([], [Op op, Return]))
+                                        , Enter (Arg 1)]))
+                     , Enter (Arg 2)])
         unaryOp op
           = ([1], [ Take 1
                   , Push (Code ([], [Op op, Return]))
