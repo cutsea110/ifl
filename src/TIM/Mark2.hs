@@ -283,7 +283,7 @@ compileSc env (name, args, body)
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode
-compileR (EAp e1 e2) env = (nub $ sort $ ns1 ++ ns2, Push (compileA e2 env) : il1)
+compileR (EAp e1 e2) env = (nub $ sort $ ns1 ++ ns2, Push arg : il1)
   where cs1 = compileR e1 env
         ns1 = slotsOfCompiledCode cs1
         il1 = instrsOfCompiledCode cs1
@@ -292,14 +292,14 @@ compileR (EAp e1 e2) env = (nub $ sort $ ns1 ++ ns2, Push (compileA e2 env) : il
           Arg i   -> [i]
           Code cs -> slotsOfCompiledCode cs
           _       -> []
-compileR (EVar v)    env = (ns, [Enter arg])
-  where arg = compileA (EVar v) env
+compileR e@(EVar _)  env = (ns, [Enter arg])
+  where arg = compileA e env
         ns = case arg of
           Arg i   -> [i]
           Code cs -> slotsOfCompiledCode cs -- NOTE: 今はあり得無さそう?
           _       -> []
-compileR (ENum n)    env = (ns, [Enter arg])
-  where arg = compileA (ENum n) env
+compileR e@(ENum _)  env = (ns, [Enter arg])
+  where arg = compileA e env
         ns = case arg of
           Arg i   -> [i]
           Code cs -> slotsOfCompiledCode cs -- NOTE: 今はあり得無さそう?
