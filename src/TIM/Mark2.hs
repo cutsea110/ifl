@@ -283,28 +283,27 @@ compileSc env (name, args, body)
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode
-compileR (EAp e1 e2) env = (nub $ sort $ ns1 ++ ns2, Push arg : il1)
-  where cs1 = compileR e1 env
-        ns1 = slotsOfCompiledCode cs1
-        il1 = instrsOfCompiledCode cs1
-        arg = compileA e2 env
-        ns2 = case arg of
+compileR e env = case e of
+  EAp e1 e2 -> (uniq $ ns1 ++ ns2, Push arg : il1)
+    where cs1 = compileR e1 env
+          ns1 = slotsOfCompiledCode cs1
+          il1 = instrsOfCompiledCode cs1
+          arg = compileA e2 env
+          ns2 = usedSlots arg
+          uniq = nub . sort
+  EVar _    -> (ns, [Enter arg])
+    where arg = compileA e env
+          ns = usedSlots arg
+  ENum _    -> (ns, [Enter arg])
+    where arg = compileA e env
+          ns = usedSlots arg
+  _         -> error $ "compileR: can't do this yet: " ++ show e
+  where usedSlots :: TimAMode -> UsedSlots
+        usedSlots arg = case arg of
           Arg i   -> [i]
-          Code cs -> slotsOfCompiledCode cs
+          Code cs -> slotsOfCompiledCode cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
           _       -> []
-compileR e@(EVar _)  env = (ns, [Enter arg])
-  where arg = compileA e env
-        ns = case arg of
-          Arg i   -> [i]
-          Code cs -> slotsOfCompiledCode cs -- NOTE: 今はあり得無さそう?
-          _       -> []
-compileR e@(ENum _)  env = (ns, [Enter arg])
-  where arg = compileA e env
-        ns = case arg of
-          Arg i   -> [i]
-          Code cs -> slotsOfCompiledCode cs -- NOTE: 今はあり得無さそう?
-          _       -> []
-compileR e           env = error $ "compileR: can't do this yet: " ++ show e
+
 
 compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
 compileA (EVar v) env = aLookup env v $ error $ "Unknown variable " ++ v
