@@ -7,6 +7,7 @@ module TIM.Mark1Cp
   , runProg
   ) where
 
+import Control.Arrow ((&&&))
 import Data.List (mapAccumL, nub, sort)
 import Debug.Trace (trace)
 
@@ -249,18 +250,13 @@ compileSc env (name, args, body)
 compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode
 compileR e env = case e of
   EAp e1 e2 -> (uniq $ ns1 ++ ns2, Push arg : il1)
-    where cs1 = compileR e1 env
-          ns1 = slotsOfCompiledCode cs1
-          il1 = instrsOfCompiledCode cs1
-          arg = compileA e2 env
-          ns2 = usedSlots arg
+    where (ns1, il1) = slotsOfCompiledCode &&& instrsOfCompiledCode $ compileR e1 env
+          (ns2, arg) = usedSlots &&& id $ compileA e2 env
           uniq = nub . sort
   EVar _    -> (ns, [Enter arg])
-    where arg = compileA e env
-          ns = usedSlots arg
+    where (ns, arg) = usedSlots &&& id $ compileA e env
   ENum _    -> (ns, [Enter arg])
-    where arg = compileA e env
-          ns = usedSlots arg
+    where (ns, arg) = usedSlots &&& id $ compileA e env
   _         -> error $ "compileR: can't do this yet: " ++ show e
   where usedSlots :: TimAMode -> UsedSlots
         usedSlots arg = case arg of
