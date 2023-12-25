@@ -243,8 +243,7 @@ compileSc env (name, args, body)
   | otherwise = (name, (ns, Take (length args) : il))
   where
     cs = compileR body new_env
-    ns = slotsOfCompiledCode cs
-    il = instrsOfCompiledCode cs
+    (ns, il) = slotsOfCompiledCode &&& instrsOfCompiledCode $ cs
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode

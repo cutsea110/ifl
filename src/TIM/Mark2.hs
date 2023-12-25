@@ -253,7 +253,7 @@ compiledPrimitives = [ ("+",      binOp Add)
                      , ("-",      binOp Sub)
                      , ("*",      binOp Mul)
                      , ("/",      binOp Div)
-                     , ("negate", unaryOp Neg)
+                     , ("negate", uniOp Neg)
                      , ("==",     binOp Eq)
                      , ("/=",     binOp Ne)
                      , ("<",      binOp Lt)
@@ -266,7 +266,7 @@ compiledPrimitives = [ ("+",      binOp Add)
                      , Push (Code ([1], [ Push (Code ([], [Op op, Return]))
                                         , Enter (Arg 1)]))
                      , Enter (Arg 2)])
-        unaryOp op
+        uniOp op
           = ([1], [ Take 1
                   , Push (Code ([], [Op op, Return]))
                   , Enter (Arg 1)])
@@ -279,8 +279,7 @@ compileSc env (name, args, body)
   | otherwise = (name, (ns, Take (length args) : il))
   where
     cs = compileR body new_env
-    ns = slotsOfCompiledCode cs
-    il = instrsOfCompiledCode cs
+    (ns, il) = slotsOfCompiledCode &&& instrsOfCompiledCode $ cs
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode
