@@ -310,6 +310,7 @@ gc state@TimState { instructions = instrs
       = iDisplay $ iConcat
       [ iNewline
       , iStr "vvvvvvvvvvvvvvvvvvvvvvvv", iNewline
+      , iStr "step: ", iNum (statGetSteps $ getStats state), iNewline
       , iStr "instr: ", iNewline
       , showInstructions Full is, iNewline
       , iStr "frame ptr: ", showFramePtr fp, iNewline
