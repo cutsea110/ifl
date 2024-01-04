@@ -865,11 +865,11 @@ showGCInfo xs | null xs   = iConcat [ iNum 0, iNewline ]
 
 showStats :: TimState -> IseqRep
 showStats state@TimState { stats = stats }
-  = iConcat [ iStr "Total number of steps = ", iNum (statGetSteps stats), iNewline
-            , iStr "            Exec time = ", iNum (statGetExecTime stats), iNewline
-            , iStr "       Heap allocated = ", iNum (statGetHeapAllocated stats), iNewline
-            , iStr "      Max stack depth = ", iNum (statGetMaxStackDepth stats), iNewline
-            , iStr "              GC call = ", showGCInfo (statGetGCInfo stats), iNewline
+  = iConcat [ iStr "    Steps taken = ", iNum (statGetSteps stats), iNewline
+            , iStr "      Exec time = ", iNum (statGetExecTime stats), iNewline
+            , iStr " Heap allocated = ", iNum (statGetHeapAllocated stats), iNewline
+            , iStr "Max stack depth = ", iNum (statGetMaxStackDepth stats), iNewline
+            , iStr "        GC call = ", showGCInfo (statGetGCInfo stats), iNewline
             ]
 
 showResults :: [TimState] -> String

@@ -385,9 +385,9 @@ showFramePtr (FrameInt n)  = iStr "int " `iAppend` iNum n
 
 showStats :: TimState -> IseqRep
 showStats state@TimState { stats = stats }
-  = iConcat [ iStr "Steps taken = ", iNum (statGetSteps stats), iNewline
-            , iStr "Exec time = ", iNum (statGetExecTime stats), iNewline
-            , iStr "Heap allocated = ", iNum (statGetHeapAllocated stats), iNewline
+  = iConcat [ iStr "    Steps taken = ", iNum (statGetSteps stats), iNewline
+            , iStr "      Exec time = ", iNum (statGetExecTime stats), iNewline
+            , iStr " Heap allocated = ", iNum (statGetHeapAllocated stats), iNewline
             , iStr "Max stack depth = ", iNum (statGetMaxStackDepth stats), iNewline
             ]
 
