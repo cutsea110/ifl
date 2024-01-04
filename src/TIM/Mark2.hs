@@ -22,8 +22,8 @@ threshold = 100
 
 runProg :: Bool -> String -> String
 runProg verbose = showR . eval . compile . parse
-  where showR | verbose   = showFullResults
-              | otherwise = showResults
+  where showR | verbose   = showResults
+              | otherwise = showSimpleResult
 
 data Instruction = Take Int
                  | Enter TimAMode
@@ -703,18 +703,23 @@ amToClosure (IntConst n) fptr heap cstore = (intCode, FrameInt n)
 intCode :: [Instruction]
 intCode = [PushV FramePtr, Return]
 
-showFullResults :: [TimState] -> String
-showFullResults states
+showSimpleResult :: [TimState] -> String
+showSimpleResult states = iDisplay $ showVStackTopValue vs
+  where last_state = last states
+        vs = getVStack last_state
+
+showResults :: [TimState] -> String
+showResults [] = error "no TimState"
+showResults states@(s:ss)
   = unlines (map iDisplay
              ([ iStr "Supercombinator definitions", iNewline, iNewline
-              , showSCDefns frist_state, iNewline, iNewline
+              , showSCDefns s, iNewline, iNewline
               , iStr "State transitions", iNewline
               ] ++
               iLayn' (map showState states) ++
               [ showStats (last states)
               ])
             )
-  where (frist_state:rest_states) = states
 
 showSCDefns :: TimState -> IseqRep
 showSCDefns state@TimState { codes = cstore }
@@ -838,6 +843,11 @@ showValueStack vstack = iConcat [ iStr "Value stack: ["
                                 , iStr "]", iNewline
                                 ]
 
+showVStackTopValue :: TimValueStack -> IseqRep
+showVStackTopValue []            = error "empty value stack"
+showVStackTopValue vstack@(v:[]) = iNum v
+showVStackTopValue vstack@(v:vs) = error $ "value stack has more than 1 value: " ++ show vstack
+
 showDump :: TimDump -> IseqRep
 showDump dump = iNil
 
@@ -871,16 +881,6 @@ showStats state@TimState { stats = stats }
             , iStr "Max stack depth = ", iNum (statGetMaxStackDepth stats), iNewline
             , iStr "        GC call = ", showGCInfo (statGetGCInfo stats), iNewline
             ]
-
-showResults :: [TimState] -> String
-showResults states
-  = iDisplay $ iConcat [ showState last_state, iNewline
-                       , showStats last_state
-                       ]
-  where last_state = last states
-
-fullRun :: String -> String
-fullRun = showFullResults . eval . compile . parse
 
 data HowMuchToPrint = None
                     | Terse
