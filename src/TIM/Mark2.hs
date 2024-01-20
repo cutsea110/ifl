@@ -786,7 +786,11 @@ showInstruction d (Push x)   = iStr "Push " `iAppend` showArg d x
 showInstruction d (PushV x)  = iStr "PushV " `iAppend` showValueAMode x
 showInstruction d Return     = iStr "Return"
 showInstruction d (Op op)    = iStr "Op " `iAppend` iStr (show op)
-showInstruction d (Cond t f) = iStr "Cond " `iAppend` showInstructions d t `iAppend` iStr " " `iAppend` showInstructions d f
+showInstruction d (Cond t f) = iConcat [ iStr "Cond "
+                                       , showInstructions d t
+                                       , iStr " "
+                                       , showInstructions d f
+                                       ]
 
 showValueAMode :: ValueAMode -> IseqRep
 showValueAMode FramePtr      = iStr "FramePtr"
