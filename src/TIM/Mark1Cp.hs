@@ -580,7 +580,7 @@ step state@TimState { instructions = instrs
           . putStack stk'
           . putHeap hp'
           $ state)
-    | otherwise       -> error "Too few args for Take instruction"
+    | otherwise -> error "Too few args for Take instruction"
     where
       (hp', fptr') = fAlloc hp (Frame $ take n stk)
       stk' = drop n stk
@@ -596,7 +596,7 @@ step state@TimState { instructions = instrs
        (putInstructions istr
          . putStack (amToClosure am fptr hp cstore : stk)
          $ state)
-  _          -> error $ "invalid instructions: " ++ show instrs
+  _ -> error $ "invalid instructions: " ++ show instrs
 
 
 amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> Closure
