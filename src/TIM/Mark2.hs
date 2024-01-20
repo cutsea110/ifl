@@ -289,21 +289,35 @@ compileSc env (name, args, body)
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode
-compileR e env = case e of
-  EAp e1 e2 -> (uniq $ ns1 ++ ns2, Push arg : il1)
+compileR e env
+  | isBasicOp e = compileB e env ([], [Return])
+  | isCondOp e  = compileB kCond env (ns1 ++ ns2, [Cond il1 il2])
+  where (kCond, kThen, kElse) = unpackCondOp e
+        (ns1, il1) = slotsOfCompiledCode &&& instrsOfCompiledCode $ compileR kThen env
+        (ns2, il2) = slotsOfCompiledCode &&& instrsOfCompiledCode $ compileR kElse env
+compileR (EAp e1 e2) env = (uniq $ ns1 ++ ns2, Push arg : il1)
     where (ns1, il1) = slotsOfCompiledCode &&& instrsOfCompiledCode $ compileR e1 env
           (ns2, arg) = usedSlots &&& id $ compileA e2 env
           uniq = nub . sort
-  EVar _    -> (ns, [Enter arg])
-    where (ns, arg) = usedSlots &&& id $ compileA e env
-  ENum _    -> (ns, [Enter arg])
-    where (ns, arg) = usedSlots &&& id $ compileA e env
-  _         -> error $ "compileR: can't do this yet: " ++ show e
-  where usedSlots :: TimAMode -> UsedSlots
-        usedSlots arg = case arg of
-          Arg i   -> [i]
-          Code cs -> slotsOfCompiledCode cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
-          _       -> []
+compileR (EVar v) env = (ns, [Enter amode]) -- NOTE: ns は空になる?
+    where (ns, amode) = usedSlots &&& id $ compileA (EVar v) env
+compileR (ENum n) env = ([], [PushV (IntVConst n), Return])
+compileR e env = error $ "compileR: can't do this yet: " ++ show e
+
+usedSlots :: TimAMode -> UsedSlots
+usedSlots arg = case arg of
+  Arg i   -> [i]
+  Code cs -> slotsOfCompiledCode cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
+  _       -> []
+
+isBasicOp :: CoreExpr -> Bool
+isBasicOp (EAp (EAp (EVar op) e1) e2) = op `elem` ["+", "-", "*", "/", "==", "/=", "<", "<=", ">", ">="]
+isBasicOp (EAp (EVar op) _) = op `elem` ["negate"]
+isBasicOp _ = False
+
+isCondOp :: CoreExpr -> Bool
+isCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = True
+isCondOp _ = False
 
 compileB :: CoreExpr -> TimCompilerEnv -> CompiledCode -> CompiledCode
 compileB e env cont
@@ -322,6 +336,7 @@ compileB e env cont        = (slots', Push (Code cont):cont')
 isBinOp :: CoreExpr -> Bool
 isBinOp (EAp (EAp (EVar op) _) _) = op `elem` ["+", "-", "*", "/", "==", "/=", "<", "<=", ">", ">="]
 isBinOp _                         = False
+
 isUniOp :: CoreExpr -> Bool
 isUniOp (EAp (EVar op) _) = op `elem` ["negate"]
 isUniOp _                 = False
@@ -339,10 +354,16 @@ unpackBinOp (EAp (EAp (EVar op) e1) e2) = (e1, op2binop op, e2)
         op2binop ">"  = Gt
         op2binop ">=" = Ge
 unpackBinOp _                           = error "unpackBinOp: not a binary operator"
+
 unpackUniOp :: CoreExpr -> (Op, CoreExpr)
 unpackUniOp (EAp (EVar op) e1) = (op2uniop op, e1)
   where op2uniop "negate" = Neg
-unpackUniOp _                  = error "unpackUniOp: not a unary operator"
+        op2uniop _        = error "unpackUniOp: not a unary operator"
+unpackUniOp _             = error "unpackUniOp: not a unary operator"
+
+unpackCondOp :: CoreExpr -> (CoreExpr, CoreExpr, CoreExpr)
+unpackCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = (e1, e2, e3)
+unpackCondOp _                                      = error "unpackCondOp: not a conditional operator"
 
 compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
 compileA (EVar v) env = aLookup env v $ error $ "Unknown variable " ++ v
