@@ -260,6 +260,7 @@ compiledPrimitives = [ ("+",      binOp Add)
                      , ("<=",     binOp Le)
                      , (">",      binOp Gt)
                      , (">=",     binOp Ge)
+                     , ("if",     ifCode)
                      ]
   where binOp op
           = ([1, 2], [ Take 2
@@ -270,6 +271,11 @@ compiledPrimitives = [ ("+",      binOp Add)
           = ([1], [ Take 1
                   , Push (Code ([], [Op op, Return]))
                   , Enter (Arg 1)])
+
+        ifCode
+          = ([1, 2, 3], [ Take 3
+                        , Push (Code ([2, 3], [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]))
+                        , Enter (Arg 1)])
         
 type TimCompilerEnv = [(Name, TimAMode)]
 
