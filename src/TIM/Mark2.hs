@@ -305,6 +305,44 @@ compileR e env = case e of
           Code cs -> slotsOfCompiledCode cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
           _       -> []
 
+compileB :: CoreExpr -> TimCompilerEnv -> CompiledCode -> CompiledCode
+compileB e env cont
+  | isBinOp e = compileB e2 env (compileB e1 env (slots', Op op:cont'))
+  where (e1, op, e2) = unpackBinOp e
+        (slots', cont') = slotsOfCompiledCode &&& instrsOfCompiledCode $ cont
+compileB e env cont
+  | isUniOp e = compileB e1 env (slots', Op op:cont')
+  where (op, e1) = unpackUniOp e
+        (slots', cont') = slotsOfCompiledCode &&& instrsOfCompiledCode $ cont
+compileB (ENum n) env cont = (slots', PushV (IntVConst n):cont')
+  where (slots', cont') = slotsOfCompiledCode &&& instrsOfCompiledCode $ cont
+compileB e env cont        = (slots', Push (Code cont):cont')
+  where (slots', cont') = slotsOfCompiledCode &&& instrsOfCompiledCode $ compileR e env
+
+isBinOp :: CoreExpr -> Bool
+isBinOp (EAp (EAp (EVar op) _) _) = op `elem` ["+", "-", "*", "/", "==", "/=", "<", "<=", ">", ">="]
+isBinOp _                         = False
+isUniOp :: CoreExpr -> Bool
+isUniOp (EAp (EVar op) _) = op `elem` ["negate"]
+isUniOp _                 = False
+
+unpackBinOp :: CoreExpr -> (CoreExpr, Op, CoreExpr)
+unpackBinOp (EAp (EAp (EVar op) e1) e2) = (e1, op2binop op, e2)
+  where op2binop "+"  = Add
+        op2binop "-"  = Sub
+        op2binop "*"  = Mul
+        op2binop "/"  = Div
+        op2binop "==" = Eq
+        op2binop "/=" = Ne
+        op2binop "<"  = Lt
+        op2binop "<=" = Le
+        op2binop ">"  = Gt
+        op2binop ">=" = Ge
+unpackBinOp _                           = error "unpackBinOp: not a binary operator"
+unpackUniOp :: CoreExpr -> (Op, CoreExpr)
+unpackUniOp (EAp (EVar op) e1) = (op2uniop op, e1)
+  where op2uniop "negate" = Neg
+unpackUniOp _                  = error "unpackUniOp: not a unary operator"
 
 compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
 compileA (EVar v) env = aLookup env v $ error $ "Unknown variable " ++ v
