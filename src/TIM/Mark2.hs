@@ -35,11 +35,10 @@ data Instruction = Take Int
                  deriving (Eq, Show)
 
 type UsedSlots = [Int]
-type CompiledCode = (UsedSlots, [Instruction])
-slotsOfCompiledCode :: CompiledCode -> UsedSlots
-slotsOfCompiledCode = fst
-instrsOfCompiledCode :: CompiledCode -> [Instruction]
-instrsOfCompiledCode = snd
+data CompiledCode = Compiled { slotsOfCompiledCode :: UsedSlots
+                             , instrsOfCompiledCode :: [Instruction]
+                             }
+                  deriving (Eq, Show)
 
 data Op = Add | Sub | Mul | Div | Neg
         | Eq | Ne | Lt | Le | Gt | Ge
@@ -268,42 +267,43 @@ primitives = [ ("+",      BinOp Add)
 compiledPrimitives :: [(Name, CompiledCode)]
 compiledPrimitives = map (second trans) primitives
   where trans opt = case opt of
-          BinOp op -> ([1, 2], [ Take 2
-                               , Push (Code ([1], [ Push (Code ([], [Op op, Return]))
-                                                  , Enter (Arg 1)]))
-                               , Enter (Arg 2)])
-          UniOp op -> ([1], [ Take 1
-                            , Push (Code ([], [Op op, Return]))
-                            , Enter (Arg 1)])
-          CondOp   -> ([1, 2, 3], [ Take 3
-                                  , Push (Code ([2, 3], [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]))
-                                  , Enter (Arg 1)])
+          BinOp op -> Compiled [1, 2] [ Take 2
+                                      , Push (Code (Compiled [1] [ Push (Code (Compiled [] [Op op, Return]))
+                                                                 , Enter (Arg 1)]))
+                                      , Enter (Arg 2)]
+          UniOp op -> Compiled [1] [ Take 1
+                                   , Push (Code (Compiled [] [Op op, Return]))
+                                   , Enter (Arg 1)]
+          CondOp   -> Compiled [1, 2, 3] [ Take 3
+                                         , Push (Code (Compiled [2, 3] [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]))
+                                         , Enter (Arg 1)]
         
 type TimCompilerEnv = [(Name, TimAMode)]
 
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
 compileSc env (name, args, body)
   | null args = (name, cs)
-  | otherwise = (name, (ns, Take (length args) : il))
+  | otherwise = (name, Compiled ns (Take (length args) : il))
   where
     cs = compileR body new_env
-    (ns, il) = slotsOfCompiledCode &&& instrsOfCompiledCode $ cs
+    Compiled ns il = cs
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode
 compileR e env
-  | isBinOp e || isUniOp e = compileB e env ([], [Return])
-  | isCondOp e             = compileB kCond env (ns1 ++ ns2, [Cond il1 il2])
+  | isBinOp e || isUniOp e = compileB e env (Compiled [] [Return])
+  | isCondOp e             = compileB kCond env (Compiled (uniq $ ns1 ++ ns2) [Cond il1 il2])
   where (kCond, kThen, kElse) = unpackCondOp e
-        (ns1, il1) = slotsOfCompiledCode &&& instrsOfCompiledCode $ compileR kThen env
-        (ns2, il2) = slotsOfCompiledCode &&& instrsOfCompiledCode $ compileR kElse env
-compileR (EAp e1 e2) env = (uniq $ ns1 ++ ns2, Push arg : il1)
-    where (ns1, il1) = slotsOfCompiledCode &&& instrsOfCompiledCode $ compileR e1 env
+        Compiled ns1 il1 = compileR kThen env
+        Compiled ns2 il2 = compileR kElse env
+        uniq = nub . sort
+compileR (EAp e1 e2) env = Compiled (uniq $ ns1 ++ ns2) (Push arg : il1)
+    where Compiled ns1 il1 = compileR e1 env
           (ns2, arg) = usedSlots &&& id $ compileA e2 env
           uniq = nub . sort
-compileR (EVar v) env = (ns, [Enter amode]) -- NOTE: ns は空になる?
+compileR (EVar v) env = Compiled ns [Enter amode] -- NOTE: ns は空になる?
     where (ns, amode) = usedSlots &&& id $ compileA (EVar v) env
-compileR (ENum n) env = ([], [PushV (IntVConst n), Return])
+compileR (ENum n) env = Compiled [] [PushV (IntVConst n), Return]
 compileR e env = error $ "compileR: can't do this yet: " ++ show e
 
 usedSlots :: TimAMode -> UsedSlots
@@ -314,17 +314,17 @@ usedSlots arg = case arg of
 
 compileB :: CoreExpr -> TimCompilerEnv -> CompiledCode -> CompiledCode
 compileB e env cont
-  | isBinOp e = compileB e2 env (compileB e1 env (slots', Op op:cont'))
+  | isBinOp e = compileB e2 env (compileB e1 env (Compiled slots' (Op op:cont')))
   where (e1, op, e2) = unpackBinOp e
-        (slots', cont') = slotsOfCompiledCode &&& instrsOfCompiledCode $ cont
+        Compiled slots' cont' = cont
 compileB e env cont
-  | isUniOp e = compileB e1 env (slots', Op op:cont')
+  | isUniOp e = compileB e1 env (Compiled slots' (Op op:cont'))
   where (op, e1) = unpackUniOp e
-        (slots', cont') = slotsOfCompiledCode &&& instrsOfCompiledCode $ cont
-compileB (ENum n) env cont = (slots', PushV (IntVConst n):cont')
-  where (slots', cont') = slotsOfCompiledCode &&& instrsOfCompiledCode $ cont
-compileB e env cont        = (slots', Push (Code cont):cont')
-  where (slots', cont') = slotsOfCompiledCode &&& instrsOfCompiledCode $ compileR e env
+        Compiled slots' cont' = cont
+compileB (ENum n) env cont = Compiled slots' (PushV (IntVConst n):cont')
+  where Compiled slots' cont' = cont
+compileB e env cont        = Compiled slots' (Push (Code cont):cont')
+  where Compiled slots' cont' = compileR e env
 
 isBinOp :: CoreExpr -> Bool
 isBinOp (EAp (EAp (EVar op) _) _) = op `elem` basicOps
@@ -793,8 +793,7 @@ showSC (name, cs)
             , iStr "   ", showUsedSlots ns, iNewline
             , iStr "   ", showInstructions Full instrs, iNewline, iNewline
             ]
-    where instrs = instrsOfCompiledCode cs
-          ns     = slotsOfCompiledCode cs
+    where Compiled ns instrs = cs
 
 showState :: TimState -> IseqRep
 showState state@TimState { instructions = instr
@@ -861,9 +860,9 @@ showArg d (Arg n)   = iStr "Arg " `iAppend` iNum n
 showArg d (Code il) = iConcat [ iStr "Code "
                               , showUsedSlots ns
                               , iStr " "
-                              , showInstructions d (instrsOfCompiledCode il)
+                              , showInstructions d instrs
                               ]
-  where ns = slotsOfCompiledCode il
+  where Compiled ns instrs = il
 showArg d (Label s) = iStr "Label " `iAppend` iStr s
 showArg d (IntConst n) = iStr "IntConst " `iAppend` iNum n
 
