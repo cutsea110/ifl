@@ -823,7 +823,10 @@ showUsedSlots ns = iConcat [ iStr "["
 showInstructions :: HowMuchToPrint -> [Instruction] -> IseqRep
 showInstructions None il = iStr "{..}"
 showInstructions Terse il
-  = iConcat [ iStr "{", iIndent (iInterleave (iStr ", ") body), iStr "}"]
+  = iConcat [ iStr "{"
+            , iIndent (iInterleave (iStr ", ") body)
+            , iStr "}"
+            ]
   where
     instrs = map (showInstruction None) il
     body | length il <= nTerse = instrs
