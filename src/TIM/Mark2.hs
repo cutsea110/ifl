@@ -7,7 +7,7 @@ module TIM.Mark2
   , runProg
   ) where
 
-import Control.Arrow ((&&&))
+import Control.Arrow ((&&&), second)
 import Data.List (mapAccumL, nub, sort)
 import Debug.Trace (trace)
 
@@ -248,34 +248,36 @@ initialDump = DummyTimDump
 initCodeStore :: CodeStore
 initCodeStore = []
 
-compiledPrimitives :: [(Name, CompiledCode)]
-compiledPrimitives = [ ("+",      binOp Add)
-                     , ("-",      binOp Sub)
-                     , ("*",      binOp Mul)
-                     , ("/",      binOp Div)
-                     , ("negate", uniOp Neg)
-                     , ("==",     binOp Eq)
-                     , ("/=",     binOp Ne)
-                     , ("<",      binOp Lt)
-                     , ("<=",     binOp Le)
-                     , (">",      binOp Gt)
-                     , (">=",     binOp Ge)
-                     , ("if",     ifCode)
-                     ]
-  where binOp op
-          = ([1, 2], [ Take 2
-                     , Push (Code ([1], [ Push (Code ([], [Op op, Return]))
-                                        , Enter (Arg 1)]))
-                     , Enter (Arg 2)])
-        uniOp op
-          = ([1], [ Take 1
-                  , Push (Code ([], [Op op, Return]))
-                  , Enter (Arg 1)])
+data OpType = BinOp Op | UniOp Op | CondOp deriving (Eq, Show)
 
-        ifCode
-          = ([1, 2, 3], [ Take 3
-                        , Push (Code ([2, 3], [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]))
-                        , Enter (Arg 1)])
+primitives :: [(Name, OpType)]
+primitives = [ ("+",      BinOp Add)
+             , ("-",      BinOp Sub)
+             , ("*",      BinOp Mul)
+             , ("/",      BinOp Div)
+             , ("negate", UniOp Neg)
+             , ("==",     BinOp Eq)
+             , ("/=",     BinOp Ne)
+             , ("<",      BinOp Lt)
+             , ("<=",     BinOp Le)
+             , (">",      BinOp Gt)
+             , (">=",     BinOp Ge)
+             , ("if",     CondOp)
+             ]
+
+compiledPrimitives :: [(Name, CompiledCode)]
+compiledPrimitives = map (second trans) primitives
+  where trans opt = case opt of
+          BinOp op -> ([1, 2], [ Take 2
+                               , Push (Code ([1], [ Push (Code ([], [Op op, Return]))
+                                                  , Enter (Arg 1)]))
+                               , Enter (Arg 2)])
+          UniOp op -> ([1], [ Take 1
+                            , Push (Code ([], [Op op, Return]))
+                            , Enter (Arg 1)])
+          CondOp  -> ([1, 2, 3], [ Take 3
+                                 , Push (Code ([2, 3], [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]))
+                                 , Enter (Arg 1)])
         
 type TimCompilerEnv = [(Name, TimAMode)]
 
@@ -311,9 +313,7 @@ usedSlots arg = case arg of
   _       -> []
 
 isBasicOp :: CoreExpr -> Bool
-isBasicOp (EAp (EAp (EVar op) e1) e2) = op `elem` ["+", "-", "*", "/", "==", "/=", "<", "<=", ">", ">="]
-isBasicOp (EAp (EVar op) _) = op `elem` ["negate"]
-isBasicOp _ = False
+isBasicOp e = isBinOp e || isUniOp e
 
 isCondOp :: CoreExpr -> Bool
 isCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = True
@@ -334,12 +334,18 @@ compileB e env cont        = (slots', Push (Code cont):cont')
   where (slots', cont') = slotsOfCompiledCode &&& instrsOfCompiledCode $ compileR e env
 
 isBinOp :: CoreExpr -> Bool
-isBinOp (EAp (EAp (EVar op) _) _) = op `elem` ["+", "-", "*", "/", "==", "/=", "<", "<=", ">", ">="]
+isBinOp (EAp (EAp (EVar op) _) _) = op `elem` basicOps
+  where basicOps = map fst $ filter (isBin . snd) primitives
+        isBin (BinOp _) = True
+        isBin _         = False
 isBinOp _                         = False
 
 isUniOp :: CoreExpr -> Bool
-isUniOp (EAp (EVar op) _) = op `elem` ["negate"]
-isUniOp _                 = False
+isUniOp (EAp (EVar op) _) = op `elem` uniops
+  where uniops = map fst $ filter (isUni . snd) primitives
+        isUni (UniOp _) = True
+        isUni _         = False
+isUniOp _               = False
 
 unpackBinOp :: CoreExpr -> (CoreExpr, Op, CoreExpr)
 unpackBinOp (EAp (EAp (EVar op) e1) e2) = (e1, op2binop op, e2)
