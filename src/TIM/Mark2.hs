@@ -346,16 +346,9 @@ isCondOp _ = False
 
 unpackBinOp :: CoreExpr -> (CoreExpr, Op, CoreExpr)
 unpackBinOp (EAp (EAp (EVar op) e1) e2) = (e1, op2binop op, e2)
-  where op2binop "+"  = Add
-        op2binop "-"  = Sub
-        op2binop "*"  = Mul
-        op2binop "/"  = Div
-        op2binop "==" = Eq
-        op2binop "/=" = Ne
-        op2binop "<"  = Lt
-        op2binop "<=" = Le
-        op2binop ">"  = Gt
-        op2binop ">=" = Ge
+  where op2binop o = case lookup o primitives of
+          Just (BinOp op') -> op'
+          _                -> error "unpackBinOp: not a binary operator"
 unpackBinOp _                           = error "unpackBinOp: not a binary operator"
 
 unpackUniOp :: CoreExpr -> (Op, CoreExpr)
@@ -849,9 +842,10 @@ showInstruction d (PushV x)  = iStr "PushV " `iAppend` showValueAMode x
 showInstruction d Return     = iStr "Return"
 showInstruction d (Op op)    = iStr "Op " `iAppend` iStr (show op)
 showInstruction d (Cond t f) = iConcat [ iStr "Cond "
-                                       , showInstructions d t
-                                       , iStr " "
-                                       , showInstructions d f
+                                       , iIndent (iConcat [ showInstructions d t
+                                                          , iNewline
+                                                          , showInstructions d f
+                                                          ])
                                        ]
 
 showValueAMode :: ValueAMode -> IseqRep
