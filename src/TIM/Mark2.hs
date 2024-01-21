@@ -353,9 +353,10 @@ unpackBinOp _                           = error "unpackBinOp: not a binary opera
 
 unpackUniOp :: CoreExpr -> (Op, CoreExpr)
 unpackUniOp (EAp (EVar op) e1) = (op2uniop op, e1)
-  where op2uniop "negate" = Neg
-        op2uniop _        = error "unpackUniOp: unknown unary operator"
-unpackUniOp _             = error "unpackUniOp: not a unary operator"
+  where op2uniop o = case lookup o primitives of
+          Just (UniOp op') -> op'
+          _                -> error "unpackUniOp: not a unary operator"
+unpackUniOp _                  = error "unpackUniOp: not a unary operator"
 
 unpackCondOp :: CoreExpr -> (CoreExpr, CoreExpr, CoreExpr)
 unpackCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = (e1, e2, e3)
