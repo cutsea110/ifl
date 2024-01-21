@@ -275,9 +275,9 @@ compiledPrimitives = map (second trans) primitives
           UniOp op -> ([1], [ Take 1
                             , Push (Code ([], [Op op, Return]))
                             , Enter (Arg 1)])
-          CondOp  -> ([1, 2, 3], [ Take 3
-                                 , Push (Code ([2, 3], [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]))
-                                 , Enter (Arg 1)])
+          CondOp   -> ([1, 2, 3], [ Take 3
+                                  , Push (Code ([2, 3], [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]))
+                                  , Enter (Arg 1)])
         
 type TimCompilerEnv = [(Name, TimAMode)]
 
@@ -354,7 +354,7 @@ unpackBinOp _                           = error "unpackBinOp: not a binary opera
 unpackUniOp :: CoreExpr -> (Op, CoreExpr)
 unpackUniOp (EAp (EVar op) e1) = (op2uniop op, e1)
   where op2uniop "negate" = Neg
-        op2uniop _        = error "unpackUniOp: not a unary operator"
+        op2uniop _        = error "unpackUniOp: unknown unary operator"
 unpackUniOp _             = error "unpackUniOp: not a unary operator"
 
 unpackCondOp :: CoreExpr -> (CoreExpr, CoreExpr, CoreExpr)
