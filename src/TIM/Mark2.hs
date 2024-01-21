@@ -549,7 +549,7 @@ FrameAddr 1
 -}
 {- | check CodeStore
 >>> let h = hInitial :: Heap Frame
->>> let cs = [("f", ([1,3], [Push (Arg 1), Enter (Arg 3)]))]
+>>> let cs = [("f", Compiled [1,3] [Push (Arg 1), Enter (Arg 3)])]
 >>> let (h1, a1) = hAlloc h (Frame [([Take 1], FrameNull),([Take 2],FrameNull),([Take 3],FrameNull)])
 >>> let (h2, a2) = hAlloc h1 (Frame [([Enter (Label "f")], FrameAddr 1)])
 >>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2)
@@ -563,12 +563,12 @@ FrameAddr 1
 {- | check Code
 >>> let h = hInitial :: Heap Frame
 >>> let (h1, a1) = hAlloc h (Frame [([Take 1], FrameNull),([Take 2],FrameNull),([Take 3],FrameNull)])
->>> let (h2, a2) = hAlloc h1 (Frame [([Enter (Code ([1,3], [Push (Arg 1), Enter (Arg 3)]))], FrameAddr 1)])
+>>> let (h2, a2) = hAlloc h1 (Frame [([Enter (Code (Compiled [1,3] [Push (Arg 1), Enter (Arg 3)]))], FrameAddr 1)])
 >>> let ((from, to), fp) = evacuateFramePtr True initCodeStore h2 hInitial ([Push (Arg 1)], FrameAddr 2)
 >>> from
 (2,2,[(1,Forward 2),(2,Forward 1)])
 >>> to
-(2,2,[(1,Frame [([Enter (Code ([1,3],[Push (Arg 1),Enter (Arg 3)]))],FrameAddr 1)]),(2,Frame [([Take 1],FrameNull),([Take 2],FrameNull),([Take 3],FrameNull)])])
+(2,2,[(1,Frame [([Enter (Code (Compiled {slotsOf = [1,3], instrsOf = [Push (Arg 1),Enter (Arg 3)]}))],FrameAddr 1)]),(2,Frame [([Take 1],FrameNull),([Take 2],FrameNull),([Take 3],FrameNull)])])
 >>> fp
 FrameAddr 1
 -}
