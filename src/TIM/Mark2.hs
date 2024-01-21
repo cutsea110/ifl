@@ -35,8 +35,8 @@ data Instruction = Take Int
                  deriving (Eq, Show)
 
 type UsedSlots = [Int]
-data CompiledCode = Compiled { slotsOfCompiledCode :: UsedSlots
-                             , instrsOfCompiledCode :: [Instruction]
+data CompiledCode = Compiled { slotsOf  :: UsedSlots
+                             , instrsOf :: [Instruction]
                              }
                   deriving (Eq, Show)
 
@@ -155,7 +155,7 @@ fList (Forward a) = Left a
 type CodeStore = Assoc Name CompiledCode
 
 codeLookup :: CodeStore -> Name -> [Instruction]
-codeLookup cstore l = instrsOfCompiledCode cs
+codeLookup cstore l = instrsOf cs
   where cs = aLookup cstore l $ error $ "Attempt to jump to unknown label " ++ show l
 
 data TimStats
@@ -309,7 +309,7 @@ compileR e env = error $ "compileR: can't do this yet: " ++ show e
 usedSlots :: TimAMode -> UsedSlots
 usedSlots arg = case arg of
   Arg i   -> [i]
-  Code cs -> slotsOfCompiledCode cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
+  Code cs -> slotsOf cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
   _       -> []
 
 compileB :: CoreExpr -> TimCompilerEnv -> CompiledCode -> CompiledCode
@@ -597,7 +597,7 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
           g ns _          = ns
 
           h ns (Arg n)   = n:ns
-          h ns (Code cs) = slotsOfCompiledCode cs ++ ns
+          h ns (Code cs) = slotsOf cs ++ ns
           h ns (Label l) = ns
           h ns _         = ns
 
@@ -758,7 +758,7 @@ step state@TimState { instructions = instrs
 
 amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> Closure
 amToClosure (Arg n)      fptr heap cstore = fGet heap fptr n
-amToClosure (Code cs)    fptr heap cstore = (instrsOfCompiledCode cs, fptr)
+amToClosure (Code cs)    fptr heap cstore = (instrsOf cs, fptr)
 amToClosure (Label l)    fptr heap cstore = (codeLookup cstore l, fptr)
 amToClosure (IntConst n) fptr heap cstore = (intCode, FrameInt n)
 
