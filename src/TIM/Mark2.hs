@@ -292,8 +292,8 @@ compileSc env (name, args, body)
 
 compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode
 compileR e env
-  | isBasicOp e = compileB e env ([], [Return])
-  | isCondOp e  = compileB kCond env (ns1 ++ ns2, [Cond il1 il2])
+  | isBinOp e || isUniOp e = compileB e env ([], [Return])
+  | isCondOp e             = compileB kCond env (ns1 ++ ns2, [Cond il1 il2])
   where (kCond, kThen, kElse) = unpackCondOp e
         (ns1, il1) = slotsOfCompiledCode &&& instrsOfCompiledCode $ compileR kThen env
         (ns2, il2) = slotsOfCompiledCode &&& instrsOfCompiledCode $ compileR kElse env
@@ -311,13 +311,6 @@ usedSlots arg = case arg of
   Arg i   -> [i]
   Code cs -> slotsOfCompiledCode cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
   _       -> []
-
-isBasicOp :: CoreExpr -> Bool
-isBasicOp e = isBinOp e || isUniOp e
-
-isCondOp :: CoreExpr -> Bool
-isCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = True
-isCondOp _ = False
 
 compileB :: CoreExpr -> TimCompilerEnv -> CompiledCode -> CompiledCode
 compileB e env cont
@@ -346,6 +339,10 @@ isUniOp (EAp (EVar op) _) = op `elem` uniops
         isUni (UniOp _) = True
         isUni _         = False
 isUniOp _               = False
+
+isCondOp :: CoreExpr -> Bool
+isCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = True
+isCondOp _ = False
 
 unpackBinOp :: CoreExpr -> (CoreExpr, Op, CoreExpr)
 unpackBinOp (EAp (EAp (EVar op) e1) e2) = (e1, op2binop op, e2)
