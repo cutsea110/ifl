@@ -295,10 +295,10 @@ compileR e env = case e of
             | isCondOp e  -> let (kCond, kThen, kElse) = unpackCondOp e
                                  Compiled ns1 il1 = compileR kThen env
                                  Compiled ns2 il2 = compileR kElse env
-                             in compileB kCond env (Compiled (uniq $ ns1 ++ ns2) [Cond il1 il2])
+                             in compileB kCond env (Compiled (merge ns1 ns2) [Cond il1 il2])
             | otherwise   -> let Compiled ns1 il1 = compileR e1 env
                                  (ns2, arg) = usedSlots &&& id $ compileA e2 env
-                             in Compiled (uniq $ ns1 ++ ns2) (Push arg : il1)
+                             in Compiled (merge ns1 ns2) (Push arg : il1)
   EVar v  -> Compiled ns [Enter amode]
     where (ns, amode) = usedSlots &&& id $ compileA (EVar v) env
   ENum n  -> Compiled [] [PushV (IntVConst n), Return]
@@ -306,20 +306,20 @@ compileR e env = case e of
   where usedSlots (Arg i)   = [i]
         usedSlots (Code cs) = slotsOf cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
         usedSlots _         = []
-        uniq = nub . sort
+        merge a b = nub . sort $ a ++ b
 
 compileB :: CoreExpr -> TimCompilerEnv -> CompiledCode -> CompiledCode
 compileB e env cont
-  | isBinOp e = compileB e2 env (compileB e1 env (Compiled slots' (Op op:cont')))
+  | isBinOp e = compileB e2 env (compileB e1 env (Compiled slots' (Op op : cont')))
   where (e1, op, e2) = unpackBinOp e
         Compiled slots' cont' = cont
 compileB e env cont
-  | isUniOp e = compileB e1 env (Compiled slots' (Op op:cont'))
+  | isUniOp e = compileB e1 env (Compiled slots' (Op op : cont'))
   where (op, e1) = unpackUniOp e
         Compiled slots' cont' = cont
-compileB (ENum n) env cont = Compiled slots' (PushV (IntVConst n):cont')
+compileB (ENum n) env cont = Compiled slots' (PushV (IntVConst n) : cont')
   where Compiled slots' cont' = cont
-compileB e env cont        = Compiled slots' (Push (Code cont):cont')
+compileB e env cont        = Compiled slots' (Push (Code cont) : cont')
   where Compiled slots' cont' = compileR e env
 
 isBasicOp :: CoreExpr -> Bool
