@@ -299,7 +299,7 @@ compileR e env = case e of
             | otherwise   -> let Compiled ns1 il1 = compileR e1 env
                                  (ns2, arg) = usedSlots &&& id $ compileA e2 env
                              in Compiled (uniq $ ns1 ++ ns2) (Push arg : il1)
-  EVar v  -> Compiled ns [Enter amode] -- NOTE: ns は空になる?
+  EVar v  -> Compiled ns [Enter amode]
     where (ns, amode) = usedSlots &&& id $ compileA (EVar v) env
   ENum n  -> Compiled [] [PushV (IntVConst n), Return]
   _       -> error $ "compileR: can't do this yet: " ++ show e
