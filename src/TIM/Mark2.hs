@@ -290,27 +290,25 @@ compileSc env (name, args, body)
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode
-compileR e env
-  | isBinOp e || isUniOp e = compileB e env (Compiled [] [Return])
-  | isCondOp e             = compileB kCond env (Compiled (uniq $ ns1 ++ ns2) [Cond il1 il2])
-  where (kCond, kThen, kElse) = unpackCondOp e
-        Compiled ns1 il1 = compileR kThen env
-        Compiled ns2 il2 = compileR kElse env
-        uniq = nub . sort
-compileR (EAp e1 e2) env = Compiled (uniq $ ns1 ++ ns2) (Push arg : il1)
-    where Compiled ns1 il1 = compileR e1 env
-          (ns2, arg) = usedSlots &&& id $ compileA e2 env
-          uniq = nub . sort
-compileR (EVar v) env = Compiled ns [Enter amode] -- NOTE: ns は空になる?
+compileR e env = case e of
+  EAp e1 e2 | isBasicOp e -> compileB e env (Compiled [] [Return])
+            | isCondOp e  -> let (kCond, kThen, kElse) = unpackCondOp e
+                                 Compiled ns1 il1 = compileR kThen env
+                                 Compiled ns2 il2 = compileR kElse env
+                             in compileB kCond env (Compiled (uniq $ ns1 ++ ns2) [Cond il1 il2])
+            | otherwise   -> let Compiled ns1 il1 = compileR e1 env
+                                 (ns2, arg) = usedSlots &&& id $ compileA e2 env
+                             in Compiled (uniq $ ns1 ++ ns2) (Push arg : il1)
+  EVar v  -> Compiled ns [Enter amode] -- NOTE: ns は空になる?
     where (ns, amode) = usedSlots &&& id $ compileA (EVar v) env
-compileR (ENum n) env = Compiled [] [PushV (IntVConst n), Return]
-compileR e env = error $ "compileR: can't do this yet: " ++ show e
-
-usedSlots :: TimAMode -> UsedSlots
-usedSlots arg = case arg of
-  Arg i   -> [i]
-  Code cs -> slotsOf cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
-  _       -> []
+  ENum n  -> Compiled [] [PushV (IntVConst n), Return]
+  _       -> error $ "compileR: can't do this yet: " ++ show e
+  where usedSlots :: TimAMode -> UsedSlots
+        usedSlots arg = case arg of
+          Arg i   -> [i]
+          Code cs -> slotsOf cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
+          _       -> []
+        uniq = nub . sort
 
 compileB :: CoreExpr -> TimCompilerEnv -> CompiledCode -> CompiledCode
 compileB e env cont
@@ -326,6 +324,9 @@ compileB (ENum n) env cont = Compiled slots' (PushV (IntVConst n):cont')
 compileB e env cont        = Compiled slots' (Push (Code cont):cont')
   where Compiled slots' cont' = compileR e env
 
+isBasicOp :: CoreExpr -> Bool
+isBasicOp e = isBinOp e || isUniOp e
+
 isBinOp :: CoreExpr -> Bool
 isBinOp (EAp (EAp (EVar op) _) _) = op `elem` basicOps
   where basicOps = map fst $ filter (isBin . snd) primitives
@@ -334,8 +335,8 @@ isBinOp (EAp (EAp (EVar op) _) _) = op `elem` basicOps
 isBinOp _                         = False
 
 isUniOp :: CoreExpr -> Bool
-isUniOp (EAp (EVar op) _) = op `elem` uniops
-  where uniops = map fst $ filter (isUni . snd) primitives
+isUniOp (EAp (EVar op) _) = op `elem` uniOps
+  where uniOps = map fst $ filter (isUni . snd) primitives
         isUni (UniOp _) = True
         isUni _         = False
 isUniOp _               = False
