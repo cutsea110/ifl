@@ -303,11 +303,9 @@ compileR e env = case e of
     where (ns, amode) = usedSlots &&& id $ compileA (EVar v) env
   ENum n  -> Compiled [] [PushV (IntVConst n), Return]
   _       -> error $ "compileR: can't do this yet: " ++ show e
-  where usedSlots :: TimAMode -> UsedSlots
-        usedSlots arg = case arg of
-          Arg i   -> [i]
-          Code cs -> slotsOf cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
-          _       -> []
+  where usedSlots (Arg i)   = [i]
+        usedSlots (Code cs) = slotsOf cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
+        usedSlots _         = []
         uniq = nub . sort
 
 compileB :: CoreExpr -> TimCompilerEnv -> CompiledCode -> CompiledCode
