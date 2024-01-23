@@ -249,6 +249,13 @@ initCodeStore = []
 
 data OpType = BinOp Op | UniOp Op | CondOp deriving (Eq, Show)
 
+isBin :: OpType -> Bool
+isBin (BinOp _) = True
+isBin _         = False
+isUni :: OpType -> Bool
+isUni (UniOp _) = True
+isUni _         = False
+
 primitives :: [(Name, OpType)]
 primitives = [ ("+",      BinOp Add)
              , ("-",      BinOp Sub)
@@ -328,15 +335,11 @@ isBasicOp e = isBinOp e || isUniOp e
 isBinOp :: CoreExpr -> Bool
 isBinOp (EAp (EAp (EVar op) _) _) = op `elem` basicOps
   where basicOps = map fst $ filter (isBin . snd) primitives
-        isBin (BinOp _) = True
-        isBin _         = False
 isBinOp _                         = False
 
 isUniOp :: CoreExpr -> Bool
 isUniOp (EAp (EVar op) _) = op `elem` uniOps
   where uniOps = map fst $ filter (isUni . snd) primitives
-        isUni (UniOp _) = True
-        isUni _         = False
 isUniOp _               = False
 
 isCondOp :: CoreExpr -> Bool
