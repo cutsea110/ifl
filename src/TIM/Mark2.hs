@@ -847,10 +847,9 @@ showInstruction d (PushV x)  = iStr "PushV " `iAppend` showValueAMode x
 showInstruction d Return     = iStr "Return"
 showInstruction d (Op op)    = iStr "Op " `iAppend` iStr (show op)
 showInstruction d (Cond t f) = iConcat [ iStr "Cond "
-                                       , iIndent (iConcat [ showInstructions d t
-                                                          , iNewline
-                                                          , showInstructions d f
-                                                          ])
+                                       , showInstructions d t
+                                       , iStr " "
+                                       , showInstructions d f
                                        ]
 
 showValueAMode :: ValueAMode -> IseqRep
