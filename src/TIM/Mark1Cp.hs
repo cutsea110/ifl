@@ -156,11 +156,11 @@ data TimStats
   deriving (Eq, Show)
 
 statInitial :: TimStats
-statInitial = TimStats { getSteps = 0
-                       , getExecTime = 0
+statInitial = TimStats { getSteps         = 0
+                       , getExecTime      = 0
                        , getHeapAllocated = 0
                        , getMaxStackDepth = 0
-                       , getGCInfo = []
+                       , getGCInfo        = []
                        }
 
 statGetSteps :: TimStats -> Int
