@@ -268,7 +268,6 @@ primitives = [ ("+",      BinOp Add)
              , ("<=",     BinOp Le)
              , (">",      BinOp Gt)
              , (">=",     BinOp Ge)
-             , ("if",     CondOp)
              ]
 
 compiledPrimitives :: [(Name, CompiledCode)]
@@ -281,9 +280,6 @@ compiledPrimitives = map (second trans) primitives
           UniOp op -> Compiled [1] [ Take 1
                                    , Push (Code (Compiled [] [Op op, Return]))
                                    , Enter (Arg 1)]
-          CondOp   -> Compiled [1, 2, 3] [ Take 3
-                                         , Push (Code (Compiled [2, 3] [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]))
-                                         , Enter (Arg 1)]
         
 type TimCompilerEnv = [(Name, TimAMode)]
 
