@@ -1,0 +1,7 @@
+test1 = 3 > 3;   -- false
+test2 = 3 >= 3;  -- true
+test3 = 3 < 3;   -- false
+test4 = 3 <= 3;  -- true
+test5 = 3 == 3;  -- true
+test6 = 3 /= 3;  -- false
+main = test6
