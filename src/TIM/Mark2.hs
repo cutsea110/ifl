@@ -299,6 +299,7 @@ compileSc env (name, args, body)
 compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode
 compileR e env = case e of
   EAp e1 e2 | isBasicOp e -> compileB e env (Compiled [] [Return])
+            -- exercise 4.7
             | isCondOp e  -> let (kCond, kThen, kElse) = unpackCondOp e
                                  Compiled ns1 il1 = compileR kThen env
                                  Compiled ns2 il2 = compileR kElse env
