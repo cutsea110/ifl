@@ -6,6 +6,8 @@ Reference: [Simon L. Payton Jones, David R. Lester Implementing Functional Langu
 
 # How to use
 
+## Run on local
+
 ```sh
 $ cabal run -- ifl
     ____________
@@ -21,7 +23,18 @@ OPTION
   -V, -?       --version            show version
 ```
 
+## Run on docker
 
+See [Dockerhub cutsea110/ifl](https://hub.docker.com/repository/docker/cutsea110/ifl/general).
+
+```sh
+$ cat test.ifl
+fib n = if (n<2) 1 (fib (n-1) + fib (n-2));
+main = fib 10
+
+$ docker run -v ./:/work -it --rm cutsea110/ifl:0.1.0 ifl -c gmark7 /work/test.ifl
+89
+```
 
 # Tips
 
@@ -32,3 +45,25 @@ ghci> let p = "fib n = if (n<2) 1 (fib (n-1) + fib (n-2))"
 ghci> compileSc . head . parse $ p
 ```
 
+
+## For Developer
+
+### How to build Docker image
+
+```sh
+$ docker build -t cutsea110/ifl:0.1.0 .
+```
+### How to run on Docker image
+
+I suppose that you have some test programs for ifl in `${PWD}/examples` directory.
+
+```sh
+$ docker run -v ./examples:/work -it --rm cutsea110/ifl:0.1.0 ifl -v -c gmark7 /work/testProg80.ifl
+```
+
+### Share Dockerhub
+
+```sh
+$ docker login
+$ docker push cutsea110/ifl:0.1.0
+```
