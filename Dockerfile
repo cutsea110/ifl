@@ -5,7 +5,7 @@ COPY . /work/
 RUN cabal build
 RUN cabal install --installdir=./ --install-method=copy
 
-FROM debian:latest
+FROM debian:sid-slim
 
 COPY --from=builder /work/ifl /usr/bin/ifl
 CMD ["ifl"]
