@@ -25,7 +25,8 @@ runProg verbose = showR . eval . compile . parse
   where showR | verbose   = showResults
               | otherwise = showSimpleResult
 
-data Instruction = Take Int
+data Instruction = Take Int Int       -- take t n
+                 | Move Int TimAMode
                  | Enter TimAMode
                  | Push TimAMode
                  | PushV ValueAMode
@@ -274,14 +275,14 @@ primitives = [ ("+",      BinOp Add)
 compiledPrimitives :: [(Name, CompiledCode)]
 compiledPrimitives = map (second trans) primitives
   where trans opt = case opt of
-          BinOp op -> Compiled [1, 2] [ Take 2
+          BinOp op -> Compiled [1, 2] [ Take 2 2
                                       , Push (Code (Compiled [1] [ Push (Code (Compiled [] [Op op, Return]))
                                                                  , Enter (Arg 1)]))
                                       , Enter (Arg 2)]
-          UniOp op -> Compiled [1] [ Take 1
+          UniOp op -> Compiled [1] [ Take 1 1
                                    , Push (Code (Compiled [] [Op op, Return]))
                                    , Enter (Arg 1)]
-          CondOp   -> Compiled [1, 2, 3] [ Take 3
+          CondOp   -> Compiled [1, 2, 3] [ Take 3 3
                                          , Push (Code (Compiled [2, 3] [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]))
                                          , Enter (Arg 1)]
         
@@ -290,8 +291,9 @@ type TimCompilerEnv = [(Name, TimAMode)]
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
 compileSc env (name, args, body)
   | null args = (name, cs)
-  | otherwise = (name, Compiled ns (Take (length args) : il))
+  | otherwise = (name, Compiled ns (Take n n : il))
   where
+    n = length args
     cs = compileR body new_env
     Compiled ns il = cs
     new_env = zip args (map Arg [1..]) ++ env
@@ -673,7 +675,7 @@ step state@TimState { instructions = instrs
                     , codes        = cstore
                     }
   = case instrs of
-  (Take n:instr)
+  (Take t n:instr)
     | length stk >= n
       -- NOTE: Take は exec time にカウントしない (exercise 4.2)
       -> applyToStats (statIncHeapAllocated $ n + 1)
@@ -841,17 +843,22 @@ showInstructions Full il
     sep = iStr "," `iAppend` iNewline
 
 showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
-showInstruction d (Take n)   = iStr "Take " `iAppend` iNum n
-showInstruction d (Enter x)  = iStr "Enter " `iAppend` showArg d x
-showInstruction d (Push x)   = iStr "Push " `iAppend` showArg d x
-showInstruction d (PushV x)  = iStr "PushV " `iAppend` showValueAMode x
-showInstruction d Return     = iStr "Return"
-showInstruction d (Op op)    = iStr "Op " `iAppend` iStr (show op)
-showInstruction d (Cond t f) = iConcat [ iStr "Cond "
-                                       , showInstructions d t
-                                       , iStr " "
-                                       , showInstructions d f
-                                       ]
+showInstruction d (Take t n)   = iStr "Take " `iAppend` iNum n
+showInstruction d (Move n a)   = iConcat [ iStr "Move "
+                                         , iNum n
+                                         , iStr " "
+                                         , showArg d a
+                                         ]
+showInstruction d (Enter x)    = iStr "Enter " `iAppend` showArg d x
+showInstruction d (Push x)     = iStr "Push " `iAppend` showArg d x
+showInstruction d (PushV x)    = iStr "PushV " `iAppend` showValueAMode x
+showInstruction d Return       = iStr "Return"
+showInstruction d (Op op)      = iStr "Op " `iAppend` iStr (show op)
+showInstruction d (Cond t f)   = iConcat [ iStr "Cond "
+                                         , showInstructions d t
+                                         , iStr " "
+                                         , showInstructions d f
+                                         ]
 
 showValueAMode :: ValueAMode -> IseqRep
 showValueAMode FramePtr      = iStr "FramePtr"
