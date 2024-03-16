@@ -1,0 +1,2 @@
+f x y = (let z = 5 in x * z) + (let w = 7 in y * w);
+main = f 2 3
