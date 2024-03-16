@@ -43,6 +43,7 @@ library
                        TIM.Mark1
                        TIM.Mark1Cp
                        TIM.Mark2
+                       TIM.Mark3
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.13

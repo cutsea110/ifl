@@ -34,6 +34,7 @@ import qualified Gmachine.Mark7 as GMark7 (runProg)
 import qualified TIM.Mark1   as TIMark1 (runProg)
 import qualified TIM.Mark1Cp as TIMark1Cp (runProg)
 import qualified TIM.Mark2   as TIMark2 (runProg)
+import qualified TIM.Mark3   as TIMark3 (runProg)
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -67,6 +68,7 @@ executer e verbose = putStr . run
           TIMark1       -> TIMark1.runProg verbose
           TIMark1Cp     -> TIMark1Cp.runProg verbose
           TIMark2       -> TIMark2.runProg verbose
+          TIMark3       -> TIMark3.runProg verbose
           (Noco name)   -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
@@ -79,7 +81,7 @@ data Compiler
   | Mark5 | Mark5cnv | Mark5Alt | Mark5Altcnv | Mark5GC | Mark5GCcnv
   | Mark5RevGC | Mark5RevGCcnv | Mark5Cp | Mark5Cpcnv
   | GMark1 | GMark2 | GMark3 | GMark4 | GMark5 | GMark6 | GMark7
-  | TIMark1 | TIMark1Cp | TIMark2
+  | TIMark1 | TIMark1Cp | TIMark2 | TIMark3
   deriving Show
 
 data Options = Options
@@ -92,7 +94,7 @@ defaultOptions :: Options
 defaultOptions = Options
   { optVerbose     = False
   , optShowVersion = False
-  , optCompiler    = TIMark2
+  , optCompiler    = TIMark3
   }
 
 name2Compiler :: [(String, Compiler)]
@@ -102,7 +104,7 @@ name2Compiler
     , Mark5, Mark5cnv, Mark5Alt, Mark5Altcnv, Mark5GC, Mark5GCcnv
     , Mark5RevGC, Mark5RevGCcnv, Mark5Cp
     , GMark1, GMark2, GMark3, GMark4, GMark5, GMark6, GMark7
-    , TIMark1, TIMark1Cp, TIMark2
+    , TIMark1, TIMark1Cp, TIMark2, TIMark3
     ]
 
 compilerNames :: [String]
