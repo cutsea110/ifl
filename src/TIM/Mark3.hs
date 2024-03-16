@@ -678,7 +678,7 @@ step state@TimState { instructions = instrs
   (Take t n:instr)
     | length stk >= n
       -- NOTE: Take は exec time にカウントしない (exercise 4.2)
-      -> applyToStats (statIncHeapAllocated $ n + 1)
+      -> applyToStats (statIncHeapAllocated $ t + 1)
          (putInstructions instr
           . putFrame fptr'
           . putStack stk'
@@ -686,8 +686,14 @@ step state@TimState { instructions = instrs
           $ state)
     | otherwise -> error "Too few args for Take instruction"
     where
-      (hp', fptr') = fAlloc hp (Frame $ take n stk)
+      (hp', fptr') = fAlloc hp (Frame $ take n stk ++ replicate (t-n) ([], FrameNull))
       stk' = drop n stk
+  (Move n am:istr) -> applyToStats statIncExecTime
+                      (putInstructions istr
+                       . putHeap hp'
+                       $ state)
+    where
+      hp' = fUpdate hp fptr n (amToClosure am fptr hp cstore) -- FIXME: Code 以外も処理されてしまう
   [Enter am]
     -> applyToStats statIncExecTime
        (putInstructions instr'
