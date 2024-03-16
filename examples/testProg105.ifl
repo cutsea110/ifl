@@ -1,0 +1,2 @@
+f x y z = let p = x+y in p+x+y+z;
+main = f 1 2 3

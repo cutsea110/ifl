@@ -7,7 +7,7 @@ module TIM.Mark3
   , runProg
   ) where
 
-import Control.Arrow ((&&&), second)
+import Control.Arrow (second)
 import Data.List (mapAccumL, nub, sort)
 import Debug.Trace (trace)
 
@@ -35,6 +35,7 @@ data Instruction = Take Int Int       -- take t n
                  | Cond [Instruction] [Instruction]
                  deriving (Eq, Show)
 
+type OccupiedSlotIndex = Int
 type UsedSlots = [Int]
 data CompiledCode = Compiled { slotsOf  :: UsedSlots
                              , instrsOf :: [Instruction]
@@ -291,46 +292,56 @@ type TimCompilerEnv = [(Name, TimAMode)]
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
 compileSc env (name, args, body)
   | null args = (name, cs)
-  | otherwise = (name, Compiled ns (Take n n : il))
+  | otherwise = (name, Compiled ns (Take d' n : il))
   where
     n = length args
-    cs = compileR body new_env
+    (d', cs) = compileR body new_env n
     Compiled ns il = cs
     new_env = zip args (map Arg [1..]) ++ env
 
-compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode
-compileR e env = case e of
-  EAp e1 e2 | isBasicOp e -> compileB e env (Compiled [] [Return])
+compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIndex -> (OccupiedSlotIndex, CompiledCode)
+compileR e env d = case e of
+  EAp e1 e2 | isBasicOp e -> compileB e env (d, Compiled [] [Return])
             -- exercise 4.7
             | isCondOp e  -> let (kCond, kThen, kElse) = unpackCondOp e
-                                 Compiled ns1 il1 = compileR kThen env
-                                 Compiled ns2 il2 = compileR kElse env
-                             in compileB kCond env (Compiled (merge ns1 ns2) [Cond il1 il2])
-            | otherwise   -> let Compiled ns1 il1 = compileR e1 env
-                                 (ns2, arg) = usedSlots &&& id $ compileA e2 env
-                             in Compiled (merge ns1 ns2) (Push arg : il1)
-  EVar v  -> Compiled ns [Enter amode]
-    where (ns, amode) = usedSlots &&& id $ compileA (EVar v) env
-  ENum n  -> Compiled [] [PushV (IntVConst n), Return]
+                                 (d1, Compiled ns1 il1) = compileR kThen env d
+                                 (d2, Compiled ns2 il2) = compileR kElse env d
+                                 d' = max d1 d2
+                             in compileB kCond env (d', Compiled (merge ns1 ns2) [Cond il1 il2])
+            | otherwise   -> let (d1, am) = compileA e2 env d
+                                 (d2, Compiled ns1 il1) = compileR e1 env d1
+                                 ns2 = usedSlots am
+                             in (d2, Compiled (merge ns1 ns2) (Push am : il1))
+  ELet isrec defns body -> (d', Compiled ns (moves ++ il))
+    where
+      n = length defns
+      (dn, ams) = mapAccumL (\ix (_, e') -> compileA e' env ix) (d+n) defns
+      env' = zip (map fst defns) (map Arg [d+1..d+n]) ++ env
+      (d', Compiled ns il) = compileR body env' dn
+      moves = zipWith Move [d+1..d+n] ams
+  EVar v  -> (d', Compiled ns [Enter am])
+    where (d', am) = compileA (EVar v) env d
+          ns = usedSlots am
+  ENum n  -> (d, Compiled [] [PushV (IntVConst n), Return])
   _       -> error $ "compileR: can't do this yet: " ++ show e
   where usedSlots (Arg i)   = [i]
         usedSlots (Code cs) = slotsOf cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
         usedSlots _         = []
         merge a b = nub . sort $ a ++ b
 
-compileB :: CoreExpr -> TimCompilerEnv -> CompiledCode -> CompiledCode
-compileB e env cont
-  | isBinOp e = compileB e2 env (compileB e1 env (Compiled slots' (Op op : cont')))
+compileB :: CoreExpr -> TimCompilerEnv -> (OccupiedSlotIndex, CompiledCode) -> (OccupiedSlotIndex, CompiledCode)
+compileB e env (d, cont)
+  | isBinOp e = compileB e2 env $ compileB e1 env (d, Compiled slots' (Op op : cont'))
   where (e1, op, e2) = unpackBinOp e
         Compiled slots' cont' = cont
-compileB e env cont
-  | isUniOp e = compileB e1 env (Compiled slots' (Op op : cont'))
+compileB e env (d, cont)
+  | isUniOp e = compileB e1 env (d, Compiled slots' (Op op : cont'))
   where (op, e1) = unpackUniOp e
         Compiled slots' cont' = cont
-compileB (ENum n) env cont = Compiled slots' (PushV (IntVConst n) : cont')
+compileB (ENum n) env (d, cont) = (d, Compiled slots' (PushV (IntVConst n) : cont'))
   where Compiled slots' cont' = cont
-compileB e env cont        = Compiled slots' (Push (Code cont) : cont')
-  where Compiled slots' cont' = compileR e env
+compileB e env (d, cont)      = (d', Compiled slots' (Push (Code cont) : cont'))
+  where (d', Compiled slots' cont') = compileR e env d
 
 isBasicOp :: CoreExpr -> Bool
 isBasicOp e = isBinOp e || isUniOp e
@@ -367,10 +378,11 @@ unpackCondOp :: CoreExpr -> (CoreExpr, CoreExpr, CoreExpr)
 unpackCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = (e1, e2, e3)
 unpackCondOp _                                      = error "unpackCondOp: not a conditional operator"
 
-compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
-compileA (EVar v) env = aLookup env v $ error $ "Unknown variable " ++ v
-compileA (ENum n) env = IntConst n
-compileA e        env = Code $ compileR e env
+compileA :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIndex -> (OccupiedSlotIndex, TimAMode)
+compileA (EVar v) env d = (d, aLookup env v $ error $ "Unknown variable " ++ v)
+compileA (ENum n) env d = (d, IntConst n)
+compileA e        env d = (d', Code il)
+  where (d', il) = compileR e env d
 
 eval :: TimState -> [TimState]
 eval state = state : rest_states
