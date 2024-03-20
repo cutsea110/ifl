@@ -2,7 +2,7 @@ module Main where
 
 import Control.Monad (forM_, unless, when)
 import Data.Char (toLower)
-import Data.List (intercalate)
+import Data.List (intercalate, foldl')
 import Data.Maybe (fromMaybe)
 import System.Console.GetOpt (OptDescr(..), ArgDescr(NoArg, ReqArg), ArgOrder(Permute)
                              , getOpt, usageInfo
@@ -134,7 +134,7 @@ options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optCompile
 compilerOpts :: [String] -> IO (Options, [String])
 compilerOpts argv =
   case getOpt Permute options argv of
-    (o, n, []  ) -> return (foldl (flip id) defaultOptions o, n)
+    (o, n, []  ) -> return (foldl' (flip id) defaultOptions o, n)
     (_, _, errs) -> ioError (userError (concat errs ++ usageInfo header options))
   where header = "Usage: cabal run ifl -- [OPTION...] <program-file>"
 
