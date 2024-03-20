@@ -6,6 +6,7 @@ module Template.Mark5RevGC
   , showResults
   , runProg
   , runProgWithConv
+  , Config(..)
   ) where
 
 import Data.List (mapAccumL)
@@ -17,12 +18,15 @@ import Heap
 import Stack
 import Utils
 
+data Config = Config { verbose   :: Bool
+                     , gcThreshold :: Int
+                     }
 
-runProg :: String -> String
-runProg = showResults . eval . compile . parse
+runProg :: Config -> String -> String
+runProg conf = showResults . eval conf . compile . parse
 
-runProgWithConv :: String -> String
-runProgWithConv = showResults . eval . cnv . compile . parse
+runProgWithConv :: Config -> String -> String
+runProgWithConv conf = showResults . eval conf . cnv . compile . parse
 
 type Primitive = TiState -> TiState
 
@@ -59,10 +63,6 @@ primitives = [ ("negate", primNeg)
              , ("print", primPrint)
              , ("stop", primStop)
              ]
-
--- for GC
-threshold :: Int
-threshold = 100
 
 data TiState
   = TiState { tiOutput  :: TiOutput
@@ -189,16 +189,16 @@ allocatePrim heap (name, prim) = (heap', (name, addr))
 
 -- | Ex 2.9 最後に TiFinal でエラーになったときの state まで取り出せるが
 --   提案されているものでは取り出せない
-eval :: TiState -> [TiState]
-eval state = state : restStates
+eval :: Config -> TiState -> [TiState]
+eval conf state = state : restStates
   where
     restStates
       | tiFinal state = []
-      | otherwise     = eval nextState
-    nextState = doAdmin (step state)
+      | otherwise     = eval conf nextState
+    nextState = doAdmin conf (step state)
 
-doAdmin :: TiState -> TiState
-doAdmin state = gc (applyToStats tiStatIncSteps state)
+doAdmin :: Config -> TiState -> TiState
+doAdmin conf state = gc conf (applyToStats tiStatIncSteps state)
 
 doAdminSc :: TiState -> TiState
 doAdminSc state = applyToStats tiStatIncScSteps state
@@ -572,9 +572,9 @@ popAndRestore stack dump
   | otherwise    = case pop dump of
       (sp, dump') -> (discard (getDepth stack - sp) stack, dump')
 
-gc :: TiState -> TiState
-gc state@(TiState _ stack dump heap globals stat)
-  | int2Float heapSize > int2Float threshold * (1 + 0.2 * int2Float (gcCount stat))
+gc :: Config -> TiState -> TiState
+gc conf state@(TiState _ stack dump heap globals stat)
+  | int2Float heapSize > int2Float (gcThreshold conf) * (1 + 0.2 * int2Float (gcCount stat))
   = state { tiStack = stack1
           , tiDump = dump1
           , tiHeap = heap4
