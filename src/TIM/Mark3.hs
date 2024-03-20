@@ -423,7 +423,7 @@ gc conf state@TimState { instructions = instrs
                 }
   where
     trace' | verbose conf = trace
-            | otherwise    = flip const
+           | otherwise    = flip const
     gcPrint is fp f0 f1 t1 f2 t2 f3 t3 t4 fp'
       = iDisplay $ iConcat
       [ iNewline
@@ -864,12 +864,8 @@ showInstructions Full il
     sep = iStr "," `iAppend` iNewline
 
 showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
-showInstruction d (Take t n)   = iStr "Take " `iAppend` iNum n
-showInstruction d (Move n a)   = iConcat [ iStr "Move "
-                                         , iNum n
-                                         , iStr " "
-                                         , showArg d a
-                                         ]
+showInstruction d (Take t n)   = iConcat [iStr "Take " ,iNum t, iStr " ", iNum n]
+showInstruction d (Move n a)   = iConcat [iStr "Move ", iNum n, iStr " ", showArg d a]
 showInstruction d (Enter x)    = iStr "Enter " `iAppend` showArg d x
 showInstruction d (Push x)     = iStr "Push " `iAppend` showArg d x
 showInstruction d (PushV x)    = iStr "PushV " `iAppend` showValueAMode x
