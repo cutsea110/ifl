@@ -5,13 +5,12 @@ module Template.Mark5Cp
   , cnv
   , showResults
   , runProg
-  , runProgWithConv
   , Config(..)
   ) where
 
 import Data.Bool (bool)
 import Data.List (mapAccumL)
-import qualified Debug.Trace as Deb
+import Debug.Trace (trace)
 
 import Iseq
 import Language
@@ -19,22 +18,14 @@ import Heap
 import Stack
 import Utils
 
-data Config = Config { verbose   :: Bool
-                     , gcThreshold :: Int
+data Config = Config { verbose            :: Bool
+                     , gcThreshold        :: Int
+                     , convertToListBased :: Bool
                      }
 
 runProg :: Config -> String -> String
-runProg conf = showResults . eval conf . compile . parse
-
-runProgWithConv :: Config -> String -> String
-runProgWithConv conf = showResults . eval conf . cnv . compile . parse
-
-debug :: Bool
-debug = True
-
-trace :: String -> a -> a
-trace | debug     = Deb.trace
-      | otherwise = const id
+runProg conf | convertToListBased conf = showResults . eval conf . cnv . compile . parse
+             | otherwise = showResults . eval conf . compile . parse
 
 type Primitive = TiState -> TiState
 

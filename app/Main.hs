@@ -21,7 +21,7 @@ import qualified Template.Mark5 as Mark5 (runProg, runProgWithConv)
 import qualified Template.Mark5Alt   as Mark5Alt (runProg, runProgWithConv)
 import qualified Template.Mark5GC    as Mark5GC (runProg, runProgWithConv, Config(..))
 import qualified Template.Mark5RevGC as Mark5RevGC (runProg, runProgWithConv, Config(..))
-import qualified Template.Mark5Cp    as Mark5Cp (runProg, runProgWithConv, Config(..))
+import qualified Template.Mark5Cp    as Mark5Cp (runProg, Config(..))
 
 import qualified Gmachine.Mark1 as GMark1 (runProg)
 import qualified Gmachine.Mark2 as GMark2 (runProg)
@@ -46,6 +46,7 @@ executer opts = putStr . run
   where verbose = optVerbose opts
         compiler = optCompiler opts
         threshold = optThreshold opts
+        convertList = optConvertList opts
         run = case compiler of
           Mark1         -> Mark1.runProg
           Mark2         -> Mark2.runProg
@@ -59,8 +60,7 @@ executer opts = putStr . run
           Mark5GCcnv    -> Mark5GC.runProgWithConv $ Mark5GC.Config verbose threshold
           Mark5RevGC    -> Mark5RevGC.runProg $ Mark5RevGC.Config verbose threshold
           Mark5RevGCcnv -> Mark5RevGC.runProgWithConv $ Mark5RevGC.Config verbose threshold
-          Mark5Cp       -> Mark5Cp.runProg $ Mark5Cp.Config verbose threshold
-          Mark5Cpcnv    -> Mark5Cp.runProgWithConv $ Mark5Cp.Config verbose threshold
+          Mark5Cp       -> Mark5Cp.runProg $ Mark5Cp.Config verbose threshold convertList
           GMark1        -> GMark1.runProg
           GMark2        -> GMark2.runProg
           GMark3        -> GMark3.runProg
@@ -82,7 +82,7 @@ data Compiler
   = Noco String
   | Mark1 | Mark2 | Mark3 | Mark4
   | Mark5 | Mark5cnv | Mark5Alt | Mark5Altcnv | Mark5GC | Mark5GCcnv
-  | Mark5RevGC | Mark5RevGCcnv | Mark5Cp | Mark5Cpcnv
+  | Mark5RevGC | Mark5RevGCcnv | Mark5Cp
   | GMark1 | GMark2 | GMark3 | GMark4 | GMark5 | GMark6 | GMark7
   | TIMark1 | TIMark1Cp | TIMark2 | TIMark3
   deriving Show
@@ -92,6 +92,7 @@ data Options = Options
   , optThreshold   :: Int
   , optShowVersion :: Bool
   , optCompiler    :: Compiler
+  , optConvertList :: Bool
   }
 
 defaultOptions :: Options
@@ -100,6 +101,7 @@ defaultOptions = Options
   , optThreshold   = 100
   , optShowVersion = False
   , optCompiler    = TIMark3
+  , optConvertList = False
   }
 
 name2Compiler :: [(String, Compiler)]
@@ -107,7 +109,7 @@ name2Compiler
   = map (\c -> (map toLower (show c), c))
     [ Mark1, Mark2, Mark3, Mark4
     , Mark5, Mark5cnv, Mark5Alt, Mark5Altcnv, Mark5GC, Mark5GCcnv
-    , Mark5RevGC, Mark5RevGCcnv, Mark5Cp, Mark5Cpcnv
+    , Mark5RevGC, Mark5RevGCcnv, Mark5Cp
     , GMark1, GMark2, GMark3, GMark4, GMark5, GMark6, GMark7
     , TIMark1, TIMark1Cp, TIMark2, TIMark3
     ]
@@ -122,6 +124,9 @@ options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optCompile
             "step output on stderr"
           , Option ['t']      ["threshold"] (ReqArg (\n opts -> opts {optThreshold = read n}) "Threshold")
             "threshold for Garbage Collection"
+            -- NOTE: this option is only for the part of Template Instantiation Machines.
+          , Option ['l']      ["convert-to-list-based"]   (NoArg (\opts -> opts {optConvertList = True}))
+            "convert to list based program"
           , Option ['V', '?'] ["version"]   (NoArg (\opts -> opts {optShowVersion = True}))
             "show version"
           ]
