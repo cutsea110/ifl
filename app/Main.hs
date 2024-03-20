@@ -21,7 +21,7 @@ import qualified Template.Mark5 as Mark5 (runProg, runProgWithConv)
 import qualified Template.Mark5Alt   as Mark5Alt (runProg, runProgWithConv)
 import qualified Template.Mark5GC    as Mark5GC (runProg, runProgWithConv)
 import qualified Template.Mark5RevGC as Mark5RevGC (runProg, runProgWithConv)
-import qualified Template.Mark5Cp    as Mark5Cp (runProg, runProgWithConv)
+import qualified Template.Mark5Cp    as Mark5Cp (runProg, runProgWithConv, Config(..))
 
 import qualified Gmachine.Mark1 as GMark1 (runProg)
 import qualified Gmachine.Mark2 as GMark2 (runProg)
@@ -59,8 +59,8 @@ executer opts = putStr . run
           Mark5GCcnv    -> Mark5GC.runProgWithConv
           Mark5RevGC    -> Mark5RevGC.runProg
           Mark5RevGCcnv -> Mark5RevGC.runProgWithConv
-          Mark5Cp       -> Mark5Cp.runProg
-          Mark5Cpcnv    -> Mark5Cp.runProgWithConv
+          Mark5Cp       -> Mark5Cp.runProg $ Mark5Cp.Config verbose threshold
+          Mark5Cpcnv    -> Mark5Cp.runProgWithConv $ Mark5Cp.Config verbose threshold
           GMark1        -> GMark1.runProg
           GMark2        -> GMark2.runProg
           GMark3        -> GMark3.runProg
@@ -107,7 +107,7 @@ name2Compiler
   = map (\c -> (map toLower (show c), c))
     [ Mark1, Mark2, Mark3, Mark4
     , Mark5, Mark5cnv, Mark5Alt, Mark5Altcnv, Mark5GC, Mark5GCcnv
-    , Mark5RevGC, Mark5RevGCcnv, Mark5Cp
+    , Mark5RevGC, Mark5RevGCcnv, Mark5Cp, Mark5Cpcnv
     , GMark1, GMark2, GMark3, GMark4, GMark5, GMark6, GMark7
     , TIMark1, TIMark1Cp, TIMark2, TIMark3
     ]

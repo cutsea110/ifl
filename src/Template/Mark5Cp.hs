@@ -6,6 +6,7 @@ module Template.Mark5Cp
   , showResults
   , runProg
   , runProgWithConv
+  , Config(..)
   ) where
 
 import Data.Bool (bool)
@@ -18,12 +19,15 @@ import Heap
 import Stack
 import Utils
 
+data Config = Config { verbose   :: Bool
+                     , gcThreshold :: Int
+                     }
 
-runProg :: String -> String
-runProg = showResults . eval . compile . parse
+runProg :: Config -> String -> String
+runProg conf = showResults . eval conf . compile . parse
 
-runProgWithConv :: String -> String
-runProgWithConv = showResults . eval . cnv . compile . parse
+runProgWithConv :: Config -> String -> String
+runProgWithConv conf = showResults . eval conf . cnv . compile . parse
 
 debug :: Bool
 debug = True
@@ -62,10 +66,6 @@ primitives = [ ("negate", primNeg)
              , ("print", primPrint)
              , ("stop", primStop)
              ]
-
--- for GC
-threshold :: Int
-threshold = 100
 
 data TiState
   = TiState { tiOutput  :: TiOutput
@@ -190,16 +190,16 @@ allocatePrim heap (name, prim) = (heap', (name, addr))
 
 -- | Ex 2.9 最後に TiFinal でエラーになったときの state まで取り出せるが
 --   提案されているものでは取り出せない
-eval :: TiState -> [TiState]
-eval state = state : restStates
+eval :: Config -> TiState -> [TiState]
+eval conf state = state : restStates
   where
     restStates
       | tiFinal state = []
-      | otherwise     = eval nextState
-    nextState = doAdmin (step state)
+      | otherwise     = eval conf nextState
+    nextState = doAdmin conf (step state)
 
-doAdmin :: TiState -> TiState
-doAdmin state = bool id gc (length assoc > threshold) (applyToStats tiStatIncSteps state)
+doAdmin :: Config -> TiState -> TiState
+doAdmin conf state = bool id (gc conf) (length assoc > gcThreshold conf) (applyToStats tiStatIncSteps state)
   where
     (_, _, _, assoc) = tiHeap state
 
@@ -576,12 +576,12 @@ popAndRestore stack dump
       (sp, dump') -> (discard (getDepth stack - sp) stack, dump')
 
 
-gc :: TiState -> TiState
-gc state = case evacuateStack (tiHeap state) hInitial (tiStack state) of
+gc :: Config -> TiState -> TiState
+gc conf state = case evacuateStack (tiHeap state) hInitial (tiStack state) of
   ((from1, to1), stack1) -> case evacuateDump from1 to1 (tiDump state) of
     ((from2, to2), dump1) -> case evacuateGlobals from2 to2 (tiGlobals state) of
       ((from3, to3), globals1) -> case scavenge from3 to3 of
-        to4 -> trace (gcPrint (tiHeap state) from1 to1 from3 to3 to4) $
+        to4 -> trace' (gcPrint (tiHeap state) from1 to1 from3 to3 to4) $
           state { tiStack = stack1
                      , tiDump = dump1
                      , tiHeap = to4
@@ -589,6 +589,8 @@ gc state = case evacuateStack (tiHeap state) hInitial (tiStack state) of
                      , tiStats = gcCountup (tiStats state)
                      }
   where
+    trace' | verbose conf = trace
+            | otherwise   = flip const
     gcPrint h0 f1 t1 f3 t3 t4
       = iDisplay $ iConcat
       [ iStr "vvvvvvvvvvvvvvvvvvvvvv"
