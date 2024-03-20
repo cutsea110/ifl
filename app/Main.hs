@@ -41,9 +41,12 @@ import qualified TIM.Mark3   as TIMark3 (runProg)
 ---------------------------------------------------------------
 type Executer = String -> IO ()
 
-executer :: Compiler -> Bool -> Executer
-executer e verbose = putStr . run
-  where run = case e of
+executer :: Options -> Executer
+executer opts = putStr . run
+  where verbose = optVerbose opts
+        compiler = optCompiler opts
+        threshold = optThreshold opts
+        run = case compiler of
           Mark1         -> Mark1.runProg
           Mark2         -> Mark2.runProg
           Mark3         -> Mark3.runProg
@@ -86,6 +89,7 @@ data Compiler
 
 data Options = Options
   { optVerbose     :: Bool
+  , optThreshold   :: Int
   , optShowVersion :: Bool
   , optCompiler    :: Compiler
   }
@@ -93,6 +97,7 @@ data Options = Options
 defaultOptions :: Options
 defaultOptions = Options
   { optVerbose     = False
+  , optThreshold   = 100
   , optShowVersion = False
   , optCompiler    = TIMark3
   }
@@ -115,6 +120,8 @@ options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optCompile
             ("compiler name (" ++ intercalate " | " compilerNames ++ ")")
           , Option ['v']      ["verbose"]   (NoArg (\opts -> opts {optVerbose = True}))
             "step output on stderr"
+          , Option ['t']      ["threshold"] (ReqArg (\n opts -> opts {optThreshold = read n}) "Threshold")
+            "threshold for Garbage Collection"
           , Option ['V', '?'] ["version"]   (NoArg (\opts -> opts {optShowVersion = True}))
             "show version"
           ]
@@ -147,13 +154,11 @@ helpMessage =
 
 run :: Options -> FilePath -> IO ()
 run opts fp = do
-  when verbose $ do
+  when (optVerbose opts) $ do
     preprint
   prog <- readFile fp
-  executer compiler verbose prog
+  executer opts prog
   where
-    compiler = optCompiler opts
-    verbose  = optVerbose opts
     preprint :: IO ()
     preprint = do
       hPutStrLn stderr $ "Program Source: " ++ fp
