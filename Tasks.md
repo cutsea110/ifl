@@ -1,5 +1,6 @@
 Tasks
 
+- [ ] gc がまだバグっている(TIM Mark3) (*)
 - [x] gc がバグっている(TIM Mark3)
 - [x] gc のログが verbose off でも出てしまうのを直したい
 - [x] Mark6 の単体テストをもっとしっかり書く
@@ -11,3 +12,11 @@ Tasks
 - [ ] step 実行の結果を見やすくする
 - [x] δ簡約が余計にカウントされてしまうので doAdminPrim は上ではなく個別に必要なところで呼ぶように修正
 - [x] 引数順序を TiState -> TiState になるように変更する
+
+(*)
+以下で不具合再発。つまり tak 12 6 0 で GC が走った時におかしい。
+step 254 で FramePtr #1 が #11 に移動したときに 3 スロットとも空になっている。
+
+```
+cabal run ifl -- -t 10 -c timark3 examples/testProg33.ifl
+```
