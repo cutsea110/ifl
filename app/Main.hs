@@ -34,7 +34,7 @@ import qualified Gmachine.Mark7 as GMark7 (runProg)
 import qualified TIM.Mark1   as TIMark1 (runProg)
 import qualified TIM.Mark1Cp as TIMark1Cp (runProg)
 import qualified TIM.Mark2   as TIMark2 (runProg)
-import qualified TIM.Mark3   as TIMark3 (runProg)
+import qualified TIM.Mark3   as TIMark3 (runProg, Config(..))
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -71,7 +71,7 @@ executer opts = putStr . run
           TIMark1       -> TIMark1.runProg verbose
           TIMark1Cp     -> TIMark1Cp.runProg verbose
           TIMark2       -> TIMark2.runProg verbose
-          TIMark3       -> TIMark3.runProg verbose
+          TIMark3       -> TIMark3.runProg $ TIMark3.Config verbose threshold
           (Noco name)   -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
