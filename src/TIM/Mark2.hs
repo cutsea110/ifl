@@ -328,8 +328,10 @@ compileB e env cont
         Compiled slots' cont' = cont
 compileB (ENum n) env cont = Compiled slots' (PushV (IntVConst n) : cont')
   where Compiled slots' cont' = cont
-compileB e env cont        = Compiled slots' (Push (Code cont) : cont')
+compileB e env cont        = Compiled (merge slots slots') (Push (Code cont) : cont')
   where Compiled slots' cont' = compileR e env
+        Compiled slots _ = cont
+        merge a b = nub . sort $ a ++ b
 
 isBasicOp :: CoreExpr -> Bool
 isBasicOp e = isBinOp e || isUniOp e
