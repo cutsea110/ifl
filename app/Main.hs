@@ -80,7 +80,11 @@ data Compiler
   | Mark5 | Mark5Alt | Mark5GC | Mark5RevGC | Mark5Cp
   | GMark1 | GMark2 | GMark3 | GMark4 | GMark5 | GMark6 | GMark7
   | TIMark1 | TIMark1Cp | TIMark2 | TIMark3
-  deriving Show
+  deriving (Show, Eq)
+
+validCompiler :: Compiler -> Bool
+validCompiler (Noco _) = False
+validCompiler _        = True
 
 data Options = Options
   { optVerbose     :: Bool
@@ -153,6 +157,7 @@ helpMessage =
 
 run :: Options -> FilePath -> IO ()
 run opts fp = do
+  warnMessage opts
   when (optVerbose opts) $ do
     preprint
   prog <- readFile fp
@@ -167,6 +172,30 @@ run opts fp = do
       hPutStrLn stderr $ "Convert to List Based: " ++ show (optConvertList opts)
       hPutStrLn stderr $
         "The compilers that can be specified are as follows: " ++ intercalate "," compilerNames ++ "."
+
+checkOption :: Options -> [String]
+checkOption opts = compilerSupported ++ convToListSupported ++ gcThresholdSupported
+  where
+    compiler = optCompiler opts
+    compilerSupported
+      | validCompiler compiler = []
+      | otherwise = ["The compiler is not supported."]
+    convToListSupported
+      | not (optConvertList opts) ||
+        compiler `elem` [Mark5, Mark5Alt, Mark5GC, Mark5RevGC, Mark5Cp] = []
+      | otherwise = ["The compiler does not support the option of converting to list based program."]
+    gcThresholdSupported
+      | optThreshold opts == optThreshold defaultOptions ||
+        compiler `elem` [Mark5GC, Mark5RevGC, Mark5Cp, TIMark1Cp, TIMark2, TIMark3] = []
+      | otherwise = ["The compiler does not support the option of GC threshold."]
+
+warnMessage :: Options -> IO ()
+warnMessage opts = do
+  unless (null msgs) $ do
+    mapM_ (hPutStrLn stderr . ("[WARN] " ++)) $ checkOption opts
+    hPutStrLn stderr "------"
+  where msgs = checkOption opts
+
 
 main :: IO ()
 main = do
