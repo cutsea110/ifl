@@ -5,6 +5,7 @@ module Gmachine.Mark6
   , eval
   , showResults
   , runProg
+  , Config(..)
   ) where
 
 import Heap
@@ -16,10 +17,13 @@ import Utils
 import Data.Char (chr, ord)
 import Data.List (mapAccumL, (\\))
 
-runProg :: Bool -> String -> String
-runProg verbose = showR . eval . compile . parse
-  where showR | verbose   = showResults
-              | otherwise = showSimpleResult
+data Config = Config { verbose   :: Bool
+                     }
+
+runProg :: Config -> String -> String
+runProg conf = showR . eval . compile . parse
+  where showR | verbose conf = showResults
+              | otherwise    = showSimpleResult
 
 data GmState = GmState { output  :: GmOutput
                        , code    :: GmCode

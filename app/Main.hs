@@ -28,7 +28,7 @@ import qualified Gmachine.Mark2 as GMark2 (runProg)
 import qualified Gmachine.Mark3 as GMark3 (runProg)
 import qualified Gmachine.Mark4 as GMark4 (runProg)
 import qualified Gmachine.Mark5 as GMark5 (runProg)
-import qualified Gmachine.Mark6 as GMark6 (runProg)
+import qualified Gmachine.Mark6 as GMark6 (runProg, Config(..))
 import qualified Gmachine.Mark7 as GMark7 (runProg, Config(..))
 
 import qualified TIM.Mark1   as TIMark1 (runProg, Config(..))
@@ -66,7 +66,7 @@ executer opts = putStr . run
           GMark3        -> GMark3.runProg
           GMark4        -> GMark4.runProg
           GMark5        -> GMark5.runProg
-          GMark6        -> GMark6.runProg verbose
+          GMark6        -> GMark6.runProg $ GMark6.Config verbose
           GMark7        -> GMark7.runProg $ GMark7.Config verbose
           TIMark1       -> TIMark1.runProg $ TIMark1.Config verbose
           TIMark1Cp     -> TIMark1Cp.runProg $ TIMark1Cp.Config verbose threshold
