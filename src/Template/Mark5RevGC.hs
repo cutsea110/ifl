@@ -5,7 +5,6 @@ module Template.Mark5RevGC
   , cnv
   , showResults
   , runProg
-  , runProgWithConv
   , Config(..)
   ) where
 
@@ -18,15 +17,14 @@ import Heap
 import Stack
 import Utils
 
-data Config = Config { verbose   :: Bool
-                     , gcThreshold :: Int
+data Config = Config { verbose           :: Bool
+                     , gcThreshold       :: Int
+                     , convertToListBased :: Bool
                      }
 
 runProg :: Config -> String -> String
-runProg conf = showResults . eval conf . compile . parse
-
-runProgWithConv :: Config -> String -> String
-runProgWithConv conf = showResults . eval conf . cnv . compile . parse
+runProg conf | convertToListBased conf = showResults . eval conf . cnv . compile . parse
+             | otherwise = showResults . eval conf . compile . parse
 
 type Primitive = TiState -> TiState
 
