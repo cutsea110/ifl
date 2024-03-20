@@ -5,6 +5,7 @@ module TIM.Mark2
   , eval
   , showResults
   , runProg
+  , Config(..)
   ) where
 
 import Control.Arrow ((&&&), second)
@@ -16,14 +17,14 @@ import Iseq
 import Language
 import Utils
 
--- for GC
-threshold :: Int
-threshold = 100
+data Config = Config { verbose   :: Bool
+                     , gcThreshold :: Int
+                     }
 
-runProg :: Bool -> String -> String
-runProg verbose = showR . eval . compile . parse
-  where showR | verbose   = showResults
-              | otherwise = showSimpleResult
+runProg :: Config -> String -> String
+runProg conf = showR . eval conf . compile . parse
+  where showR | verbose conf = showResults
+              | otherwise    = showSimpleResult
 
 data Instruction = Take Int
                  | Enter TimAMode
@@ -370,43 +371,45 @@ compileA (EVar v) env = aLookup env v $ error $ "Unknown variable " ++ v
 compileA (ENum n) env = IntConst n
 compileA e        env = Code $ compileR e env
 
-eval :: TimState -> [TimState]
-eval state = state : rest_states
+eval :: Config -> TimState -> [TimState]
+eval conf state = state : rest_states
   where rest_states | timFinal state = []
-                    | otherwise      = eval next_state
-        next_state = doAdmin $ step state
+                    | otherwise      = eval conf next_state
+        next_state = doAdmin conf $ step state
 
-doAdmin :: TimState -> TimState
-doAdmin state
+doAdmin :: Config -> TimState -> TimState
+doAdmin conf state
   | needGC    = applyToStats (statIncGCCount (stepAt, orgSize, newSize)) gcedState
   | otherwise = state'
   where
     state' = applyToStats statIncSteps state
-    needGC = orgSize >= threshold
-    gcedState = gc state'
+    needGC = orgSize >= gcThreshold conf
+    gcedState = gc conf state'
     orgSize = hSize $ getHeap state'
     newSize = hSize $ getHeap gcedState
     stepAt = statGetSteps $ getStats state'
 
-gc :: TimState -> TimState
-gc state@TimState { instructions = instrs
-                  , frame        = fptr
-                  , stack        = stk
-                  , dump         = dmp
-                  , heap         = from
-                  , codes        = cstore
-                  }
+gc :: Config -> TimState -> TimState
+gc conf state@TimState { instructions = instrs
+                       , frame        = fptr
+                       , stack        = stk
+                       , dump         = dmp
+                       , heap         = from
+                       , codes        = cstore
+                       }
   = case evacuateStack cstore from hInitial stk of
   ((from1, to1), stk1) -> case evacuateDump cstore from1 to1 dmp of
     ((from2, to2), dmp1) -> case evacuateFramePtr True cstore from2 to2  (instrs, fptr) of
       ((from3, to3),  fptr1) -> case scavenge from3 to3 of
-        to4 -> trace (gcPrint instrs fptr from from1 to1 from2 to2 from3 to3 to4 fptr1) $
+        to4 -> trace' (gcPrint instrs fptr from from1 to1 from2 to2 from3 to3 to4 fptr1) $
           state { frame = fptr1
                 , stack = stk1
                 , dump = dmp1
                 , heap = to4
                 }
   where
+    trace' | verbose conf = trace
+           | otherwise    = flip const
     gcPrint is fp f0 f1 t1 f2 t2 f3 t3 t4 fp'
       = iDisplay $ iConcat
       [ iNewline
