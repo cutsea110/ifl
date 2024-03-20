@@ -17,8 +17,8 @@ import qualified Template.Mark1 as Mark1 (runProg)
 import qualified Template.Mark2 as Mark2 (runProg)
 import qualified Template.Mark3 as Mark3 (runProg)
 import qualified Template.Mark4 as Mark4 (runProg)
-import qualified Template.Mark5 as Mark5 (runProg, runProgWithConv)
-import qualified Template.Mark5Alt   as Mark5Alt (runProg, runProgWithConv)
+import qualified Template.Mark5 as Mark5 (runProg, Config(..))
+import qualified Template.Mark5Alt   as Mark5Alt (runProg, Config(..))
 import qualified Template.Mark5GC    as Mark5GC (runProg, Config(..))
 import qualified Template.Mark5RevGC as Mark5RevGC (runProg, Config(..))
 import qualified Template.Mark5Cp    as Mark5Cp (runProg, Config(..))
@@ -52,12 +52,10 @@ executer opts = putStr . run
           Mark2         -> Mark2.runProg
           Mark3         -> Mark3.runProg
           Mark4         -> Mark4.runProg
-          Mark5         -> Mark5.runProg
-          Mark5cnv      -> Mark5.runProgWithConv
-          Mark5Alt      -> Mark5Alt.runProg
-          Mark5Altcnv   -> Mark5Alt.runProgWithConv
-          Mark5GC       -> Mark5GC.runProg $ Mark5GC.Config verbose threshold convertList
-          Mark5RevGC    -> Mark5RevGC.runProg $ Mark5RevGC.Config verbose threshold convertList
+          Mark5         -> Mark5.runProg $ Mark5.Config convertList
+          Mark5Alt      -> Mark5Alt.runProg $ Mark5Alt.Config convertList
+          Mark5GC       -> Mark5GC.runProg $ Mark5GC.Config threshold convertList
+          Mark5RevGC    -> Mark5RevGC.runProg $ Mark5RevGC.Config threshold convertList
           Mark5Cp       -> Mark5Cp.runProg $ Mark5Cp.Config verbose threshold convertList
           GMark1        -> GMark1.runProg
           GMark2        -> GMark2.runProg
@@ -79,7 +77,7 @@ executer opts = putStr . run
 data Compiler
   = Noco String
   | Mark1 | Mark2 | Mark3 | Mark4
-  | Mark5 | Mark5cnv | Mark5Alt | Mark5Altcnv | Mark5GC | Mark5RevGC | Mark5Cp
+  | Mark5 | Mark5Alt | Mark5GC | Mark5RevGC | Mark5Cp
   | GMark1 | GMark2 | GMark3 | GMark4 | GMark5 | GMark6 | GMark7
   | TIMark1 | TIMark1Cp | TIMark2 | TIMark3
   deriving Show
@@ -105,7 +103,7 @@ name2Compiler :: [(String, Compiler)]
 name2Compiler
   = map (\c -> (map toLower (show c), c))
     [ Mark1, Mark2, Mark3, Mark4
-    , Mark5, Mark5cnv, Mark5Alt, Mark5Altcnv, Mark5GC, Mark5RevGC, Mark5Cp
+    , Mark5, Mark5Alt, Mark5GC, Mark5RevGC, Mark5Cp
     , GMark1, GMark2, GMark3, GMark4, GMark5, GMark6, GMark7
     , TIMark1, TIMark1Cp, TIMark2, TIMark3
     ]

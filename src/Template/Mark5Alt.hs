@@ -5,7 +5,7 @@ module Template.Mark5Alt
   , cnv
   , showResults
   , runProg
-  , runProgWithConv
+  , Config(..)
   ) where
 
 import Data.List (mapAccumL)
@@ -16,12 +16,12 @@ import Heap
 import Stack
 import Utils
 
+data Config = Config { convertToListBased :: Bool
+                     }
 
-runProg :: String -> String
-runProg = showResults . eval . compile . parse
-
-runProgWithConv :: String -> String
-runProgWithConv = showResults . eval . cnv . compile . parse
+runProg :: Config -> String -> String
+runProg conf | convertToListBased conf = showResults . eval . cnv . compile . parse
+             | otherwise = showResults . eval . compile . parse
 
 type Primitive = TiState -> TiState
 

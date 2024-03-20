@@ -581,7 +581,7 @@ gc conf state = case evacuateStack (tiHeap state) hInitial (tiStack state) of
                      }
   where
     trace' | verbose conf = trace
-            | otherwise   = flip const
+           | otherwise   = flip const
     gcPrint h0 f1 t1 f3 t3 t4
       = iDisplay $ iConcat
       [ iStr "vvvvvvvvvvvvvvvvvvvvvv"
