@@ -5,6 +5,7 @@ module TIM.Mark1
   , eval
   , showResults
   , runProg
+  , Config(..)
   ) where
 
 import Heap
@@ -12,10 +13,14 @@ import Iseq
 import Language
 import Utils
 
-runProg :: Bool -> String -> String
-runProg verbose = showR . eval . compile . parse
-  where showR | verbose   = showResults
-              | otherwise = showSimpleResult
+data Config = Config { verbose   :: Bool
+                     }
+
+
+runProg :: Config -> String -> String
+runProg conf = showR . eval . compile . parse
+  where showR | verbose conf = showResults
+              | otherwise    = showSimpleResult
 
 data Instruction = Take Int
                  | Enter TimAMode
