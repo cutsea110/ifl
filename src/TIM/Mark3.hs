@@ -9,7 +9,7 @@ module TIM.Mark3
   ) where
 
 import Control.Arrow (second)
-import Data.List (mapAccumL, nub, sort)
+import Data.List (foldl', mapAccumL, nub, sort)
 import Debug.Trace (trace)
 
 import Heap
@@ -612,11 +612,13 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
             (hs, _) -> (hs, (is, fp)) -- NOTE: ここで fp' としない (scavenge がやる)
         | otherwise         = ((f, t), ([], FrameNull))
       liveArgs :: [Int]
-      liveArgs = nub $ foldl g [] instrs
+      liveArgs = nub $ foldl' g [] instrs
         where
-          g ns (Push am)  = h ns am
-          g ns (Enter am) = h ns am
-          g ns _          = ns
+          g ns (Move _ am) = h ns am
+          g ns (Push am)   = h ns am
+          g ns (Enter am)  = h ns am
+          g ns (Cond t f)  = nub $ foldl' g ns (t ++ f)
+          g ns _           = ns
 
           h ns (Arg n)   = n:ns
           h ns (Code cs) = slotsOf cs ++ ns
@@ -661,7 +663,7 @@ evacuateDump cstore from to dump = ((from, to), dump)
 (2,2,[(2,Frame [([Push (Arg 1)],FrameNull)]),(1,Frame [([Push (Arg 2)],FrameAddr 2)])])
 -}
 scavenge :: TimHeap -> TimHeap -> TimHeap
-scavenge from to@(_, _, _, hp) = foldl phi to hp
+scavenge from to@(_, _, _, hp) = foldl' phi to hp
   where
     phi :: TimHeap -> (Addr, Frame) -> TimHeap
     phi t (a', f) = case f of
