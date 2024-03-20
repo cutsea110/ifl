@@ -296,8 +296,7 @@ compileSc env (name, args, body)
   | otherwise = (name, Compiled ns (Take d' n : il))
   where
     n = length args
-    (d', cs) = compileR body new_env n
-    Compiled ns il = cs
+    (d', cs@(Compiled ns il)) = compileR body new_env n
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIndex -> (OccupiedSlotIndex, CompiledCode)

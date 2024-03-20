@@ -293,8 +293,7 @@ compileSc env (name, args, body)
   | null args = (name, cs)
   | otherwise = (name, Compiled ns (Take (length args) : il))
   where
-    cs = compileR body new_env
-    Compiled ns il = cs
+    cs@(Compiled ns il) = compileR body new_env
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> CompiledCode
