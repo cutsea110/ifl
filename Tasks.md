@@ -1,6 +1,6 @@
 Tasks
 
-- [ ] gc のログが verbose off でも出てしまうのを直したい
+- [x] gc のログが verbose off でも出てしまうのを直したい
 - [x] Mark6 の単体テストをもっとしっかり書く
 - [x] examples/testProg28 しか動かなくなったので何とかする(テストが一気に無くなったのでテスト追加でも良い)
 - [x] TiState を record にする
