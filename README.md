@@ -43,8 +43,14 @@ $ docker run -v ./:/work -it --rm cutsea110/ifl:0.3.0 ifl -c gmark7 /work/test.i
 How to confirm compiled code of any program for debug on Gmachine.Mark7.
 
 ```
+ghci> let p = "s f g x = f x (g x)"
+ghci> compileSc [] . head . parse $ p
+```
+When you take recursive function, you have to give an environment like below:
+
+```
 ghci> let p = "fib n = if (n<2) 1 (fib (n-1) + fib (n-2))"
-ghci> compileSc . head . parse $ p
+ghci> compileSc [("fib", Label "fib")] . head . parse $ p
 ```
 
 
