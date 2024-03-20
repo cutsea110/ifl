@@ -19,7 +19,7 @@ import qualified Template.Mark3 as Mark3 (runProg)
 import qualified Template.Mark4 as Mark4 (runProg)
 import qualified Template.Mark5 as Mark5 (runProg, runProgWithConv)
 import qualified Template.Mark5Alt   as Mark5Alt (runProg, runProgWithConv)
-import qualified Template.Mark5GC    as Mark5GC (runProg, runProgWithConv)
+import qualified Template.Mark5GC    as Mark5GC (runProg, runProgWithConv, Config(..))
 import qualified Template.Mark5RevGC as Mark5RevGC (runProg, runProgWithConv, Config(..))
 import qualified Template.Mark5Cp    as Mark5Cp (runProg, runProgWithConv, Config(..))
 
@@ -55,8 +55,8 @@ executer opts = putStr . run
           Mark5cnv      -> Mark5.runProgWithConv
           Mark5Alt      -> Mark5Alt.runProg
           Mark5Altcnv   -> Mark5Alt.runProgWithConv
-          Mark5GC       -> Mark5GC.runProg
-          Mark5GCcnv    -> Mark5GC.runProgWithConv
+          Mark5GC       -> Mark5GC.runProg $ Mark5GC.Config verbose threshold
+          Mark5GCcnv    -> Mark5GC.runProgWithConv $ Mark5GC.Config verbose threshold
           Mark5RevGC    -> Mark5RevGC.runProg $ Mark5RevGC.Config verbose threshold
           Mark5RevGCcnv -> Mark5RevGC.runProgWithConv $ Mark5RevGC.Config verbose threshold
           Mark5Cp       -> Mark5Cp.runProg $ Mark5Cp.Config verbose threshold
