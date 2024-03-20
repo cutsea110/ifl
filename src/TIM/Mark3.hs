@@ -330,19 +330,15 @@ compileR e env d = case e of
         merge a b = nub . sort $ a ++ b
 
 compileB :: CoreExpr -> TimCompilerEnv -> (OccupiedSlotIndex, CompiledCode) -> (OccupiedSlotIndex, CompiledCode)
-compileB e env (d, cont)
-  | isBinOp e = compileB e2 env $ compileB e1 env (d, Compiled slots' (Op op : cont'))
+compileB e env (d, Compiled slots cont)
+  | isBinOp e = compileB e2 env $ compileB e1 env (d, Compiled slots (Op op : cont))
   where (e1, op, e2) = unpackBinOp e
-        Compiled slots' cont' = cont
-compileB e env (d, cont)
-  | isUniOp e = compileB e1 env (d, Compiled slots' (Op op : cont'))
+compileB e env (d, Compiled slots cont)
+  | isUniOp e = compileB e1 env (d, Compiled slots (Op op : cont))
   where (op, e1) = unpackUniOp e
-        Compiled slots' cont' = cont
-compileB (ENum n) env (d, cont) = (d, Compiled slots' (PushV (IntVConst n) : cont'))
-  where Compiled slots' cont' = cont
-compileB e env (d, cont)      = (d', Compiled (merge slots slots') (Push (Code cont) : cont'))
+compileB (ENum n) env (d, Compiled slots cont) = (d, Compiled slots (PushV (IntVConst n) : cont))
+compileB e env (d, cont@(Compiled slots _)) = (d', Compiled (merge slots slots') (Push (Code cont) : cont'))
   where (d', Compiled slots' cont') = compileR e env d
-        Compiled slots _ = cont
         merge a b = nub . sort $ a ++ b
 
 isBasicOp :: CoreExpr -> Bool
