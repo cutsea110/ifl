@@ -290,6 +290,31 @@ compiledPrimitives = map (second trans) primitives
         
 type TimCompilerEnv = [(Name, TimAMode)]
 
+{- |
+>>> compileSc [] . head . parse $ "x = 42"
+("x",Compiled {slotsOf = [], instrsOf = [PushV (IntVConst 42),Return]})
+
+>>> compileSc [] . head . parse $ "f x = x + 1"
+("f",Compiled {slotsOf = [1], instrsOf = [Take 1 1,PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 1)]})
+
+>>> compileSc [] . head . parse $ "S f g x = f x (g x)"
+("S",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 3,Push (Code (Compiled {slotsOf = [2,3], instrsOf = [Push (Arg 3),Enter (Arg 2)]})),Push (Arg 3),Enter (Arg 1)]})
+
+>>> compileSc [] . head . parse $ "max x y = if (x > y) x y"
+("max",Compiled {slotsOf = [1,2], instrsOf = [Take 2 2,Push (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Code (Compiled {slotsOf = [1,2], instrsOf = [Op Gt,Cond [Enter (Arg 1)] [Enter (Arg 2)]]})),Enter (Arg 1)]})),Enter (Arg 2)]})
+
+>>> compileSc [("fib",Label "fib")] . head . parse $ "fib n = if (n<2) 1 (n * fib (n-1))"
+("fib",Compiled {slotsOf = [1], instrsOf = [Take 1 1,PushV (IntVConst 2),Push (Code (Compiled {slotsOf = [1], instrsOf = [Op Lt,Cond [PushV (IntVConst 1),Return] [Push (Code (Compiled {slotsOf = [1], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Mul,Return]})),Enter (Arg 1)]})),Push (Code (Compiled {slotsOf = [1], instrsOf = [PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Sub,Return]})),Enter (Arg 1)]})),Enter (Label "fib")]]})),Enter (Arg 1)]})
+
+>>> compileSc [("tak",Label "tak")] . head . parse $ "tak x y z = if (x<=y) y (tak (tak (x-1) y z) (tak (y-1) z x) (tak (z-1) x y))"
+("tak",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 3,Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Op Le,Cond [Enter (Arg 2)] [Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Arg 2),Push (Arg 1),Push (Code (Compiled {slotsOf = [3], instrsOf = [PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Sub,Return]})),Enter (Arg 3)]})),Enter (Label "tak")]})),Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Arg 1),Push (Arg 3),Push (Code (Compiled {slotsOf = [2], instrsOf = [PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Sub,Return]})),Enter (Arg 2)]})),Enter (Label "tak")]})),Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Arg 3),Push (Arg 2),Push (Code (Compiled {slotsOf = [1], instrsOf = [PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Sub,Return]})),Enter (Arg 1)]})),Enter (Label "tak")]})),Enter (Label "tak")]]})),Enter (Arg 1)]})),Enter (Arg 2)]})
+
+>>> compileSc [] . head . parse $ "f x = let y=x*2 in let z=x+y in z"
+("f",Compiled {slotsOf = [3], instrsOf = [Take 3 1,Move 2 (Code (Compiled {slotsOf = [1], instrsOf = [PushV (IntVConst 2),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Mul,Return]})),Enter (Arg 1)]})),Move 3 (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Code (Compiled {slotsOf = [1], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 1)]})),Enter (Arg 2)]})),Enter (Arg 3)]})
+
+>>> compileSc [("gcd",Label "gcd"),("mod",Label "mod")] . (!!0) . parse $ "gcd a b = let d = mod a b in if (d==0) b (gcd b d)"
+("gcd",Compiled {slotsOf = [2,3], instrsOf = [Take 3 2,Move 3 (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Arg 2),Push (Arg 1),Enter (Label "mod")]})),PushV (IntVConst 0),Push (Code (Compiled {slotsOf = [2,3], instrsOf = [Op Eq,Cond [Enter (Arg 2)] [Push (Arg 3),Push (Arg 2),Enter (Label "gcd")]]})),Enter (Arg 3)]})
+-}
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
 compileSc env (name, args, body)
   | null args = (name, cs)
