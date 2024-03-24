@@ -1,0 +1,5 @@
+f x = let y = x * 3 in
+      let z = x + y in
+      x + y + z;
+
+main = f 7
