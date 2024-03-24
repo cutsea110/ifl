@@ -732,7 +732,8 @@ step state@TimState { instructions = instrs
                        . putHeap hp'
                        $ state)
     where
-      hp' = fUpdate hp fptr n (amToClosure am fptr hp cstore) -- FIXME: Code 以外も処理されてしまう
+      -- NOTE: Code 以外も処理されてしまうがコンパイラがバグってなければ問題ないはず
+      hp' = fUpdate hp fptr n (amToClosure am fptr hp cstore)
   [Enter am]
     -> applyToStats statIncExecTime
        (putInstructions instr'
