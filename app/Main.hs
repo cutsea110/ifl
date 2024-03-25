@@ -75,7 +75,7 @@ executer opts = putStr . run
 ---------------------------------------------------------------
 
 data Compiler
-  = Noco String
+  = Noco !String
   | Mark1 | Mark2 | Mark3 | Mark4
   | Mark5 | Mark5Alt | Mark5GC | Mark5RevGC | Mark5Cp
   | GMark1 | GMark2 | GMark3 | GMark4 | GMark5 | GMark6 | GMark7
@@ -87,11 +87,11 @@ validCompiler (Noco _) = False
 validCompiler _        = True
 
 data Options = Options
-  { optVerbose     :: Bool
-  , optThreshold   :: Int
-  , optShowVersion :: Bool
-  , optCompiler    :: Compiler
-  , optConvertList :: Bool
+  { optVerbose     :: !Bool
+  , optThreshold   :: !Int
+  , optShowVersion :: !Bool
+  , optCompiler    :: !Compiler
+  , optConvertList :: !Bool
   }
 
 defaultOptions :: Options
@@ -208,4 +208,4 @@ main = do
   case rest of
     []    -> hPutStr stderr helpMessage
     [src] -> run opts src
-    _     -> error "Too many arguments"
+    (_:_) -> error "Too many arguments"
