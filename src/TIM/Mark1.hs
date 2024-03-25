@@ -13,8 +13,8 @@ import Iseq
 import Language
 import Utils
 
-data Config = Config { verbose :: Bool
-                     }
+newtype Config = Config { verbose :: Bool
+                        }
 
 
 runProg :: Config -> String -> String

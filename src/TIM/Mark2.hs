@@ -17,8 +17,8 @@ import Iseq
 import Language
 import Utils
 
-data Config = Config { verbose     :: Bool
-                     , gcThreshold :: Int
+data Config = Config { verbose     :: !Bool
+                     , gcThreshold :: !Int
                      }
 
 runProg :: Config -> String -> String

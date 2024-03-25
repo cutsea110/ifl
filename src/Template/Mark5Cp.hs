@@ -18,9 +18,9 @@ import Heap
 import Stack
 import Utils
 
-data Config = Config { verbose            :: Bool
-                     , gcThreshold        :: Int
-                     , convertToListBased :: Bool
+data Config = Config { verbose            :: !Bool
+                     , gcThreshold        :: !Int
+                     , convertToListBased :: !Bool
                      }
 
 runProg :: Config -> String -> String

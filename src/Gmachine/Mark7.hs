@@ -17,8 +17,8 @@ import Utils
 import Data.Char (chr, ord)
 import Data.List (mapAccumL, (\\))
 
-data Config = Config { verbose :: Bool
-                     }
+newtype Config = Config { verbose :: Bool
+                        }
 
 runProg :: Config -> String -> String
 runProg conf = showR . eval . compile . parse

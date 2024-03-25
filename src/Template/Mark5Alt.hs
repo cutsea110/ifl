@@ -16,8 +16,8 @@ import Heap
 import Stack
 import Utils
 
-data Config = Config { convertToListBased :: Bool
-                     }
+newtype Config = Config { convertToListBased :: Bool
+                        }
 
 runProg :: Config -> String -> String
 runProg conf | convertToListBased conf = showResults . eval . cnv . compile . parse
