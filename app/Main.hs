@@ -13,15 +13,15 @@ import System.IO (getContents, hPutStr, hPutStrLn
                  , hSetBuffering, BufferMode(NoBuffering)
                  )
 
-import qualified Template.Mark1 as Mark1 (runProg)
-import qualified Template.Mark2 as Mark2 (runProg)
-import qualified Template.Mark3 as Mark3 (runProg)
-import qualified Template.Mark4 as Mark4 (runProg)
-import qualified Template.Mark5 as Mark5 (runProg, Config(..))
-import qualified Template.Mark5Alt   as Mark5Alt (runProg, Config(..))
-import qualified Template.Mark5GC    as Mark5GC (runProg, Config(..))
+import qualified Template.Mark1      as Mark1 (runProg)
+import qualified Template.Mark2      as Mark2 (runProg)
+import qualified Template.Mark3      as Mark3 (runProg)
+import qualified Template.Mark4      as Mark4 (runProg)
+import qualified Template.Mark5      as Mark5      (runProg, Config(..))
+import qualified Template.Mark5Alt   as Mark5Alt   (runProg, Config(..))
+import qualified Template.Mark5GC    as Mark5GC    (runProg, Config(..))
 import qualified Template.Mark5RevGC as Mark5RevGC (runProg, Config(..))
-import qualified Template.Mark5Cp    as Mark5Cp (runProg, Config(..))
+import qualified Template.Mark5Cp    as Mark5Cp    (runProg, Config(..))
 
 import qualified Gmachine.Mark1 as GMark1 (runProg)
 import qualified Gmachine.Mark2 as GMark2 (runProg)
@@ -31,10 +31,10 @@ import qualified Gmachine.Mark5 as GMark5 (runProg)
 import qualified Gmachine.Mark6 as GMark6 (runProg, Config(..))
 import qualified Gmachine.Mark7 as GMark7 (runProg, Config(..))
 
-import qualified TIM.Mark1   as TIMark1 (runProg, Config(..))
+import qualified TIM.Mark1   as TIMark1   (runProg, Config(..))
 import qualified TIM.Mark1Cp as TIMark1Cp (runProg, Config(..))
-import qualified TIM.Mark2   as TIMark2 (runProg, Config(..))
-import qualified TIM.Mark3   as TIMark3 (runProg, Config(..))
+import qualified TIM.Mark2   as TIMark2   (runProg, Config(..))
+import qualified TIM.Mark3   as TIMark3   (runProg, Config(..))
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -52,22 +52,22 @@ executer opts = putStr . run
           Mark2         -> Mark2.runProg
           Mark3         -> Mark3.runProg
           Mark4         -> Mark4.runProg
-          Mark5         -> Mark5.runProg $ Mark5.Config convertList
-          Mark5Alt      -> Mark5Alt.runProg $ Mark5Alt.Config convertList
-          Mark5GC       -> Mark5GC.runProg $ Mark5GC.Config threshold convertList
+          Mark5         -> Mark5.runProg      $ Mark5.Config convertList
+          Mark5Alt      -> Mark5Alt.runProg   $ Mark5Alt.Config convertList
+          Mark5GC       -> Mark5GC.runProg    $ Mark5GC.Config threshold convertList
           Mark5RevGC    -> Mark5RevGC.runProg $ Mark5RevGC.Config threshold convertList
-          Mark5Cp       -> Mark5Cp.runProg $ Mark5Cp.Config verbose threshold convertList
+          Mark5Cp       -> Mark5Cp.runProg    $ Mark5Cp.Config verbose threshold convertList
           GMark1        -> GMark1.runProg
           GMark2        -> GMark2.runProg
           GMark3        -> GMark3.runProg
           GMark4        -> GMark4.runProg
           GMark5        -> GMark5.runProg
-          GMark6        -> GMark6.runProg $ GMark6.Config verbose
-          GMark7        -> GMark7.runProg $ GMark7.Config verbose
-          TIMark1       -> TIMark1.runProg $ TIMark1.Config verbose
+          GMark6        -> GMark6.runProg    $ GMark6.Config verbose
+          GMark7        -> GMark7.runProg    $ GMark7.Config verbose
+          TIMark1       -> TIMark1.runProg   $ TIMark1.Config verbose
           TIMark1Cp     -> TIMark1Cp.runProg $ TIMark1Cp.Config verbose threshold
-          TIMark2       -> TIMark2.runProg $ TIMark2.Config verbose threshold
-          TIMark3       -> TIMark3.runProg $ TIMark3.Config verbose threshold
+          TIMark2       -> TIMark2.runProg   $ TIMark2.Config verbose threshold
+          TIMark3       -> TIMark3.runProg   $ TIMark3.Config verbose threshold
           (Noco name)   -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
