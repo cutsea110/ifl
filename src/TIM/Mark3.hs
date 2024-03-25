@@ -889,18 +889,18 @@ showInstructions Full il
     sep = iStr "," `iAppend` iNewline
 
 showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
-showInstruction d (Take t n)   = iConcat [iStr "Take " ,iNum t, iStr " ", iNum n]
-showInstruction d (Move n a)   = iConcat [iStr "Move ", iNum n, iStr " ", showArg d a]
-showInstruction d (Enter x)    = iStr "Enter " `iAppend` showArg d x
-showInstruction d (Push x)     = iStr "Push " `iAppend` showArg d x
-showInstruction d (PushV x)    = iStr "PushV " `iAppend` showValueAMode x
-showInstruction d Return       = iStr "Return"
-showInstruction d (Op op)      = iStr "Op " `iAppend` iStr (show op)
-showInstruction d (Cond t f)   = iConcat [ iStr "Cond "
-                                         , showInstructions d t
-                                         , iStr " "
-                                         , showInstructions d f
-                                         ]
+showInstruction d (Take t n) = iConcat [iStr "Take " ,iNum t, iStr " ", iNum n]
+showInstruction d (Move n a) = iConcat [iStr "Move ", iNum n, iStr " ", showArg d a]
+showInstruction d (Enter x)  = iStr "Enter " `iAppend` showArg d x
+showInstruction d (Push x)   = iStr "Push " `iAppend` showArg d x
+showInstruction d (PushV x)  = iStr "PushV " `iAppend` showValueAMode x
+showInstruction d Return     = iStr "Return"
+showInstruction d (Op op)    = iStr "Op " `iAppend` iStr (show op)
+showInstruction d (Cond t f) = iConcat [ iStr "Cond "
+                                       , showInstructions d t
+                                       , iStr " "
+                                       , showInstructions d f
+                                       ]
 
 showValueAMode :: ValueAMode -> IseqRep
 showValueAMode FramePtr      = iStr "FramePtr"
