@@ -17,7 +17,7 @@ import Iseq
 import Language
 import Utils
 
-data Config = Config { verbose   :: Bool
+data Config = Config { verbose     :: Bool
                      , gcThreshold :: Int
                      }
 

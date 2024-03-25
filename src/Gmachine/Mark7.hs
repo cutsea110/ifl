@@ -17,7 +17,7 @@ import Utils
 import Data.Char (chr, ord)
 import Data.List (mapAccumL, (\\))
 
-data Config = Config { verbose   :: Bool
+data Config = Config { verbose :: Bool
                      }
 
 runProg :: Config -> String -> String

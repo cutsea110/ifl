@@ -48,27 +48,27 @@ executer opts = putStr . run
         threshold = optThreshold opts
         convertList = optConvertList opts
         run = case compiler of
-          Mark1         -> Mark1.runProg
-          Mark2         -> Mark2.runProg
-          Mark3         -> Mark3.runProg
-          Mark4         -> Mark4.runProg
-          Mark5         -> Mark5.runProg      $ Mark5.Config convertList
-          Mark5Alt      -> Mark5Alt.runProg   $ Mark5Alt.Config convertList
-          Mark5GC       -> Mark5GC.runProg    $ Mark5GC.Config threshold convertList
-          Mark5RevGC    -> Mark5RevGC.runProg $ Mark5RevGC.Config threshold convertList
-          Mark5Cp       -> Mark5Cp.runProg    $ Mark5Cp.Config verbose threshold convertList
-          GMark1        -> GMark1.runProg
-          GMark2        -> GMark2.runProg
-          GMark3        -> GMark3.runProg
-          GMark4        -> GMark4.runProg
-          GMark5        -> GMark5.runProg
-          GMark6        -> GMark6.runProg    $ GMark6.Config verbose
-          GMark7        -> GMark7.runProg    $ GMark7.Config verbose
-          TIMark1       -> TIMark1.runProg   $ TIMark1.Config verbose
-          TIMark1Cp     -> TIMark1Cp.runProg $ TIMark1Cp.Config verbose threshold
-          TIMark2       -> TIMark2.runProg   $ TIMark2.Config verbose threshold
-          TIMark3       -> TIMark3.runProg   $ TIMark3.Config verbose threshold
-          (Noco name)   -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
+          Mark1       -> Mark1.runProg
+          Mark2       -> Mark2.runProg
+          Mark3       -> Mark3.runProg
+          Mark4       -> Mark4.runProg
+          Mark5       -> Mark5.runProg      $ Mark5.Config convertList
+          Mark5Alt    -> Mark5Alt.runProg   $ Mark5Alt.Config convertList
+          Mark5GC     -> Mark5GC.runProg    $ Mark5GC.Config threshold convertList
+          Mark5RevGC  -> Mark5RevGC.runProg $ Mark5RevGC.Config threshold convertList
+          Mark5Cp     -> Mark5Cp.runProg    $ Mark5Cp.Config verbose threshold convertList
+          GMark1      -> GMark1.runProg
+          GMark2      -> GMark2.runProg
+          GMark3      -> GMark3.runProg
+          GMark4      -> GMark4.runProg
+          GMark5      -> GMark5.runProg
+          GMark6      -> GMark6.runProg    $ GMark6.Config verbose
+          GMark7      -> GMark7.runProg    $ GMark7.Config verbose
+          TIMark1     -> TIMark1.runProg   $ TIMark1.Config verbose
+          TIMark1Cp   -> TIMark1Cp.runProg $ TIMark1Cp.Config verbose threshold
+          TIMark2     -> TIMark2.runProg   $ TIMark2.Config verbose threshold
+          TIMark3     -> TIMark3.runProg   $ TIMark3.Config verbose threshold
+          (Noco name) -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
 -- COMMAND LINE OPTIONS
