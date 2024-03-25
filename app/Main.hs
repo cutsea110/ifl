@@ -192,7 +192,7 @@ checkOption opts = compilerSupported ++ convToListSupported ++ gcThresholdSuppor
 warnMessage :: Options -> IO ()
 warnMessage opts = do
   unless (null msgs) $ do
-    mapM_ (hPutStrLn stderr . ("[WARN] " ++)) $ checkOption opts
+    mapM_ (hPutStrLn stderr . ("[WARN] " ++)) msgs
     hPutStrLn stderr "------"
   where msgs = checkOption opts
 
