@@ -314,6 +314,9 @@ type TimCompilerEnv = [(Name, TimAMode)]
 
 >>> compileSc [("gcd",Label "gcd"),("mod",Label "mod")] . (!!0) . parse $ "gcd a b = let d = mod a b in if (d==0) b (gcd b d)"
 ("gcd",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 2,Move 3 (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Arg 2),Push (Arg 1),Enter (Label "mod")]})),PushV (IntVConst 0),Push (Code (Compiled {slotsOf = [2,3], instrsOf = [Op Eq,Cond [Enter (Arg 2)] [Push (Arg 3),Push (Arg 2),Enter (Label "gcd")]]})),Enter (Arg 3)]})
+
+>>> compileSc [] . head . parse $ "f x = letrec a = b; b = x in a"
+("f",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 1,Move 2 (Code (Compiled {slotsOf = [3], instrsOf = [Enter (Arg 3)]})),Move 3 (Arg 1),Enter (Code (Compiled {slotsOf = [2], instrsOf = [Enter (Arg 2)]}))]})
 -}
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
 compileSc env (name, args, body)
