@@ -155,23 +155,12 @@ helpMessage =
           , usageInfo "OPTION" options
           ]
 
-run :: Options -> FilePath -> IO ()
-run opts fp = do
-  warnMessage opts
-  when (optVerbose opts) $ do
-    preprint
-  prog <- readFile fp
-  executer opts prog
-  where
-    preprint :: IO ()
-    preprint = do
-      hPutStrLn stderr $ "       Program Source: " ++ fp
-      hPutStrLn stderr $ "     Choosed Compiler: " ++ show (optCompiler opts)
-      hPutStrLn stderr $ "              Verbose: " ++ show (optVerbose opts)
-      hPutStrLn stderr $ "         GC Threshold: " ++ show (optThreshold opts)
-      hPutStrLn stderr $ "Convert to List Based: " ++ show (optConvertList opts)
-      hPutStrLn stderr $
-        "The compilers that can be specified are as follows: " ++ intercalate "," compilerNames ++ "."
+warnMessage :: Options -> IO ()
+warnMessage opts = do
+  unless (null msgs) $ do
+    mapM_ (hPutStrLn stderr . ("[WARN] " ++)) msgs
+    hPutStrLn stderr "------"
+  where msgs = checkOption opts
 
 checkOption :: Options -> [String]
 checkOption opts = compilerSupported ++ convToListSupported ++ gcThresholdSupported
@@ -189,13 +178,23 @@ checkOption opts = compilerSupported ++ convToListSupported ++ gcThresholdSuppor
         compiler `elem` [Mark5GC, Mark5RevGC, Mark5Cp, TIMark1Cp, TIMark2, TIMark3] = []
       | otherwise = ["The compiler does not support the option of GC threshold."]
 
-warnMessage :: Options -> IO ()
-warnMessage opts = do
-  unless (null msgs) $ do
-    mapM_ (hPutStrLn stderr . ("[WARN] " ++)) msgs
-    hPutStrLn stderr "------"
-  where msgs = checkOption opts
-
+run :: Options -> FilePath -> IO ()
+run opts fp = do
+  warnMessage opts
+  when (optVerbose opts) $ do
+    preprint
+  prog <- readFile fp
+  executer opts prog
+  where
+    preprint :: IO ()
+    preprint = do
+      hPutStrLn stderr $ "       Program Source: " ++ fp
+      hPutStrLn stderr $ "     Choosed Compiler: " ++ show (optCompiler opts)
+      hPutStrLn stderr $ "              Verbose: " ++ show (optVerbose opts)
+      hPutStrLn stderr $ "         GC Threshold: " ++ show (optThreshold opts)
+      hPutStrLn stderr $ "Convert to List Based: " ++ show (optConvertList opts)
+      hPutStrLn stderr $
+        "The compilers that can be specified are as follows: " ++ intercalate "," compilerNames ++ "."
 
 main :: IO ()
 main = do
