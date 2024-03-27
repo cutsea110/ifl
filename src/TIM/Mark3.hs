@@ -310,10 +310,10 @@ type TimCompilerEnv = [(Name, TimAMode)]
 ("tak",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 3,Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Op Le,Cond [Enter (Arg 2)] [Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Arg 2),Push (Arg 1),Push (Code (Compiled {slotsOf = [3], instrsOf = [PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Sub,Return]})),Enter (Arg 3)]})),Enter (Label "tak")]})),Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Arg 1),Push (Arg 3),Push (Code (Compiled {slotsOf = [2], instrsOf = [PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Sub,Return]})),Enter (Arg 2)]})),Enter (Label "tak")]})),Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Arg 3),Push (Arg 2),Push (Code (Compiled {slotsOf = [1], instrsOf = [PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Sub,Return]})),Enter (Arg 1)]})),Enter (Label "tak")]})),Enter (Label "tak")]]})),Enter (Arg 1)]})),Enter (Arg 2)]})
 
 >>> compileSc [] . head . parse $ "f x = let y=x*2 in let z=x+y in z"
-("f",Compiled {slotsOf = [3], instrsOf = [Take 3 1,Move 2 (Code (Compiled {slotsOf = [1], instrsOf = [PushV (IntVConst 2),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Mul,Return]})),Enter (Arg 1)]})),Move 3 (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Code (Compiled {slotsOf = [1], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 1)]})),Enter (Arg 2)]})),Enter (Arg 3)]})
+("f",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 1,Move 2 (Code (Compiled {slotsOf = [1], instrsOf = [PushV (IntVConst 2),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Mul,Return]})),Enter (Arg 1)]})),Move 3 (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Code (Compiled {slotsOf = [1], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 1)]})),Enter (Arg 2)]})),Enter (Arg 3)]})
 
 >>> compileSc [("gcd",Label "gcd"),("mod",Label "mod")] . (!!0) . parse $ "gcd a b = let d = mod a b in if (d==0) b (gcd b d)"
-("gcd",Compiled {slotsOf = [2,3], instrsOf = [Take 3 2,Move 3 (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Arg 2),Push (Arg 1),Enter (Label "mod")]})),PushV (IntVConst 0),Push (Code (Compiled {slotsOf = [2,3], instrsOf = [Op Eq,Cond [Enter (Arg 2)] [Push (Arg 3),Push (Arg 2),Enter (Label "gcd")]]})),Enter (Arg 3)]})
+("gcd",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 2,Move 3 (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Arg 2),Push (Arg 1),Enter (Label "mod")]})),PushV (IntVConst 0),Push (Code (Compiled {slotsOf = [2,3], instrsOf = [Op Eq,Cond [Enter (Arg 2)] [Push (Arg 3),Push (Arg 2),Enter (Label "gcd")]]})),Enter (Arg 3)]})
 -}
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
 compileSc env (name, args, body)
@@ -337,13 +337,23 @@ compileR e env d = case e of
                                  (d2, Compiled ns1 il1) = compileR e1 env d1
                                  ns2 = usedSlots am
                              in (d2, Compiled (merge ns1 ns2) (Push am : il1))
-  ELet isrec defns body -> (d', Compiled ns (moves ++ il))
+  ELet False defns body -> (d', Compiled (merge ns ns') (moves ++ il))
     where
       n = length defns
       (dn, ams) = mapAccumL (\ix (_, e') -> compileA e' env ix) (d+n) defns
       env' = zip (map fst defns) (map Arg [d+1..d+n]) ++ env
       (d', Compiled ns il) = compileR body env' dn
       moves = zipWith Move [d+1..d+n] ams
+      ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
+  ELet True defns body -> (d', Compiled (merge ns ns') (moves ++ il))
+    where
+      n = length defns
+      (dn, ams) = mapAccumL (\ix (_, e') -> compileA e' env' ix) (d+n) defns
+      env' = zip (map fst defns) (map compileI [d+1..d+n]) ++ env
+      compileI i = Code $ Compiled [i] [Enter (Arg i)]
+      (d', Compiled ns il) = compileR body env' dn
+      moves = zipWith Move [d+1..d+n] ams
+      ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
   EVar v  -> (d', Compiled ns [Enter am])
     where (d', am) = compileA (EVar v) env d
           ns = usedSlots am
