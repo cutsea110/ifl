@@ -1,0 +1,5 @@
+f x = letrec a = b;
+             b = x;
+	     c = b + x
+      in c;
+main = f 3

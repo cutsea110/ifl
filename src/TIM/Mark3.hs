@@ -344,7 +344,7 @@ compileR e env d = case e of
       env'' | isrec     = env'
             | otherwise = env
       env' = zip (map fst defns) (map compileI [d+1..d+n]) ++ env
-      compileI | isrec = \i -> Code $ Compiled [i] [Enter (Arg i)]
+      compileI | isrec     = mkIndMode
                | otherwise = Arg
       (d', Compiled ns il) = compileR body env' dn
       moves = zipWith Move [d+1..d+n] ams
@@ -358,6 +358,9 @@ compileR e env d = case e of
         usedSlots (Code cs) = slotsOf cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
         usedSlots _         = []
         merge a b = nub . sort $ a ++ b
+
+mkIndMode :: Int -> TimAMode
+mkIndMode n = Code (Compiled [n] [Enter (Arg n)])
 
 compileB :: CoreExpr -> TimCompilerEnv -> (OccupiedSlotIndex, CompiledCode) -> (OccupiedSlotIndex, CompiledCode)
 compileB e env (d, Compiled slots cont)
