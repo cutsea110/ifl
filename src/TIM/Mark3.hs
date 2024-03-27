@@ -337,20 +337,15 @@ compileR e env d = case e of
                                  (d2, Compiled ns1 il1) = compileR e1 env d1
                                  ns2 = usedSlots am
                              in (d2, Compiled (merge ns1 ns2) (Push am : il1))
-  ELet False defns body -> (d', Compiled (merge ns ns') (moves ++ il))
+  ELet isrec defns body -> (d', Compiled (merge ns ns') (moves ++ il))
     where
       n = length defns
-      (dn, ams) = mapAccumL (\ix (_, e') -> compileA e' env ix) (d+n) defns
-      env' = zip (map fst defns) (map Arg [d+1..d+n]) ++ env
-      (d', Compiled ns il) = compileR body env' dn
-      moves = zipWith Move [d+1..d+n] ams
-      ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
-  ELet True defns body -> (d', Compiled (merge ns ns') (moves ++ il))
-    where
-      n = length defns
-      (dn, ams) = mapAccumL (\ix (_, e') -> compileA e' env' ix) (d+n) defns
+      (dn, ams) = mapAccumL (\ix (_, e') -> compileA e' env'' ix) (d+n) defns
+      env'' | isrec     = env'
+            | otherwise = env
       env' = zip (map fst defns) (map compileI [d+1..d+n]) ++ env
-      compileI i = Code $ Compiled [i] [Enter (Arg i)]
+      compileI | isrec = \i -> Code $ Compiled [i] [Enter (Arg i)]
+               | otherwise = Arg
       (d', Compiled ns il) = compileR body env' dn
       moves = zipWith Move [d+1..d+n] ams
       ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
