@@ -367,8 +367,11 @@ mkIndMode n = Code (Compiled [n] [Enter (Arg n)])
 
 compileB :: CoreExpr -> TimCompilerEnv -> (OccupiedSlotIndex, CompiledCode) -> (OccupiedSlotIndex, CompiledCode)
 compileB e env (d, Compiled slots cont)
-  | isBinOp e = compileB e2 env $ compileB e1 env (d, Compiled slots (Op op : cont))
+  | isBinOp e = (max d1 d2, Compiled (merge slots1 slots2) il2)
   where (e1, op, e2) = unpackBinOp e
+        (d1, am1@(Compiled slots1 _  )) = compileB e1 env (d, Compiled slots (Op op: cont))
+        (d2,      Compiled slots2 il2)  = compileB e2 env (d, am1)
+        merge a b = nub . sort $ a ++ b
 compileB e env (d, Compiled slots cont)
   | isUniOp e = compileB e1 env (d, Compiled slots (Op op : cont))
   where (op, e1) = unpackUniOp e
