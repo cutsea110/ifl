@@ -337,9 +337,9 @@ compileR e env d = case e of
                                  d' = max d1 d2
                              in compileB kCond env (d', Compiled (merge ns1 ns2) [Cond il1 il2])
             | otherwise   -> let (d1, am) = compileA e2 env d
-                                 (d2, Compiled ns1 il1) = compileR e1 env d1
-                                 ns2 = usedSlots am
-                             in (d2, Compiled (merge ns1 ns2) (Push am : il1))
+                                 (d2, Compiled ns2 il2) = compileR e1 env d1
+                                 ns1 = usedSlots am
+                             in (d2, Compiled (merge ns1 ns2) (Push am : il2))
   ELet isrec defns body -> (d', Compiled (merge ns ns') (moves ++ il))
     where
       n = length defns
