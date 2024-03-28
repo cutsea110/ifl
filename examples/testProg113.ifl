@@ -1,0 +1,2 @@
+f x = (let a = 3 * x; b = 5 * x in a+b) + (let c = 7 * x; d = 11 * x in c*d);
+main = f 13
