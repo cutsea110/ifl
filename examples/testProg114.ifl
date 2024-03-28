@@ -1,0 +1,2 @@
+f x = (letrec a = b + x; b = 3 in a*b) + (letrec c = 5; d = x; e = c+d in e+x);
+main = f 2
