@@ -1,0 +1,12 @@
+f x = (let a = 3;
+           b = letrec a = 2;
+	              b = a -- shadowing
+               in x+a+b -- 6
+       in a+b) -- 9
+      +
+      (letrec c = 5;
+              d = let a = 3;
+	              b = x + c -- 7
+		  in a*b -- 21
+       in c+d); -- 26
+main = f 2 -- 35

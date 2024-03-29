@@ -1,0 +1,10 @@
+f x = (let a = 3;
+           b = (letrec a = 2 in x+a) + (let a = 3 in x+a) -- 4+5=9
+       in a+b) -- 3+9=12
+      +
+      (letrec c = 5;
+              d = let a = 3;
+	              b = x + c -- 7
+		  in a*b -- 21
+       in c+d); --26
+main = f 2 -- 38
