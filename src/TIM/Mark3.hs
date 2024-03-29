@@ -356,19 +356,19 @@ compileR e env d = case e of
     where
       n = length defns
       (dn, ams) = mapAccumL (\ix (_, e') -> compileA e' env' ix) (d+n) defns
-      env' | isrec     = let_env
-           | otherwise = env
-      let_env = zip (map fst defns) (map compileI [d+1..d+n]) ++ env
+      env'     | isrec     = let_env
+               | otherwise = env
       compileI | isrec     = mkIndMode
                | otherwise = Arg
+      let_env = zip (map fst defns) (map compileI [d+1..d+n]) ++ env
       (d', Compiled ns il) = compileR body let_env dn
       moves = zipWith Move [d+1..d+n] ams
       ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
-  EVar v  -> (d', Compiled ns [Enter am])
+  EVar v -> (d', Compiled ns [Enter am])
     where (d', am) = compileA (EVar v) env d
           ns = usedSlots am
-  ENum n  -> (d, Compiled [] [PushV (IntVConst n), Return])
-  _       -> error $ "compileR: can't do this yet: " ++ show e
+  ENum n -> (d, Compiled [] [PushV (IntVConst n), Return])
+  _      -> error $ "compileR: can't do this yet: " ++ show e
   where usedSlots (Arg i)   = [i]
         usedSlots (Code cs) = slotsOf cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
         usedSlots _         = []
@@ -381,8 +381,8 @@ compileB :: CoreExpr -> TimCompilerEnv -> (OccupiedSlotIndex, CompiledCode) -> (
 compileB e env (d, Compiled slots cont)
   | isBinOp e = (max d1 d2, Compiled (merge slots1 slots2) il2)
   where (e1, op, e2) = unpackBinOp e
-        (d1, am1@(Compiled slots1 _  )) = compileB e1 env (d, Compiled slots (Op op: cont))
-        (d2,      Compiled slots2 il2)  = compileB e2 env (d, am1)
+        (d1, am1@(Compiled slots1 _))  = compileB e1 env (d, Compiled slots (Op op: cont))
+        (d2,      Compiled slots2 il2) = compileB e2 env (d, am1)
         merge a b = nub . sort $ a ++ b
 compileB e env (d, Compiled slots cont)
   | isUniOp e = compileB e1 env (d, Compiled slots (Op op : cont))
@@ -403,11 +403,11 @@ isBinOp _                         = False
 isUniOp :: CoreExpr -> Bool
 isUniOp (EAp (EVar op) _) = op `elem` uniOps
   where uniOps = map fst $ filter (isUni . snd) primitives
-isUniOp _               = False
+isUniOp _                 = False
 
 isCondOp :: CoreExpr -> Bool
 isCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = True
-isCondOp _ = False
+isCondOp _                                      = False
 
 unpackBinOp :: CoreExpr -> (CoreExpr, Op, CoreExpr)
 unpackBinOp (EAp (EAp (EVar op) e1) e2) = (e1, op2binop op, e2)
