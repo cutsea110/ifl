@@ -290,46 +290,6 @@ compiledPrimitives = map (second trans) primitives
         
 type TimCompilerEnv = [(Name, TimAMode)]
 
-{- |
->>> compileSc [] . head . parse $ "x = 42"
-("x",Compiled {slotsOf = [], instrsOf = [PushV (IntVConst 42),Return]})
-
->>> compileSc [] . head . parse $ "f x = x + 1"
-("f",Compiled {slotsOf = [1], instrsOf = [Take 1 1,PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 1)]})
-
->>> compileSc [] . head . parse $ "S f g x = f x (g x)"
-("S",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 3,Push (Code (Compiled {slotsOf = [2,3], instrsOf = [Push (Arg 3),Enter (Arg 2)]})),Push (Arg 3),Enter (Arg 1)]})
-
->>> compileSc [] . head . parse $ "max x y = if (x > y) x y"
-("max",Compiled {slotsOf = [1,2], instrsOf = [Take 2 2,Push (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Code (Compiled {slotsOf = [1,2], instrsOf = [Op Gt,Cond [Enter (Arg 1)] [Enter (Arg 2)]]})),Enter (Arg 1)]})),Enter (Arg 2)]})
-
->>> compileSc [("fib",Label "fib")] . head . parse $ "fib n = if (n<2) 1 (n * fib (n-1))"
-("fib",Compiled {slotsOf = [1], instrsOf = [Take 1 1,PushV (IntVConst 2),Push (Code (Compiled {slotsOf = [1], instrsOf = [Op Lt,Cond [PushV (IntVConst 1),Return] [Push (Code (Compiled {slotsOf = [1], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Mul,Return]})),Enter (Arg 1)]})),Push (Code (Compiled {slotsOf = [1], instrsOf = [PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Sub,Return]})),Enter (Arg 1)]})),Enter (Label "fib")]]})),Enter (Arg 1)]})
-
->>> compileSc [("tak",Label "tak")] . head . parse $ "tak x y z = if (x<=y) y (tak (tak (x-1) y z) (tak (y-1) z x) (tak (z-1) x y))"
-("tak",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 3,Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Op Le,Cond [Enter (Arg 2)] [Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Arg 2),Push (Arg 1),Push (Code (Compiled {slotsOf = [3], instrsOf = [PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Sub,Return]})),Enter (Arg 3)]})),Enter (Label "tak")]})),Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Arg 1),Push (Arg 3),Push (Code (Compiled {slotsOf = [2], instrsOf = [PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Sub,Return]})),Enter (Arg 2)]})),Enter (Label "tak")]})),Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Arg 3),Push (Arg 2),Push (Code (Compiled {slotsOf = [1], instrsOf = [PushV (IntVConst 1),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Sub,Return]})),Enter (Arg 1)]})),Enter (Label "tak")]})),Enter (Label "tak")]]})),Enter (Arg 1)]})),Enter (Arg 2)]})
-
->>> compileSc [] . head . parse $ "f x = let y=x*2 in let z=x+y in z"
-("f",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 1,Move 2 (Code (Compiled {slotsOf = [1], instrsOf = [PushV (IntVConst 2),Push (Code (Compiled {slotsOf = [], instrsOf = [Op Mul,Return]})),Enter (Arg 1)]})),Move 3 (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Code (Compiled {slotsOf = [1], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 1)]})),Enter (Arg 2)]})),Enter (Arg 3)]})
-
->>> compileSc [("gcd",Label "gcd"),("mod",Label "mod")] . (!!0) . parse $ "gcd a b = let d = mod a b in if (d==0) b (gcd b d)"
-("gcd",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 2,Move 3 (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Arg 2),Push (Arg 1),Enter (Label "mod")]})),PushV (IntVConst 0),Push (Code (Compiled {slotsOf = [2,3], instrsOf = [Op Eq,Cond [Enter (Arg 2)] [Push (Arg 3),Push (Arg 2),Enter (Label "gcd")]]})),Enter (Arg 3)]})
-
->>> compileSc [] . head . parse $ "f x = letrec a = b; b = x in a"
-("f",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 1,Move 2 (Code (Compiled {slotsOf = [3], instrsOf = [Enter (Arg 3)]})),Move 3 (Arg 1),Enter (Code (Compiled {slotsOf = [2], instrsOf = [Enter (Arg 2)]}))]})
-
->>> compileSc [] . head . parse $ "f x = (let a = 2; b= 3 in a+b) + (let c = 4; d = 5 in c*d)"
-("f",Compiled {slotsOf = [2,3], instrsOf = [Take 3 1,Push (Code (Compiled {slotsOf = [2,3], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Move 2 (IntConst 2),Move 3 (IntConst 3),Push (Code (Compiled {slotsOf = [2], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 2)]})),Enter (Arg 3)]})),Move 2 (IntConst 4),Move 3 (IntConst 5),Push (Code (Compiled {slotsOf = [2], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Mul,Return]})),Enter (Arg 2)]})),Enter (Arg 3)]})
-
->>> compileSc [] . head . parse $ "f x = (letrec a = 2; b = a in x*b) + (letrec c = x; d = c in c*d)"
-("f",Compiled {slotsOf = [1,2,3], instrsOf = [Take 3 1,Push (Code (Compiled {slotsOf = [1,2,3], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Move 2 (IntConst 2),Move 3 (Code (Compiled {slotsOf = [2], instrsOf = [Enter (Arg 2)]})),Push (Code (Compiled {slotsOf = [1], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Mul,Return]})),Enter (Arg 1)]})),Enter (Code (Compiled {slotsOf = [3], instrsOf = [Enter (Arg 3)]}))]})),Move 2 (Arg 1),Move 3 (Code (Compiled {slotsOf = [2], instrsOf = [Enter (Arg 2)]})),Push (Code (Compiled {slotsOf = [2], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Mul,Return]})),Enter (Code (Compiled {slotsOf = [2], instrsOf = [Enter (Arg 2)]}))]})),Enter (Code (Compiled {slotsOf = [3], instrsOf = [Enter (Arg 3)]}))]})
-
->>> compileSc [] . head . parse $ "f x = (let a = 3; b = letrec a = 2; b = a in x+a+b in a+b) + (letrec c = 5; d = let a = 3; b = x + c in a*b in c + d)"
-("f",Compiled {slotsOf = [1,2,3,4,5], instrsOf = [Take 5 1,Push (Code (Compiled {slotsOf = [1,2,3,4,5], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Move 2 (IntConst 3),Move 3 (Code (Compiled {slotsOf = [1,4,5], instrsOf = [Move 4 (IntConst 2),Move 5 (Code (Compiled {slotsOf = [4], instrsOf = [Enter (Arg 4)]})),Push (Code (Compiled {slotsOf = [1,4], instrsOf = [Push (Code (Compiled {slotsOf = [1], instrsOf = [Op Add,Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 1)]})),Enter (Code (Compiled {slotsOf = [4], instrsOf = [Enter (Arg 4)]}))]})),Enter (Code (Compiled {slotsOf = [5], instrsOf = [Enter (Arg 5)]}))]})),Push (Code (Compiled {slotsOf = [2], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 2)]})),Enter (Arg 3)]})),Move 2 (IntConst 5),Move 3 (Code (Compiled {slotsOf = [1,2,4,5], instrsOf = [Move 4 (IntConst 3),Move 5 (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Code (Compiled {slotsOf = [1], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 1)]})),Enter (Code (Compiled {slotsOf = [2], instrsOf = [Enter (Arg 2)]}))]})),Push (Code (Compiled {slotsOf = [4], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Mul,Return]})),Enter (Arg 4)]})),Enter (Arg 5)]})),Push (Code (Compiled {slotsOf = [2], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Code (Compiled {slotsOf = [2], instrsOf = [Enter (Arg 2)]}))]})),Enter (Code (Compiled {slotsOf = [3], instrsOf = [Enter (Arg 3)]}))]})
-
->>> compileSc [] . head . parse $ "f x = (let a = 3;b = (letrec a = 2 in x+a) + (let a = 3 in x+a) in a+b) + (letrec c = 5; d = let a = 3; b = x + c in a*b in c+d)"
-("f",Compiled {slotsOf = [1,2,3,4,5], instrsOf = [Take 5 1,Push (Code (Compiled {slotsOf = [1,2,3,4], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Move 2 (IntConst 3),Move 3 (Code (Compiled {slotsOf = [1,4], instrsOf = [Push (Code (Compiled {slotsOf = [1,4], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Move 4 (IntConst 2),Push (Code (Compiled {slotsOf = [1], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 1)]})),Enter (Code (Compiled {slotsOf = [4], instrsOf = [Enter (Arg 4)]}))]})),Move 4 (IntConst 3),Push (Code (Compiled {slotsOf = [1], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 1)]})),Enter (Arg 4)]})),Push (Code (Compiled {slotsOf = [2], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 2)]})),Enter (Arg 3)]})),Move 2 (IntConst 5),Move 3 (Code (Compiled {slotsOf = [1,2,4,5], instrsOf = [Move 4 (IntConst 3),Move 5 (Code (Compiled {slotsOf = [1,2], instrsOf = [Push (Code (Compiled {slotsOf = [1], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Arg 1)]})),Enter (Code (Compiled {slotsOf = [2], instrsOf = [Enter (Arg 2)]}))]})),Push (Code (Compiled {slotsOf = [4], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Mul,Return]})),Enter (Arg 4)]})),Enter (Arg 5)]})),Push (Code (Compiled {slotsOf = [2], instrsOf = [Push (Code (Compiled {slotsOf = [], instrsOf = [Op Add,Return]})),Enter (Code (Compiled {slotsOf = [2], instrsOf = [Enter (Arg 2)]}))]})),Enter (Code (Compiled {slotsOf = [3], instrsOf = [Enter (Arg 3)]}))]})
--}
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
 compileSc env (name, args, body)
   | null args = (name, cs)
