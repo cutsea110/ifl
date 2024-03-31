@@ -144,15 +144,16 @@ codeLookup :: CodeStore -> Name -> [Instruction]
 codeLookup cstore l = instrsOfCompiledCode cs
   where cs = aLookup cstore l $ error $ "Attempt to jump to unknown label " ++ show l
 
+type GCInfo = ( Int  -- The number of steps
+              , Size -- The size of the heap before GC
+              , Size -- The size of the heap after GC
+              )
 data TimStats
   = TimStats { getSteps         :: Int  -- The number of steps
              , getExecTime      :: Int  -- The execution time
              , getHeapAllocated :: Int  -- The amount of heap allocated
              , getMaxStackDepth :: Int  -- The maximum stack depth
-             , getGCInfo        :: [( Int  -- The number of steps
-                                    , Size -- The size of the heap before GC
-                                    , Size -- The size of the heap after GC
-                                    )]
+             , getGCInfo        :: [GCInfo]
              }
   deriving (Eq, Show)
 
