@@ -130,7 +130,7 @@ options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optCompile
           ]
   where decide :: String -> Compiler
         decide name = fromMaybe (Noco name) $ lookup name name2Compiler
-          
+
 compilerOpts :: [String] -> IO (Options, [String])
 compilerOpts argv =
   case getOpt Permute options argv of
