@@ -182,19 +182,18 @@ run :: Options -> FilePath -> IO ()
 run opts fp = do
   warnMessage opts
   when (optVerbose opts) $ do
-    preprint
+    hPutStrLn stderr msg
   prog <- readFile fp
   executer opts prog
   where
-    preprint :: IO ()
-    preprint = do
-      hPutStrLn stderr $ "       Program Source: " ++ fp
-      hPutStrLn stderr $ "     Choosed Compiler: " ++ show (optCompiler opts)
-      hPutStrLn stderr $ "              Verbose: " ++ show (optVerbose opts)
-      hPutStrLn stderr $ "         GC Threshold: " ++ show (optThreshold opts)
-      hPutStrLn stderr $ "Convert to List Based: " ++ show (optConvertList opts)
-      hPutStrLn stderr $
-        "The compilers that can be specified are as follows: " ++ intercalate "," compilerNames ++ "."
+    msg = unlines [ "       Program Source: " ++ fp
+                  , "     Choosed Compiler: " ++ show (optCompiler opts)
+                  , "              Verbose: " ++ show (optVerbose opts)
+                  , "         GC Threshold: " ++ show (optThreshold opts)
+                  , "Convert to List Based: " ++ show (optConvertList opts)
+                  , "The compilers that can be specified are as follows: " ++
+                    intercalate "," compilerNames ++ "."
+                  ]
 
 main :: IO ()
 main = do
