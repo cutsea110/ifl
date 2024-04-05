@@ -162,6 +162,17 @@ warnMessage opts = do
     hPutStrLn stderr "------"
   where msgs = checkOption opts
 
+settingInfos :: Options -> FilePath -> String
+settingInfos opts fp =
+  unlines [ "       Program Source: " ++ fp
+          , "     Choosed Compiler: " ++ show (optCompiler opts)
+          , "              Verbose: " ++ show (optVerbose opts)
+          , "         GC Threshold: " ++ show (optThreshold opts)
+          , "Convert to List Based: " ++ show (optConvertList opts)
+          , "The compilers that can be specified are as follows: " ++
+            intercalate "," compilerNames ++ "."
+          ]
+
 checkOption :: Options -> [String]
 checkOption opts = compilerSupported ++ convToListSupported ++ gcThresholdSupported
   where
@@ -182,18 +193,9 @@ run :: Options -> FilePath -> IO ()
 run opts fp = do
   warnMessage opts
   when (optVerbose opts) $ do
-    hPutStrLn stderr msg
+    hPutStrLn stderr (settingInfos opts fp)
   prog <- readFile fp
   executer opts prog
-  where
-    msg = unlines [ "       Program Source: " ++ fp
-                  , "     Choosed Compiler: " ++ show (optCompiler opts)
-                  , "              Verbose: " ++ show (optVerbose opts)
-                  , "         GC Threshold: " ++ show (optThreshold opts)
-                  , "Convert to List Based: " ++ show (optConvertList opts)
-                  , "The compilers that can be specified are as follows: " ++
-                    intercalate "," compilerNames ++ "."
-                  ]
 
 main :: IO ()
 main = do
