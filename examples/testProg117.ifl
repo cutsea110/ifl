@@ -1,0 +1,3 @@
+Y x = x (Y x); -- Y combinator
+fact f n = if (n == 0) 1 (n * fact f (n-1));
+main = Y fact 4
