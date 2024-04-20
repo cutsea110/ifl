@@ -37,7 +37,8 @@ data Instruction = Take Int Int       -- take t n
                  deriving (Eq, Show)
 
 type OccupiedSlotIndex = Int
-type UsedSlots = [Int]
+type UsedSlot  = Int
+type UsedSlots = [UsedSlot]
 data CompiledCode = Compiled { slotsOf  :: UsedSlots
                              , instrsOf :: [Instruction]
                              }
@@ -852,7 +853,7 @@ showState state@TimState { instructions = instr
             , iNewline
             ]
 
-showUsedSlots :: [Int] -> IseqRep
+showUsedSlots :: UsedSlots -> IseqRep
 showUsedSlots ns = iConcat [ iStr "["
                            , iInterleave (iStr ",") (map iNum ns)
                            , iStr "]"
