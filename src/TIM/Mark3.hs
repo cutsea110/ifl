@@ -293,7 +293,7 @@ type TimCompilerEnv = [(Name, TimAMode)]
 
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
 compileSc env (name, args, body)
-  | null args = (name, cs)
+  | d' == 0   = (name, cs)
   | otherwise = (name, Compiled ns (Take d' n : il))
   where
     n = length args
