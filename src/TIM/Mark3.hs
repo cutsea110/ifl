@@ -862,8 +862,10 @@ showSCDefns state@TimState { codes = cstore }
 showSC :: (Name, CompiledCode) -> IseqRep
 showSC (name, cs)
   = iConcat [ iStr "Code for ", iStr name, iStr ":", iNewline
-            , iStr "   ", showUsedSlots ns, iNewline
-            , iStr "   ", showInstructions Full instrs, iNewline, iNewline
+            , iStr "   "
+            , iIndent (iConcat [ iStr "  used slots: ", showUsedSlots ns, iNewline
+                               , iStr "instructions: ", showInstructions Full instrs, iNewline
+                               ])
             ]
     where Compiled ns instrs = cs
 
@@ -887,6 +889,7 @@ showState state@TimState { instructions = instr
             , showStack stk, iNewline
             , iStr "Value stack: "
             , showValueStack vstk, iNewline
+            , iStr "Dump: "
             , showDump dmp, iNewline
             ]
 
@@ -1015,7 +1018,8 @@ showClosure (i, f)
   = iConcat [ iStr "("
             , showInstructions Terse i
             , iStr ", "
-            , showFramePtr f, iStr ")"
+            , showFramePtr f
+            , iStr ")"
             ]
 
 showFramePtr :: FramePtr -> IseqRep
@@ -1030,7 +1034,11 @@ showGCInfo xs | null xs   = iConcat [ iNum 0, iNewline ]
                                     , iIndent (iInterleave iNewline $ map showResize xs)
                                     , iStr " }"
                                     ]
-  where showResize (n, f, t) = iConcat [ iNum n, iStr ") ", iNum f, iStr " -> ", iNum t ]
+  where showResize (n, f, t) = iConcat [ iFWNum nod n, iStr ") ", iNum f, iStr " -> ", iNum t ]
+        -- max number of steps
+        (s, _, _) = last xs
+        -- number of digits in the max number of steps
+        nod = floor (logBase 10 (fromIntegral s)) + 1
 
 showStats :: TimState -> IseqRep
 showStats state@TimState { stats = stats }
