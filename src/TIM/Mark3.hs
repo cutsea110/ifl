@@ -458,6 +458,8 @@ gc conf state@TimState { instructions = instrs
       , iIndent (showInstructions Full is), iNewline
       , iStr "frame ptr: "
       , iIndent (showFramePtr fp), iNewline
+      , iStr "rel slots: "
+      , iIndent (showRelSlots from fp), iNewline
       , iStr "arg stack: "
       , iIndent (showStack stk), iNewline, iNewline
       , iNewline
@@ -946,7 +948,8 @@ nTerse = 3
 showFrame :: TimHeap -> FramePtr -> IseqRep
 showFrame heap FrameNull = iStr "(ptr) null"
 showFrame heap (FrameAddr addr)
-  = iConcat [ iStr "<"
+  = iConcat [ iStr "#", iNum addr, iStr ": "
+            , iStr "<"
             , iIndent (either showAddr (iInterleave iNewline . map showClosure) (fList frm))
             , iStr ">"
             ]
@@ -978,7 +981,7 @@ showHeap heap@(_, _, _, hp)
   where
     showHeapItem :: (Addr, Frame) -> IseqRep
     showHeapItem (addr, fr)
-      = iConcat [ showFWAddr addr, iStr ": "
+      = iConcat [ iStr " "
                 , showFrame heap (FrameAddr addr)
                 ]
 
