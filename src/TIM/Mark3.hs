@@ -123,7 +123,7 @@ instance {-# Overlapping #-} Show (Heap Frame) where
   -- NOTE: addr field is infinite list, so we shouldn't show it.
   show (allocs, size, _, cts) = show (allocs, size, cts)
 
-data Frame = Frame [Closure]
+data Frame = Frame [Closure] [(UsedSlot, UsedSlots)]
            | Forward Addr
            deriving (Eq, Show)
 
@@ -134,27 +134,42 @@ fAlloc heap xs = (heap', FrameAddr addr)
 
 fGet :: TimHeap -> FramePtr -> Int -> Closure
 fGet heap (FrameAddr addr) n = case frm of
-  Frame f      -> f !! (n-1)
+  Frame f _    -> f !! (n-1)
   Forward addr -> error $ "fGet: Unexpected " ++ show frm
   where
     frm = hLookup heap addr
 fGet _ _ _ = error "fGet: not implemented"
 
+fAdd :: TimHeap -> FramePtr -> (UsedSlot, UsedSlots) -> TimHeap
+fAdd heap (FrameAddr addr) us = hUpdate heap addr new_frame
+  where
+    (cs, m) = case frm of
+      Frame cs m   -> (cs, m)
+      Forward addr -> error $ "fAdd: Unexpected " ++ show frm
+      where
+        frm = hLookup heap addr
+    new_frame = Frame cs (us:m)
+fAdd _ _ _ = error "fAdd: not implemented"
+
 fUpdate :: TimHeap -> FramePtr -> Int -> Closure -> TimHeap
 fUpdate heap (FrameAddr addr) n closure
   = hUpdate heap addr new_frame
   where
-    frame = case frm of
-      Frame f      -> f
+    (cs, m) = case frm of
+      Frame cs m   -> (cs, m)
       Forward addr -> error $ "fUpdate: Unexpected " ++ show frm
       where
         frm = hLookup heap addr
-    new_frame = Frame $ take (n-1) frame ++ [closure] ++ drop n frame
+    new_frame = Frame (take (n-1) cs ++ [closure] ++ drop n cs) m
 fUpdate _ _ _ _ = error "fUpdate: not implemented"
 
 fList :: Frame -> Either Addr [Closure]
-fList (Frame f)   = Right f
+fList (Frame f _) = Right f
 fList (Forward a) = Left a
+
+fRelSlots :: Frame -> [(UsedSlot, UsedSlots)]
+fRelSlots (Frame _ m) = m
+fRelSlots (Forward _) = []
 
 type CodeStore = Assoc Name CompiledCode
 
@@ -605,20 +620,23 @@ FrameAddr 1
 evacuateFramePtr :: Bool -> CodeStore -> TimHeap -> TimHeap -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
 evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
   FrameAddr a -> case hLookup from a of
-    Frame clss -> case hAlloc to (Frame []) of
+    Frame clss rslots -> case hAlloc to (Frame [] []) of
       (to', a') -> case hUpdate from a (Forward a') of
-        from' -> case mapAccumL update (from', to') (zip [1..] clss) of
-          ((from'', to''), clss') -> case hUpdate to'' a' (Frame clss') of
+        from' -> case mapAccumL (update rslots) (from', to') (zip [1..] clss) of
+          ((from'', to''), clss') -> case hUpdate to'' a' (Frame clss' rslots) of -- TODO: rslots も削減可
             to''' -> ((from'', to'''), FrameAddr a')
 
     -- すでに置き換え済
     Forward a'  -> ((from, to), FrameAddr a')
     where
-      update :: (TimHeap, TimHeap) -> (Int, Closure) -> ((TimHeap, TimHeap), Closure)
-      update (f, t) (i, cls@(is, fp))
-        | not liveCheck || i `elem` liveArgs = case evacuateFramePtr False cstore f t cls of
+      update :: [(UsedSlot, UsedSlots)] -> (TimHeap, TimHeap) -> (Int, Closure) -> ((TimHeap, TimHeap), Closure)
+      update dict (f, t) (i, cls@(is, fp))
+        | not liveCheck || i `elem` liveArgs' = case evacuateFramePtr False cstore f t cls of
             (hs, _) -> (hs, (is, fp)) -- NOTE: ここで fp' としない (scavenge がやる)
         | otherwise         = ((f, t), ([], FrameNull))
+        where
+          extract n = maybe [n] (n:) $ lookup n dict
+          liveArgs' = nub . sort $ concatMap extract liveArgs
       liveArgs :: [Int]
       liveArgs = nub $ foldl' g [] instrs
         where
@@ -675,7 +693,7 @@ scavenge from to@(_, _, _, hp) = foldl' phi to hp
   where
     phi :: TimHeap -> (Addr, Frame) -> TimHeap
     phi t (a', f) = case f of
-      Frame cls -> hUpdate t a' (Frame $ map conv cls)
+      Frame cls rslots -> hUpdate t a' (Frame (map conv cls) rslots)
         where
           conv :: Closure -> Closure
           conv cls@(is, fp) = case fp of
@@ -713,15 +731,19 @@ step state@TimState { instructions = instrs
           $ state)
     | otherwise -> error "Too few args for Take instruction"
     where
-      (hp', fptr') = fAlloc hp (Frame $ take n stk ++ replicate (t-n) ([], FrameNull))
+      (hp', fptr') = fAlloc hp (Frame (take n stk ++ replicate (t-n) ([], FrameNull)) [])
       stk' = drop n stk
   (Move n am:istr) -> applyToStats statIncExecTime
                       (putInstructions istr
-                       . putHeap hp'
+                       . putHeap hp2
                        $ state)
     where
       -- NOTE: Code 以外も処理されてしまうがコンパイラがバグってなければ問題ないはず
-      hp' = fUpdate hp fptr n (amToClosure am fptr hp cstore)
+      hp1 = fUpdate hp fptr n (amToClosure am fptr hp cstore)
+      hp2 = case am of
+        Code cs -> fAdd hp1 fptr (n, slotsOf cs)
+        _       -> hp1
+
   [Enter am]
     -> applyToStats statIncExecTime
        (putInstructions instr'
@@ -912,12 +934,24 @@ showFrame :: TimHeap -> FramePtr -> IseqRep
 showFrame heap FrameNull = iStr "Null frame ptr" `iAppend` iNewline
 showFrame heap (FrameAddr addr)
   = iConcat [ iStr "Frame: <"
-            , iIndent (either showAddr (iInterleave iNewline . map showClosure) (fList (hLookup heap addr)))
-            , iStr ">", iNewline
+            , iIndent (either showAddr (iInterleave iNewline . map showClosure) (fList frm))
+            , iStr ">"
+            , showRelSlots (fRelSlots frm)
+            , iNewline
             ]
   where
+    frm = hLookup heap addr
     showAddr :: Addr -> IseqRep
     showAddr a = iStr "FW #->" `iAppend` iNum a
+    showRelSlots :: [(UsedSlot, UsedSlots)] -> IseqRep
+    showRelSlots rs
+      = iConcat [ iNewline
+                , iStr "Relative slots: ["
+                , iIndent (iInterleave iNewline (map showRelSlot rs))
+                , iStr "]"
+                ]
+    showRelSlot :: (UsedSlot, UsedSlots) -> IseqRep
+    showRelSlot (slot, ns) = iConcat [ iNum slot, iStr " -> ", showUsedSlots ns ]
 showFrame heap (FrameInt n)
   = iConcat [ iStr "Frame ptr (int): ", iNum n, iNewline ]
 
