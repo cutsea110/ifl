@@ -141,14 +141,14 @@ fGet heap (FrameAddr addr) n = case frm of
 fGet _ _ _ = error "fGet: not implemented"
 
 fAdd :: TimHeap -> FramePtr -> (UsedSlot, UsedSlots) -> TimHeap
-fAdd heap (FrameAddr addr) us = hUpdate heap addr new_frame
+fAdd heap (FrameAddr addr) us@(key, _) = hUpdate heap addr new_frame
   where
     (cs, m) = case frm of
       Frame cs m   -> (cs, m)
       Forward addr -> error $ "fAdd: Unexpected " ++ show frm
       where
         frm = hLookup heap addr
-    new_frame = Frame cs (us:m)
+    new_frame = Frame cs (us:filter (\(k,_) -> k /= key) m)
 fAdd _ _ _ = error "fAdd: not implemented"
 
 fUpdate :: TimHeap -> FramePtr -> Int -> Closure -> TimHeap
@@ -636,17 +636,18 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
     where
       update :: [(UsedSlot, UsedSlots)] -> (TimHeap, TimHeap) -> (Int, Closure) -> ((TimHeap, TimHeap), Closure)
       update dict (f, t) (i, cls@(is, fp))
-        | not liveCheck || i `elem` liveArgs' = case evacuateFramePtr False cstore f t cls of
+        | not liveCheck || i `elem` go liveArgs = case evacuateFramePtr False cstore f t cls of
             (hs, _) -> (hs, (is, fp)) -- NOTE: ここで fp' としない (scavenge がやる)
         | otherwise                           = ((f, t), ([], FrameNull))
         where
-          -- FIXME: 多分ここで2段階以上の間接参照があるとスロットが GC されてしまう可能性がある
-          -- 例えば [4 ~ [1,2], 2 ~ [3]] という状態で 4 が必要なら 3 も必要だが今はそこまで見れていない
-          -- 循環参照もありえるので停止条件をちゃんと考える必要がある
+          -- NOTE: ここで2段階以上の間接参照があるとスロットが GC されてしまう可能性がある
+          -- 例えば [4 ~ [1,2], 2 ~ [3]] という状態で 4 が必要なら 3 も必要になる
+          -- 循環参照もありえるので効率が悪いが停止条件は愚直にやっている
+          go cur = if cur == new then cur else go new
+            where new = nub . sort $ concatMap extract cur
           extract n = maybe [n] (n:) $ lookup n dict
-          liveArgs' = nub . sort $ concatMap extract liveArgs
       liveArgs :: [Int]
-      liveArgs = nub $ foldl' g [] instrs
+      liveArgs = nub . sort $ foldl' g [] instrs
         where
           g ns (Move _ am) = h ns am
           g ns (Push am)   = h ns am
