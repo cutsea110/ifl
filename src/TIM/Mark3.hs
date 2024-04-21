@@ -454,27 +454,32 @@ gc conf state@TimState { instructions = instrs
       [ iNewline
       , iStr "vvvvvvvvvvvvvvvvvvvvvvvv", iNewline
       , iStr "step: ", iNum (statGetSteps $ getStats state), iNewline
-      , iStr "instr: ", iNewline
-      , showInstructions Full is, iNewline
-      , iStr "frame ptr: ", showFramePtr fp, iNewline
-      , iStr "arg stack: ", showStack stk, iNewline
-      , iStr "before", iNewline
-      , showHeap f0, iNewline
-      , iStr "evacuated stack: from1", iNewline
-      , showHeap f1, iNewline
-      , iStr "evacuated stack: to1", iNewline
-      , showHeap t1, iNewline
-      , iStr "evacuated dump: from2", iNewline
-      , showHeap f2, iNewline
-      , iStr "evacuated dump: to2", iNewline
-      , showHeap t2, iNewline
-      , iStr "evacuated frameptr: from3", iNewline
-      , showHeap f3, iNewline
-      , iStr "evacuated frameptr: to3", iNewline
-      , showHeap t3, iNewline
-      , iStr "scavenged: to4", iNewline
-      , showHeap t4, iNewline
-      , iStr "new frame ptr: ", showFramePtr fp', iNewline
+      , iStr "instr: "
+      , iIndent (showInstructions Full is), iNewline
+      , iStr "frame ptr: "
+      , iIndent (showFramePtr fp), iNewline
+      , iStr "arg stack: "
+      , iIndent (showStack stk), iNewline, iNewline
+      , iNewline
+      , iStr "------------------------", iNewline
+      , iStr ">>> BEFORE", iNewline
+      , iStr "   ", iIndent (showHeap f0), iNewline, iNewline
+      , iStr ">>> EVACUATED stack: from1", iNewline
+      , iStr "   ", iIndent (showHeap f1), iNewline, iNewline
+      , iStr ">>> EVACUATED stack: to1", iNewline
+      , iStr "   ", iIndent (showHeap t1), iNewline, iNewline
+      , iStr ">>> EVACUATED dump: from2", iNewline
+      , iStr "   ", iIndent (showHeap f2), iNewline, iNewline
+      , iStr ">>> EVACUATED dump: to2", iNewline
+      , iStr "   ", iIndent (showHeap t2), iNewline, iNewline
+      , iStr ">>> EVACUATED frameptr: from3", iNewline
+      , iStr "   ", iIndent (showHeap f3), iNewline, iNewline
+      , iStr ">>> EVACUATED frameptr: to3", iNewline
+      , iStr "   ", iIndent (showHeap t3), iNewline, iNewline
+      , iStr ">>> SCAVENGED: to4", iNewline
+      , iStr "   ", iIndent (showHeap t4), iNewline, iNewline
+      , iStr "new frame ptr: "
+      , iIndent (showFramePtr fp'), iNewline
       , iStr "^^^^^^^^^^^^^^^^^^^^^^^^", iNewline
       ]
 
@@ -633,8 +638,11 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
       update dict (f, t) (i, cls@(is, fp))
         | not liveCheck || i `elem` liveArgs' = case evacuateFramePtr False cstore f t cls of
             (hs, _) -> (hs, (is, fp)) -- NOTE: ここで fp' としない (scavenge がやる)
-        | otherwise         = ((f, t), ([], FrameNull))
+        | otherwise                           = ((f, t), ([], FrameNull))
         where
+          -- FIXME: 多分ここで2段階以上の間接参照があるとスロットが GC されてしまう可能性がある
+          -- 例えば [4 ~ [1,2], 2 ~ [3]] という状態で 4 が必要なら 3 も必要だが今はそこまで見れていない
+          -- 循環参照もありえるので停止条件をちゃんと考える必要がある
           extract n = maybe [n] (n:) $ lookup n dict
           liveArgs' = nub . sort $ concatMap extract liveArgs
       liveArgs :: [Int]
