@@ -140,8 +140,8 @@ fGet heap (FrameAddr addr) n = case frm of
     frm = hLookup heap addr
 fGet _ _ _ = error "fGet: not implemented"
 
-fAdd :: TimHeap -> FramePtr -> (UsedSlot, UsedSlots) -> TimHeap
-fAdd heap (FrameAddr addr) us@(key, _) = hUpdate heap addr new_frame
+fSetUsedSlots :: TimHeap -> FramePtr -> (UsedSlot, UsedSlots) -> TimHeap
+fSetUsedSlots heap (FrameAddr addr) us@(key, _) = hUpdate heap addr new_frame
   where
     (cs, m) = case frm of
       Frame cs m   -> (cs, m)
@@ -752,7 +752,7 @@ step state@TimState { instructions = instrs
       -- NOTE: Code 以外も処理されてしまうがコンパイラがバグってなければ問題ないはず
       hp1 = fUpdate hp fptr n (amToClosure am fptr hp cstore)
       hp2 = case am of
-        Code cs -> fAdd hp1 fptr (n, slotsOf cs)
+        Code cs -> fSetUsedSlots hp1 fptr (n, slotsOf cs)
         _       -> hp1
 
   [Enter am]
