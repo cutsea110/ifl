@@ -640,7 +640,7 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
       update dict (f, t) (i, cls@(is, fp))
         | not liveCheck || i `elem` go liveArgs = case evacuateFramePtr False cstore f t cls of
             (hs, _) -> (hs, (is, fp)) -- NOTE: ここで fp' としない (scavenge がやる)
-        | otherwise                           = ((f, t), ([], FrameNull))
+        | otherwise                             = ((f, t), ([], FrameNull))
         where
           -- NOTE: ここで2段階以上の間接参照があるとスロットが GC されてしまう可能性がある
           -- 例えば [4 ~ [1,2], 2 ~ [3]] という状態で 4 が必要なら 3 も必要になる
