@@ -868,11 +868,15 @@ showState state@TimState { instructions = instr
                          }
   = iConcat [ iStr "Code:  "
             , showInstructions Terse instr, iNewline
-            , showFrame hp fptr
-            , showStack stk
-            , showValueStack vstk
-            , showDump dmp
-            , iNewline
+            , iStr "Frame: "
+            , showFrame hp fptr, iNewline
+            , iStr "Rel slots: "
+            , showRelSlots hp fptr, iNewline
+            , iStr "Arg stack: "
+            , showStack stk, iNewline
+            , iStr "Value stack: "
+            , showValueStack vstk, iNewline
+            , showDump dmp, iNewline
             ]
 
 showUsedSlots :: UsedSlots -> IseqRep
@@ -931,29 +935,30 @@ nTerse :: Int
 nTerse = 3
 
 showFrame :: TimHeap -> FramePtr -> IseqRep
-showFrame heap FrameNull = iStr "Null frame ptr" `iAppend` iNewline
+showFrame heap FrameNull = iStr "(ptr) null"
 showFrame heap (FrameAddr addr)
-  = iConcat [ iStr "Frame: <"
+  = iConcat [ iStr "<"
             , iIndent (either showAddr (iInterleave iNewline . map showClosure) (fList frm))
             , iStr ">"
-            , showRelSlots (fRelSlots frm)
-            , iNewline
             ]
   where
     frm = hLookup heap addr
     showAddr :: Addr -> IseqRep
     showAddr a = iStr "FW #->" `iAppend` iNum a
-    showRelSlots :: [(UsedSlot, UsedSlots)] -> IseqRep
-    showRelSlots rs
-      = iConcat [ iNewline
-                , iStr "Relative slots: ["
-                , iIndent (iInterleave iNewline (map showRelSlot rs))
-                , iStr "]"
-                ]
+showFrame heap (FrameInt n) = iConcat [ iStr "(int) ", iNum n ]
+
+showRelSlots :: TimHeap -> FramePtr -> IseqRep
+showRelSlots heap (FrameAddr addr)
+  = iConcat [ iStr "["
+            , iInterleave (iStr ", ") (map showRelSlot (fRelSlots frm))
+            , iStr "]"
+            ]
+  where
+    frm = hLookup heap addr
     showRelSlot :: (UsedSlot, UsedSlots) -> IseqRep
-    showRelSlot (slot, ns) = iConcat [ iNum slot, iStr " -> ", showUsedSlots ns ]
-showFrame heap (FrameInt n)
-  = iConcat [ iStr "Frame ptr (int): ", iNum n, iNewline ]
+    showRelSlot (n, ns) = iConcat [ iNum n, iStr " ~ ", showUsedSlots ns ]
+showRelSlots heap _ = iNil
+
 
 showHeap :: TimHeap -> IseqRep
 showHeap heap@(_, _, _, hp)
@@ -974,15 +979,15 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
 
 showStack :: TimStack -> IseqRep
 showStack stack
-  = iConcat [ iStr "Arg stack: ["
+  = iConcat [ iStr "["
             , iIndent (iInterleave iNewline (map showClosure stack))
-            , iStr "]", iNewline
+            , iStr "]"
             ]
 
 showValueStack :: TimValueStack -> IseqRep
-showValueStack vstack = iConcat [ iStr "Value stack: ["
+showValueStack vstack = iConcat [ iStr "["
                                 , iIndent (iInterleave (iStr ",") (map iNum vstack))
-                                , iStr "]", iNewline
+                                , iStr "]"
                                 ]
 
 showVStackTopValue :: TimValueStack -> IseqRep
