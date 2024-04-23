@@ -693,7 +693,6 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
           h ns (Label l) = ns
           h ns _         = ns
 
-              
   -- Heap には含まないので from と to で変わらない
   FrameInt n -> ((from, to), fptr)
   FrameNull  -> ((from, to), fptr)
