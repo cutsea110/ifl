@@ -16,7 +16,6 @@ import Heap
 import Iseq
 import Language
 import Utils
-import GHC.Generics (Generic(from))
 
 data Config = Config { verbose     :: !Bool
                      , gcThreshold :: !Int
