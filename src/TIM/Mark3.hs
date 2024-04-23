@@ -16,6 +16,7 @@ import Heap
 import Iseq
 import Language
 import Utils
+import GHC.Generics (Generic(from))
 
 data Config = Config { verbose     :: !Bool
                      , gcThreshold :: !Int
@@ -550,6 +551,26 @@ FrameAddr 1
 (2,2,[(1,Frame [([Push (Arg 1)],FrameNull),([],FrameNull),([Push (Arg 3)],FrameAddr 2)] []),(2,Frame [([Push (Arg 1)],FrameAddr 1)] [])])
 >>> fp7
 FrameAddr 1
+-}
+{- | refer to the related used slots
+>>> let h = hInitial
+>>> let cs = initCodeStore
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull),([Push (Arg 2)], FrameAddr 1),([Enter (Arg 1)], FrameAddr 1)] [(3,[1])])
+>>> let ((from, to), fp) = evacuateFramePtr True cs h1 hInitial ([Push (Arg 3)], FrameAddr 1)
+>>> from
+(1,1,[(1,Forward 1)])
+>>> to
+(1,1,[(1,Frame [([Push (Arg 1)],FrameNull),([],FrameNull),([Enter (Arg 1)],FrameAddr 1)] [(3,[1])])])
+-}
+{- | refer to the related used slots 2-steps
+>>> let h = hInitial
+>>> let cs = initCodeStore
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull),([Push (Arg 2)], FrameAddr 1),([Enter (Arg 1)], FrameAddr 1)] [(3,[1]),(1,[2])])
+>>> let ((from, to), fp) = evacuateFramePtr True cs h1 hInitial ([Push (Arg 3)], FrameAddr 1)
+>>> from
+(1,1,[(1,Forward 1)])
+>>> to
+(1,1,[(1,Frame [([Push (Arg 1)],FrameNull),([Push (Arg 2)],FrameAddr 1),([Enter (Arg 1)],FrameAddr 1)] [(3,[1]),(1,[2])])])
 -}
 {- | The case for Cyclic Reference
 >>> let h = hInitial :: Heap Frame
