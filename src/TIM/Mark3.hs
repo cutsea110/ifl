@@ -572,6 +572,16 @@ FrameAddr 1
 >>> to
 (1,1,[(1,Frame [([Push (Arg 1)],FrameNull),([Push (Arg 2)],FrameAddr 1),([Enter (Arg 1)],FrameAddr 1)] [(3,[1]),(1,[2])])])
 -}
+{- | refer to the related used slots muturally
+>>> let h = hInitial
+>>> let cs = initCodeStore
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull),([Push (Arg 2)], FrameAddr 1),([Enter (Arg 1)], FrameAddr 1)] [(3,[1]),(1,[2]),(2,[3])])
+>>> let ((from, to), fp) = evacuateFramePtr True cs h1 hInitial ([Push (Arg 3)], FrameAddr 1)
+>>> from
+(1,1,[(1,Forward 1)])
+>>> to
+(1,1,[(1,Frame [([Push (Arg 1)],FrameNull),([Push (Arg 2)],FrameAddr 1),([Enter (Arg 1)],FrameAddr 1)] [(3,[1]),(1,[2]),(2,[3])])])
+-}
 {- | The case for Cyclic Reference
 >>> let h = hInitial :: Heap Frame
 >>> let cs = initCodeStore
