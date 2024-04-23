@@ -669,7 +669,7 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
     where
       update :: [(UsedSlot, UsedSlots)] -> (TimHeap, TimHeap) -> (Int, Closure) -> ((TimHeap, TimHeap), Closure)
       update dict (f, t) (i, cls)
-        | not liveCheck || i `elem` go liveArgs = (hs, cls) -- NOTE: ここで fp' としない (scavenge がやる)
+        | not liveCheck || i `elem` go liveArgs = (hs, cls)
         | otherwise                             = ((f, t), ([], FrameNull))
         where
           (hs, _) = evacuateFramePtr False cstore f t cls
