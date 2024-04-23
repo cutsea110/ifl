@@ -487,6 +487,7 @@ gc conf state@TimState { instructions = instrs
 
 -- | NOTE: Closure = ([Instruction], FramePtr) なので
 -- [Instruction] の中で使われる FramePtr はコピーし、それ以外は ([], FrameNull) で潰す
+-- ただし [Instruction] で直接使われてなくても、Frame の relslots で間接的に参照している場合は保持し続ける
 {- |
 >>> let h = hInitial :: Heap Frame
 >>> let cs = initCodeStore
@@ -637,11 +638,11 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
     Forward a'  -> ((from, to), FrameAddr a')
     where
       update :: [(UsedSlot, UsedSlots)] -> (TimHeap, TimHeap) -> (Int, Closure) -> ((TimHeap, TimHeap), Closure)
-      update dict (f, t) (i, cls@(is, fp))
-        | not liveCheck || i `elem` go liveArgs = case evacuateFramePtr False cstore f t cls of
-            (hs, _) -> (hs, (is, fp)) -- NOTE: ここで fp' としない (scavenge がやる)
+      update dict (f, t) (i, cls)
+        | not liveCheck || i `elem` go liveArgs = (hs, cls) -- NOTE: ここで fp' としない (scavenge がやる)
         | otherwise                             = ((f, t), ([], FrameNull))
         where
+          (hs, _) = evacuateFramePtr False cstore f t cls
           -- NOTE: ここで2段階以上の間接参照があるとスロットが GC されてしまう可能性がある
           -- 例えば [4 ~ [1,2], 2 ~ [3]] という状態で 4 が必要なら 3 も必要になる
           -- 循環参照もありえるので効率が悪いが停止条件は愚直にやっている
