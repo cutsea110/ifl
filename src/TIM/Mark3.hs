@@ -140,16 +140,16 @@ fGet heap (FrameAddr addr) n = case frm of
     frm = hLookup heap addr
 fGet _ _ _ = error "fGet: not implemented"
 
-fSetUsedSlots :: TimHeap -> FramePtr -> (UsedSlot, UsedSlots) -> TimHeap
-fSetUsedSlots heap (FrameAddr addr) us@(key, val) = hUpdate heap addr new_frame
+fSetRelSlots :: TimHeap -> FramePtr -> (UsedSlot, UsedSlots) -> TimHeap
+fSetRelSlots heap (FrameAddr addr) (key, val) = hUpdate heap addr new_frame
   where
     (cs, m) = case frm of
       Frame cs m   -> (cs, m)
-      Forward addr -> error $ "fAdd: Unexpected " ++ show frm
+      Forward addr -> error $ "fSetRelSlots: Unexpected " ++ show frm
       where
         frm = hLookup heap addr
     new_frame = Frame cs (aUpdate m key val)
-fAdd _ _ _ = error "fAdd: not implemented"
+fSetRelSlots _ _ _ = error "fSetRelSlots: not implemented"
 
 fUpdate :: TimHeap -> FramePtr -> Int -> Closure -> TimHeap
 fUpdate heap (FrameAddr addr) n closure
@@ -782,7 +782,7 @@ step state@TimState { instructions = instrs
       -- NOTE: Code 以外も処理されてしまうがコンパイラがバグってなければ問題ないはず
       hp1 = fUpdate hp fptr n (amToClosure am fptr hp cstore)
       hp2 = case am of
-        Code cs -> fSetUsedSlots hp1 fptr (n, slotsOf cs)
+        Code cs -> fSetRelSlots hp1 fptr (n, slotsOf cs)
         _       -> hp1
 
   [Enter am]
