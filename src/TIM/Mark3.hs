@@ -123,7 +123,7 @@ instance {-# Overlapping #-} Show (Heap Frame) where
   -- NOTE: addr field is infinite list, so we shouldn't show it.
   show (allocs, size, _, cts) = show (allocs, size, cts)
 
-data Frame = Frame [Closure] [(UsedSlot, UsedSlots)]
+data Frame = Frame [Closure] (Assoc UsedSlot UsedSlots)
            | Forward Addr
            deriving (Eq, Show)
 
@@ -141,14 +141,14 @@ fGet heap (FrameAddr addr) n = case frm of
 fGet _ _ _ = error "fGet: not implemented"
 
 fSetUsedSlots :: TimHeap -> FramePtr -> (UsedSlot, UsedSlots) -> TimHeap
-fSetUsedSlots heap (FrameAddr addr) us@(key, _) = hUpdate heap addr new_frame
+fSetUsedSlots heap (FrameAddr addr) us@(key, val) = hUpdate heap addr new_frame
   where
     (cs, m) = case frm of
       Frame cs m   -> (cs, m)
       Forward addr -> error $ "fAdd: Unexpected " ++ show frm
       where
         frm = hLookup heap addr
-    new_frame = Frame cs (us:filter (\(k,_) -> k /= key) m)
+    new_frame = Frame cs (aUpdate m key val)
 fAdd _ _ _ = error "fAdd: not implemented"
 
 fUpdate :: TimHeap -> FramePtr -> Int -> Closure -> TimHeap

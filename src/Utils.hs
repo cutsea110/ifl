@@ -5,6 +5,8 @@ module Utils
   , aDomain
   , aRange
   , aInsert
+  , aDelete
+  , aUpdate
   ) where
 
 {- |
@@ -49,3 +51,9 @@ aRange = map snd
 
 aInsert :: Eq k => Assoc k v -> k -> v -> Assoc k v
 aInsert m k v = (k, v):m
+
+aDelete :: Eq k => Assoc k v -> k -> Assoc k v
+aDelete m k = filter ((/= k) . fst) m
+
+aUpdate :: Eq k => Assoc k v -> k -> v -> Assoc k v
+aUpdate m k v = (k, v):aDelete m k
