@@ -659,10 +659,10 @@ evacuateFramePtr :: Bool -> CodeStore -> TimHeap -> TimHeap -> ([Instruction], F
 evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
   FrameAddr a -> case hLookup from a of
     Frame clss rslots -> case hAlloc to (Frame [] []) of
-      (to', a') -> case hUpdate from a (Forward a') of
-        from' -> case mapAccumL (update rslots) (from', to') (zip [1..] clss) of
-          ((from'', to''), clss') -> case hUpdate to'' a' (Frame clss' rslots) of -- TODO: rslots も削減可
-            to''' -> ((from'', to'''), FrameAddr a')
+      (to1, a') -> case hUpdate from a (Forward a') of
+        from1 -> case mapAccumL (update rslots) (from1, to1) (zip [1..] clss) of
+          ((from2, to2), clss') -> case hUpdate to2 a' (Frame clss' rslots) of -- TODO: rslots も削減可
+            to3 -> ((from2, to3), FrameAddr a')
 
     -- すでに置き換え済
     Forward a'  -> ((from, to), FrameAddr a')
