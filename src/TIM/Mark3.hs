@@ -140,6 +140,10 @@ fGet heap (FrameAddr addr) n = case frm of
     frm = hLookup heap addr
 fGet _ _ _ = error "fGet: not implemented"
 
+fRelSlots :: Frame -> [(UsedSlot, UsedSlots)]
+fRelSlots (Frame _ m) = m
+fRelSlots (Forward _) = []
+
 fSetRelSlots :: TimHeap -> FramePtr -> (UsedSlot, UsedSlots) -> TimHeap
 fSetRelSlots heap (FrameAddr addr) (key, val) = hUpdate heap addr new_frame
   where
@@ -152,8 +156,7 @@ fSetRelSlots heap (FrameAddr addr) (key, val) = hUpdate heap addr new_frame
 fSetRelSlots _ _ _ = error "fSetRelSlots: not implemented"
 
 fUpdate :: TimHeap -> FramePtr -> Int -> Closure -> TimHeap
-fUpdate heap (FrameAddr addr) n closure
-  = hUpdate heap addr new_frame
+fUpdate heap (FrameAddr addr) n closure = hUpdate heap addr new_frame
   where
     (cs, m) = case frm of
       Frame cs m   -> (cs, m)
@@ -166,10 +169,6 @@ fUpdate _ _ _ _ = error "fUpdate: not implemented"
 fList :: Frame -> Either Addr [Closure]
 fList (Frame f _) = Right f
 fList (Forward a) = Left a
-
-fRelSlots :: Frame -> [(UsedSlot, UsedSlots)]
-fRelSlots (Frame _ m) = m
-fRelSlots (Forward _) = []
 
 type CodeStore = Assoc Name CompiledCode
 
