@@ -603,10 +603,10 @@ FrameAddr 1
 >>> to'
 (3,3,[(1,Frame [([Push (Arg 1)],FrameAddr 2)] []),(2,Frame [([Push (Arg 1)],FrameAddr 1)] []),(3,Frame [([Push (Arg 1)],FrameAddr 2)] [])])
 
->>> let ((from'', to''), fp'') = evacuateFramePtr True cs h3 hInitial ([Push (Arg 1)], FrameAddr 2)
->>> from''
+>>> let ((from2, to2), fp2) = evacuateFramePtr True cs h3 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> from2
 (3,3,[(1,Forward 2),(2,Forward 1),(3,Frame [([Push (Arg 1)],FrameAddr 2)] [])])
->>> to''
+>>> to2
 (2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 1)] []),(2,Frame [([Push (Arg 1)],FrameAddr 2)] [])])
 -}
 {- | The case for Self-Cyclic Reference
