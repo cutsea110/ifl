@@ -251,8 +251,8 @@ compile program
     sc_defs = preludeDefs ++ program
     compiled_sc_defs = map (compileSc initial_env) sc_defs
     compiled_code = compiled_sc_defs ++ compiledPrimitives
-    initial_env = [(name, Label name) | (name, _, _) <- sc_defs]
-                  ++ [(name, Label name) | (name, _) <- compiledPrimitives]
+    initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
+                  [(name, Label name) | (name, _) <- compiledPrimitives]
 
 initialArgStack :: TimStack
 initialArgStack = [([], FrameNull)] -- initial continuation
@@ -1035,9 +1035,9 @@ showValueStack vstack = iConcat [ iStr "["
                                 ]
 
 showVStackTopValue :: TimValueStack -> IseqRep
-showVStackTopValue []            = error "empty value stack"
-showVStackTopValue vstack@(v:[]) = iNum v
-showVStackTopValue vstack@(v:vs) = error $ "value stack has more than 1 value: " ++ show vstack
+showVStackTopValue []   = error "empty value stack"
+showVStackTopValue [v]  = iNum v
+showVStackTopValue vstk = error $ "value stack has more than 1 value: " ++ show vstk
 
 showDump :: TimDump -> IseqRep
 showDump dump = iNil
