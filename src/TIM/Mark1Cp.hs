@@ -732,9 +732,9 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
   where str = show addr
 
 showStack :: TimStack -> IseqRep
-showStack stack
+showStack stk
   = iConcat [ iStr "Arg stack: ["
-            , iIndent (iInterleave iNewline (map showClosure stack))
+            , iIndent (iInterleave iNewline (map showClosure stk))
             , iStr "]", iNewline
             ]
 
@@ -767,12 +767,12 @@ showGCInfo xs | null xs   = iConcat [ iNum 0, iNewline ]
   where showResize (n, f, t) = iConcat [ iNum n, iStr ") ", iNum f, iStr " -> ", iNum t ]
 
 showStats :: TimState -> IseqRep
-showStats state@TimState { stats = stats }
-  = iConcat [ iStr "    Steps taken = ", iNum (statGetSteps stats), iNewline
-            , iStr "      Exec time = ", iNum (statGetExecTime stats), iNewline
-            , iStr " Heap allocated = ", iNum (statGetHeapAllocated stats), iNewline
-            , iStr "Max stack depth = ", iNum (statGetMaxStackDepth stats), iNewline
-            , iStr "        GC call = ", showGCInfo (statGetGCInfo stats), iNewline
+showStats TimState { stats = st }
+  = iConcat [ iStr "    Steps taken = ", iNum (statGetSteps st), iNewline
+            , iStr "      Exec time = ", iNum (statGetExecTime st), iNewline
+            , iStr " Heap allocated = ", iNum (statGetHeapAllocated st), iNewline
+            , iStr "Max stack depth = ", iNum (statGetMaxStackDepth st), iNewline
+            , iStr "        GC call = ", showGCInfo (statGetGCInfo st), iNewline
             ]
 
 data HowMuchToPrint = None

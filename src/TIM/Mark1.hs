@@ -368,9 +368,9 @@ showFrame heap (FrameInt n)
   = iConcat [ iStr "Frame ptr (int): ", iNum n, iNewline ]
 
 showStack :: TimStack -> IseqRep
-showStack stack
+showStack stk
   = iConcat [ iStr "Arg stack: ["
-            , iIndent (iInterleave iNewline (map showClosure stack))
+            , iIndent (iInterleave iNewline (map showClosure stk))
             , iStr "]", iNewline
             ]
 
@@ -394,11 +394,11 @@ showFramePtr (FrameAddr a) = iStr "#" `iAppend` iNum a
 showFramePtr (FrameInt n)  = iStr "int " `iAppend` iNum n
 
 showStats :: TimState -> IseqRep
-showStats state@TimState { stats = stats }
-  = iConcat [ iStr "    Steps taken = ", iNum (statGetSteps stats), iNewline
-            , iStr "      Exec time = ", iNum (statGetExecTime stats), iNewline
-            , iStr " Heap allocated = ", iNum (statGetHeapAllocated stats), iNewline
-            , iStr "Max stack depth = ", iNum (statGetMaxStackDepth stats), iNewline
+showStats TimState { stats = st }
+  = iConcat [ iStr "    Steps taken = ", iNum (statGetSteps st), iNewline
+            , iStr "      Exec time = ", iNum (statGetExecTime st), iNewline
+            , iStr " Heap allocated = ", iNum (statGetHeapAllocated st), iNewline
+            , iStr "Max stack depth = ", iNum (statGetMaxStackDepth st), iNewline
             ]
 
 data HowMuchToPrint = None
