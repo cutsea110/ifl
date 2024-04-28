@@ -147,11 +147,9 @@ fRelSlots (Forward _) = []
 fSetRelSlots :: TimHeap -> FramePtr -> (UsedSlot, UsedSlots) -> TimHeap
 fSetRelSlots heap (FrameAddr addr) (key, val) = hUpdate heap addr new_frame
   where
-    (cs, m) = case frm of
-      Frame cs m   -> (cs, m)
-      Forward addr -> error $ "fSetRelSlots: Unexpected " ++ show frm
-      where
-        frm = hLookup heap addr
+    (cs, m) = case hLookup heap addr of
+      Frame cs m -> (cs, m)
+      frm        -> error $ "fSetRelSlots: Unexpected " ++ show frm
     new_frame = Frame cs (aUpdate m key val)
 fSetRelSlots _ _ _ = error "fSetRelSlots: not implemented"
 
