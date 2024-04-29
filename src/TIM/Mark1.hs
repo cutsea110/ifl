@@ -301,8 +301,7 @@ showResults states@(s:ss)
             )
 
 showSCDefns :: TimState -> IseqRep
-showSCDefns state@TimState { codes = cstore }
-  = iInterleave iNewline (map showSC cstore)
+showSCDefns TimState { codes = cstore } = iInterleave iNewline (map showSC cstore)
 
 showSC :: (Name, [Instruction]) -> IseqRep
 showSC (name, instrs)
@@ -311,15 +310,15 @@ showSC (name, instrs)
             ]
 
 showState :: TimState -> IseqRep
-showState state@TimState { instructions = instr
-                         , frame        = fptr
-                         , stack        = stk
-                         , valstack     = vstk
-                         , dump         = dmp
-                         , heap         = hp
-                         , codes        = cstore
-                         , stats        = stat
-                         }
+showState TimState { instructions = instr
+                   , frame        = fptr
+                   , stack        = stk
+                   , valstack     = vstk
+                   , dump         = dmp
+                   , heap         = hp
+                   , codes        = cstore
+                   , stats        = stat
+                   }
   = iConcat [ iStr "Code:  "
             , showInstructions Terse instr, iNewline
             , showFrame hp fptr

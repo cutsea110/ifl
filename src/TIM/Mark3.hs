@@ -883,8 +883,7 @@ showResults states@(s:ss)
             )
 
 showSCDefns :: TimState -> IseqRep
-showSCDefns state@TimState { codes = cstore }
-  = iInterleave iNewline (map showSC cstore)
+showSCDefns TimState { codes = cstore } = iInterleave iNewline (map showSC cstore)
 
 showSC :: (Name, CompiledCode) -> IseqRep
 showSC (name, cs)
@@ -897,15 +896,15 @@ showSC (name, cs)
     where Compiled ns instrs = cs
 
 showState :: TimState -> IseqRep
-showState state@TimState { instructions = instr
-                         , frame        = fptr
-                         , stack        = stk
-                         , valstack     = vstk
-                         , dump         = dmp
-                         , heap         = hp
-                         , codes        = cstore
-                         , stats        = stat
-                         }
+showState TimState { instructions = instr
+                   , frame        = fptr
+                   , stack        = stk
+                   , valstack     = vstk
+                   , dump         = dmp
+                   , heap         = hp
+                   , codes        = cstore
+                   , stats        = stat
+                   }
   = iConcat [ iStr "Code:  "
             , showInstructions Terse instr, iNewline
             , iStr "Frame: "
