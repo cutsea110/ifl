@@ -945,7 +945,7 @@ showInstructions Full il
     sep = iStr "," `iAppend` iNewline
 
 showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
-showInstruction d (Take t n) = iConcat [iStr "Take " ,iNum t, iStr " ", iNum n]
+showInstruction d (Take t n) = iConcat [iStr "Take ", iNum t, iStr " ", iNum n]
 showInstruction d (Move n a) = iConcat [iStr "Move ", iNum n, iStr " ", showArg d a]
 showInstruction d (Enter x)  = iStr "Enter " `iAppend` showArg d x
 showInstruction d (Push x)   = iStr "Push " `iAppend` showArg d x
