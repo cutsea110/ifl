@@ -123,7 +123,9 @@ instance {-# Overlapping #-} Show (Heap Frame) where
   -- NOTE: addr field is infinite list, so we shouldn't show it.
   show (allocs, size, _, cts) = show (allocs, size, cts)
 
-data Frame = Frame [Closure] (Assoc UsedSlot UsedSlots)
+type RelSlot = Assoc UsedSlot UsedSlots
+
+data Frame = Frame [Closure] RelSlot
            | Forward Addr
            deriving (Eq, Show)
 
@@ -140,7 +142,7 @@ fGet heap (FrameAddr addr) n = case frm of
     frm = hLookup heap addr
 fGet _ _ _ = error "fGet: not implemented"
 
-fRelSlots :: Frame -> [(UsedSlot, UsedSlots)]
+fRelSlots :: Frame -> RelSlot
 fRelSlots (Frame _ m) = m
 fRelSlots (Forward _) = []
 
@@ -664,7 +666,7 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
     -- すでに置き換え済
     Forward a'  -> ((from, to), FrameAddr a')
     where
-      update :: [(UsedSlot, UsedSlots)] -> (TimHeap, TimHeap) -> (Int, Closure) -> ((TimHeap, TimHeap), Closure)
+      update :: RelSlot -> (TimHeap, TimHeap) -> (Int, Closure) -> ((TimHeap, TimHeap), Closure)
       update dict (f, t) (i, cls)
         | not liveCheck || i `elem` go liveArgs = (hs, cls)
         | otherwise                             = ((f, t), ([], FrameNull))
