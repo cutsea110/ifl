@@ -36,7 +36,7 @@ data Instruction = Take Int Int       -- take t n
                  | Cond [Instruction] [Instruction]
                  deriving (Eq, Show)
 
-type OccupiedSlotIndex = Int
+type OccupiedSlotIdx = Int
 type UsedSlot  = Int
 type UsedSlots = [UsedSlot]
 data CompiledCode = Compiled { slotsOf  :: UsedSlots
@@ -315,7 +315,7 @@ compileSc env (name, args, body)
     (d', cs@(Compiled ns il)) = compileR body new_env n
     new_env = zip args (map Arg [1..]) ++ env
 
-compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIndex -> (OccupiedSlotIndex, CompiledCode)
+compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, CompiledCode)
 compileR e env d = case e of
   EAp e1 e2 | isBasicOp e -> compileB e env (d, Compiled [] [Return])
             -- exercise 4.7
@@ -353,7 +353,7 @@ compileR e env d = case e of
 mkIndMode :: Int -> TimAMode
 mkIndMode n = Code (Compiled [n] [Enter (Arg n)])
 
-compileB :: CoreExpr -> TimCompilerEnv -> (OccupiedSlotIndex, CompiledCode) -> (OccupiedSlotIndex, CompiledCode)
+compileB :: CoreExpr -> TimCompilerEnv -> (OccupiedSlotIdx, CompiledCode) -> (OccupiedSlotIdx, CompiledCode)
 compileB e env (d, Compiled slots cont)
   | isBinOp e = (max d1 d2, Compiled (merge slots1 slots2) il2)
   where (e1, op, e2) = unpackBinOp e
@@ -403,7 +403,7 @@ unpackCondOp :: CoreExpr -> (CoreExpr, CoreExpr, CoreExpr)
 unpackCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = (e1, e2, e3)
 unpackCondOp _                                      = error "unpackCondOp: not a conditional operator"
 
-compileA :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIndex -> (OccupiedSlotIndex, TimAMode)
+compileA :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, TimAMode)
 compileA (EVar v) env d = (d, aLookup env v $ error $ "Unknown variable " ++ v)
 compileA (ENum n) env d = (d, IntConst n)
 compileA e        env d = (d', Code il)
