@@ -394,6 +394,7 @@ gc conf state@TimState { instructions = instrs
                        , dump         = dmp
                        , heap         = from
                        , codes        = cstore
+                       , stats        = sts
                        }
   = case evacuateStack cstore from hInitial stk of
   ((from1, to1), stk1) -> case evacuateDump cstore from1 to1 dmp of
@@ -412,7 +413,7 @@ gc conf state@TimState { instructions = instrs
       = iDisplay $ iConcat
       [ iNewline
       , iStr "vvvvvvvvvvvvvvvvvvvvvvvv", iNewline
-      , iStr "step: ", iNum (statGetSteps $ getStats state), iNewline
+      , iStr "step: ", iNum (statGetSteps sts), iNewline
       , iStr "instr: ", iNewline
       , showInstructions Full is, iNewline
       , iStr "frame ptr: ", showFramePtr fp, iNewline
