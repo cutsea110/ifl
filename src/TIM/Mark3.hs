@@ -486,11 +486,7 @@ showGCInfo gcinfo
             , iIndent (showFramePtr fp'), iNewline
             , iStr "^^^^^^^^^^^^^^^^^^^^^^^^", iNewline
             ]
-  where n = stepAt gcinfo
-        is = instr gcinfo
-        stk = stackInit gcinfo
-        fp = fptrInit gcinfo
-        f0 = heapBefore gcinfo
+  where f0 = heapBefore gcinfo
         (f1, t1) = heapEvacuatedByStack gcinfo
         (f2, t2) = heapEvacuatedByDump gcinfo
         (f3, t3) = heapEvacuatedByFramePtr gcinfo
@@ -912,17 +908,17 @@ showSC (name, cs)
     where Compiled ns instrs = cs
 
 showState :: TimState -> IseqRep
-showState TimState { instructions = instr
+showState TimState { instructions = is
                    , frame        = fptr
                    , stack        = stk
                    , valstack     = vstk
                    , dump         = dmp
                    , heap         = hp
-                   , codes        = cstore
+                   , codes        = cs
                    , stats        = stat
                    }
   = iConcat $ [ iStr "Code:  "
-              , showInstructions Terse instr, iNewline
+              , showInstructions Terse is, iNewline
               , iStr "Frame: "
               , showFrame hp fptr, iNewline
               , iStr "Rel slots: "
@@ -1082,7 +1078,7 @@ showGCInfoSimple xs | null xs   = iConcat [ iNum 0, iNewline ]
                                           , iStr " }"
                                           ]
   where showResize (GCInfo { stepAt = n, heapBefore = f, heapScavenged = t})
-          = iConcat [ iFWNum nod n, iStr ") ", iNum (hSize f), iStr " -> ", iNum (hSize t) ]
+          = iConcat [ iFWNum nod (n+1), iStr ") ", iNum (hSize f), iStr " -> ", iNum (hSize t) ]
         -- max number of steps
         s = stepAt $ last xs
         -- number of digits in the max number of steps
