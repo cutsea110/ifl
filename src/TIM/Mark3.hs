@@ -9,8 +9,7 @@ module TIM.Mark3
   ) where
 
 import Control.Arrow (second)
-import Data.List (foldl', mapAccumL, nub, sort)
-import Debug.Trace (trace)
+import Data.List (find, foldl', mapAccumL, nub, sort)
 
 import Heap
 import Iseq
@@ -176,10 +175,18 @@ codeLookup :: CodeStore -> Name -> [Instruction]
 codeLookup cstore l = instrsOf cs
   where cs = aLookup cstore l $ error $ "Attempt to jump to unknown label " ++ show l
 
-type GCInfo = ( Int  -- The number of steps
-              , Size -- The size of the heap before GC
-              , Size -- The size of the heap after GC
-              )
+data GCInfo = GCInfo { stepAt                  :: Int
+                     , instr                   :: [Instruction]
+                     , stackInit               :: TimStack
+                     , fptrInit                :: FramePtr
+                     , heapBefore              :: TimHeap
+                     , heapEvacuatedByStack    :: (TimHeap, TimHeap)
+                     , heapEvacuatedByDump     :: (TimHeap, TimHeap)
+                     , heapEvacuatedByFramePtr :: (TimHeap, TimHeap)
+                     , heapScavenged           :: TimHeap
+                     , fptrDone                :: FramePtr
+                     } deriving (Eq, Show)
+
 data TimStats
   = TimStats { getSteps         :: Int  -- The number of steps
              , getExecTime      :: Int  -- The execution time
@@ -227,13 +234,13 @@ statUpdateMaxStackDepth depth s
   | otherwise      = s
   where depth' = statGetMaxStackDepth s
 
-statGetGCInfo :: TimStats -> [(Int, Size, Size)]
+statGetGCInfo :: TimStats -> [GCInfo]
 statGetGCInfo s = getGCInfo s
 
 statGetGCCount :: TimStats -> Int
 statGetGCCount s = length $ getGCInfo s
 
-statIncGCCount :: (Int, Size, Size) -> TimStats -> TimStats
+statIncGCCount :: GCInfo -> TimStats -> TimStats
 statIncGCCount tpl sts = sts { getGCInfo = getGCInfo sts ++ [tpl] }
 
 compile :: CoreProgram -> TimState
@@ -417,73 +424,79 @@ eval conf state = state : rest_states
 
 doAdmin :: Config -> TimState -> TimState
 doAdmin conf state
-  | needGC    = applyToStats (statIncGCCount (stepAt, orgSize, newSize)) gcedState
+  | needGC    = gc state'
   | otherwise = state'
   where
     state' = applyToStats statIncSteps state
     needGC = orgSize >= gcThreshold conf
-    gcedState = gc conf state'
     orgSize = hSize $ getHeap state'
-    newSize = hSize $ getHeap gcedState
-    stepAt = statGetSteps $ getStats state'
 
-gc :: Config -> TimState -> TimState
-gc conf state@TimState { instructions = instrs
-                       , frame        = fptr
-                       , stack        = stk
-                       , dump         = dmp
-                       , heap         = from
-                       , codes        = cstore
-                       , stats        = sts
-                       }
+gc :: TimState -> TimState
+gc state@TimState { instructions = instrs
+                  , frame        = fptr
+                  , stack        = stk
+                  , dump         = dmp
+                  , heap         = from
+                  , codes        = cstore
+                  , stats        = sts
+                  }
   = case evacuateStack cstore from hInitial stk of
   ((from1, to1), stk1) -> case evacuateDump cstore from1 to1 dmp of
     ((from2, to2), dmp1) -> case evacuateFramePtr True cstore from2 to2  (instrs, fptr) of
       ((from3, to3),  fptr1) -> case scavenge from3 to3 of
-        to4 -> trace' (gcPrint instrs fptr from from1 to1 from2 to2 from3 to3 to4 fptr1) $
-          state { frame = fptr1
-                , stack = stk1
-                , dump = dmp1
-                , heap = to4
-                }
-  where
-    trace' | verbose conf = trace
-           | otherwise    = flip const
-    gcPrint is fp f0 f1 t1 f2 t2 f3 t3 t4 fp'
-      = iDisplay $ iConcat
-      [ iNewline
-      , iStr "vvvvvvvvvvvvvvvvvvvvvvvv", iNewline
-      , iStr "step: ", iNum (statGetSteps sts), iNewline
-      , iStr "instr: "
-      , iIndent (showInstructions Full is), iNewline
-      , iStr "frame ptr: "
-      , iIndent (showFramePtr fp), iNewline
-      , iStr "rel slots: "
-      , iIndent (showRelSlots from fp), iNewline
-      , iStr "arg stack: "
-      , iIndent (showStack stk), iNewline, iNewline
-      , iNewline
-      , iStr "------------------------", iNewline
-      , iStr ">>> BEFORE", iNewline
-      , iStr "   ", iIndent (showHeap f0), iNewline, iNewline
-      , iStr ">>> EVACUATED stack: from1", iNewline
-      , iStr "   ", iIndent (showHeap f1), iNewline, iNewline
-      , iStr ">>> EVACUATED stack: to1", iNewline
-      , iStr "   ", iIndent (showHeap t1), iNewline, iNewline
-      , iStr ">>> EVACUATED dump: from2", iNewline
-      , iStr "   ", iIndent (showHeap f2), iNewline, iNewline
-      , iStr ">>> EVACUATED dump: to2", iNewline
-      , iStr "   ", iIndent (showHeap t2), iNewline, iNewline
-      , iStr ">>> EVACUATED frameptr: from3", iNewline
-      , iStr "   ", iIndent (showHeap f3), iNewline, iNewline
-      , iStr ">>> EVACUATED frameptr: to3", iNewline
-      , iStr "   ", iIndent (showHeap t3), iNewline, iNewline
-      , iStr ">>> SCAVENGED: to4", iNewline
-      , iStr "   ", iIndent (showHeap t4), iNewline, iNewline
-      , iStr "new frame ptr: "
-      , iIndent (showFramePtr fp'), iNewline
-      , iStr "^^^^^^^^^^^^^^^^^^^^^^^^", iNewline
-      ]
+        to4 -> let gcinfo = GCInfo { stepAt = statGetSteps sts
+                                   , instr = instrs
+                                   , stackInit = stk
+                                   , fptrInit = fptr
+                                   , heapBefore = from
+                                   , heapEvacuatedByStack = (from1, to1)
+                                   , heapEvacuatedByDump = (from2, to2)
+                                   , heapEvacuatedByFramePtr = (from3, to3)
+                                   , heapScavenged = to4
+                                   , fptrDone = fptr1
+                                   }
+               in applyToStats (statIncGCCount gcinfo)
+                            $ state { frame = fptr1
+                                    , stack = stk1
+                                    , dump = dmp1
+                                    , heap = to4
+                                    }
+
+showGCInfo :: GCInfo -> IseqRep
+showGCInfo gcinfo
+  = iConcat [ iNewline
+            , iStr "vvvvvvvvvvvvvvvvvvvvvvvv", iNewline
+            , iStr ">>> BEFORE", iNewline
+            , iStr "   ", iIndent (showHeap f0), iNewline, iNewline
+            , iStr ">>> EVACUATED stack: from1", iNewline
+            , iStr "   ", iIndent (showHeap f1), iNewline, iNewline
+            , iStr ">>> EVACUATED stack: to1", iNewline
+            , iStr "   ", iIndent (showHeap t1), iNewline, iNewline
+            , iStr ">>> EVACUATED dump: from2", iNewline
+            , iStr "   ", iIndent (showHeap f2), iNewline, iNewline
+            , iStr ">>> EVACUATED dump: to2", iNewline
+            , iStr "   ", iIndent (showHeap t2), iNewline, iNewline
+            , iStr ">>> EVACUATED frameptr: from3", iNewline
+            , iStr "   ", iIndent (showHeap f3), iNewline, iNewline
+            , iStr ">>> EVACUATED frameptr: to3", iNewline
+            , iStr "   ", iIndent (showHeap t3), iNewline, iNewline
+            , iStr ">>> SCAVENGED: to4", iNewline
+            , iStr "   ", iIndent (showHeap t4), iNewline, iNewline
+            , iStr "new frame ptr: "
+            , iIndent (showFramePtr fp'), iNewline
+            , iStr "^^^^^^^^^^^^^^^^^^^^^^^^", iNewline
+            ]
+  where n = stepAt gcinfo
+        is = instr gcinfo
+        stk = stackInit gcinfo
+        fp = fptrInit gcinfo
+        f0 = heapBefore gcinfo
+        (f1, t1) = heapEvacuatedByStack gcinfo
+        (f2, t2) = heapEvacuatedByDump gcinfo
+        (f3, t3) = heapEvacuatedByFramePtr gcinfo
+        t4 = heapScavenged gcinfo
+        fp' = fptrDone gcinfo
+
 
 -- | NOTE: Closure = ([Instruction], FramePtr) なので
 -- [Instruction] の中で使われる FramePtr はコピーし、それ以外は ([], FrameNull) で潰す
@@ -908,19 +921,24 @@ showState TimState { instructions = instr
                    , codes        = cstore
                    , stats        = stat
                    }
-  = iConcat [ iStr "Code:  "
-            , showInstructions Terse instr, iNewline
-            , iStr "Frame: "
-            , showFrame hp fptr, iNewline
-            , iStr "Rel slots: "
-            , showRelSlots hp fptr, iNewline
-            , iStr "Arg stack: "
-            , showStack stk, iNewline
-            , iStr "Value stack: "
-            , showValueStack vstk, iNewline
-            , iStr "Dump: "
-            , showDump dmp, iNewline
-            ]
+  = iConcat $ [ iStr "Code:  "
+              , showInstructions Terse instr, iNewline
+              , iStr "Frame: "
+              , showFrame hp fptr, iNewline
+              , iStr "Rel slots: "
+              , showRelSlots hp fptr, iNewline
+              , iStr "Arg stack: "
+              , showStack stk, iNewline
+              , iStr "Value stack: "
+              , showValueStack vstk, iNewline
+              , iStr "Dump: "
+              , showDump dmp, iNewline
+              ] ++ gcinfo
+    where gcinfo = case find (\i -> stepAt i == getSteps stat) (getGCInfo stat) of
+            Nothing -> []
+            Just i  -> [ iStr "GC: "
+                       , iIndent (showGCInfo i), iNewline
+                       ]
 
 showUsedSlots :: UsedSlots -> IseqRep
 showUsedSlots ns = iConcat [ iStr "["
@@ -1056,16 +1074,17 @@ showFramePtr FrameNull     = iStr "null"
 showFramePtr (FrameAddr a) = iStr "#" `iAppend` iNum a
 showFramePtr (FrameInt n)  = iStr "int " `iAppend` iNum n
 
-showGCInfo :: [(Int, Size, Size)] -> IseqRep
-showGCInfo xs | null xs   = iConcat [ iNum 0, iNewline ]
-              | otherwise = iConcat [ iNum (length xs)
-                                    , iStr " { "
-                                    , iIndent (iInterleave iNewline $ map showResize xs)
-                                    , iStr " }"
-                                    ]
-  where showResize (n, f, t) = iConcat [ iFWNum nod n, iStr ") ", iNum f, iStr " -> ", iNum t ]
+showGCInfoSimple :: [GCInfo] -> IseqRep
+showGCInfoSimple xs | null xs   = iConcat [ iNum 0, iNewline ]
+                    | otherwise = iConcat [ iNum (length xs)
+                                          , iStr " { "
+                                          , iIndent (iInterleave iNewline $ map showResize xs)
+                                          , iStr " }"
+                                          ]
+  where showResize (GCInfo { stepAt = n, heapBefore = f, heapScavenged = t})
+          = iConcat [ iFWNum nod n, iStr ") ", iNum (hSize f), iStr " -> ", iNum (hSize t) ]
         -- max number of steps
-        (s, _, _) = last xs
+        s = stepAt $ last xs
         -- number of digits in the max number of steps
         nod = floor (logBase 10 (fromIntegral s)) + 1
 
@@ -1075,7 +1094,7 @@ showStats TimState { stats = st }
             , iStr "      Exec time = ", iNum (statGetExecTime st), iNewline
             , iStr " Heap allocated = ", iNum (statGetHeapAllocated st), iNewline
             , iStr "Max stack depth = ", iNum (statGetMaxStackDepth st), iNewline
-            , iStr "        GC call = ", showGCInfo (statGetGCInfo st), iNewline
+            , iStr "        GC call = ", showGCInfoSimple (statGetGCInfo st), iNewline
             ]
 
 data HowMuchToPrint = None
