@@ -769,6 +769,7 @@ step state@TimState { instructions = instrs
                     , frame        = fptr
                     , stack        = stk
                     , valstack     = vstk
+                    , dump         = dmp
                     , heap         = hp
                     , codes        = cstore
                     }
@@ -820,6 +821,12 @@ step state@TimState { instructions = instrs
       IntVConst n -> putInstructions istr
                      . putVStack (n:vstk)
                      $ state
+  (PushMarker x:istr)
+    -> applyToStats statIncExecTime
+       (putInstructions istr
+         . putStack []
+         . putDump ((fptr, x, stk):dmp)
+         $ state)
   [Return]
     -> applyToStats statIncExecTime
        (putInstructions instr'
