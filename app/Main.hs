@@ -35,6 +35,7 @@ import qualified TIM.Mark1   as TIMark1   (runProg, Config(..))
 import qualified TIM.Mark1Cp as TIMark1Cp (runProg, Config(..))
 import qualified TIM.Mark2   as TIMark2   (runProg, Config(..))
 import qualified TIM.Mark3   as TIMark3   (runProg, Config(..))
+import qualified TIM.Mark4   as TIMark4   (runProg, Config(..))
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -68,6 +69,7 @@ executer opts = putStr . run
           TIMark1Cp   -> TIMark1Cp.runProg $ TIMark1Cp.Config verbose threshold
           TIMark2     -> TIMark2.runProg   $ TIMark2.Config verbose threshold
           TIMark3     -> TIMark3.runProg   $ TIMark3.Config verbose threshold
+          TIMark4     -> TIMark4.runProg   $ TIMark4.Config verbose threshold
           (Noco name) -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
@@ -79,7 +81,7 @@ data Compiler
   | Mark1 | Mark2 | Mark3 | Mark4
   | Mark5 | Mark5Alt | Mark5GC | Mark5RevGC | Mark5Cp
   | GMark1 | GMark2 | GMark3 | GMark4 | GMark5 | GMark6 | GMark7
-  | TIMark1 | TIMark1Cp | TIMark2 | TIMark3
+  | TIMark1 | TIMark1Cp | TIMark2 | TIMark3 | TIMark4
   deriving (Show, Eq)
 
 validCompiler :: Compiler -> Bool
@@ -99,7 +101,7 @@ defaultOptions = Options
   { optVerbose     = False
   , optThreshold   = 100
   , optShowVersion = False
-  , optCompiler    = TIMark3
+  , optCompiler    = TIMark4
   , optConvertList = False
   }
 
@@ -109,7 +111,7 @@ name2Compiler
     [ Mark1, Mark2, Mark3, Mark4
     , Mark5, Mark5Alt, Mark5GC, Mark5RevGC, Mark5Cp
     , GMark1, GMark2, GMark3, GMark4, GMark5, GMark6, GMark7
-    , TIMark1, TIMark1Cp, TIMark2, TIMark3
+    , TIMark1, TIMark1Cp, TIMark2, TIMark3, TIMark4
     ]
 
 compilerNames :: [String]
