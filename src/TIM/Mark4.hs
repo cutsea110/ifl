@@ -115,8 +115,10 @@ type TimStack = [Closure]
 type Closure = ([Instruction], FramePtr)
 
 type TimValueStack = [Int]
-data TimDump = DummyTimDump
-             deriving (Eq, Show)
+type TimDump = [(FramePtr, -- The frame to be updated
+                 Int,      -- Index of slot to be updated
+                 TimStack  -- Old stack
+                )]
 type TimHeap = Heap Frame
 instance {-# Overlapping #-} Show (Heap Frame) where
   -- NOTE: addr field is infinite list, so we shouldn't show it.
@@ -268,7 +270,7 @@ initialValueStack :: TimValueStack
 initialValueStack = []
 
 initialDump :: TimDump
-initialDump = DummyTimDump
+initialDump = []
 
 initCodeStore :: CodeStore
 initCodeStore = []
