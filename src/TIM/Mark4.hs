@@ -827,16 +827,24 @@ step state@TimState { instructions = instrs
          . putStack []
          . putDump ((fptr, x, stk):dmp)
          $ state)
-  [Return]
-    -> applyToStats statIncExecTime
-       (putInstructions instr'
-        . putFrame fptr'
-        . putStack stk'
-        $ state)
-    where
-      ((instr', fptr'), stk') = case stk of
-        [] -> error "Return applied to empty stack"
-        (i, f):s -> ((i, f), s)
+  [Return] -> case stk of
+    [] -> applyToStats statIncExecTime
+          (putStack stk'
+           . putDump dmp'
+           . putHeap hp'
+           $ state)
+      where
+        ((fu, n, stk'):dmp') = dmp -- TODO: more safely error handling
+        hp' = fUpdate hp fu n (intCode, FrameInt n)
+    _ -> applyToStats statIncExecTime
+                   (putInstructions instr'
+                    . putFrame fptr'
+                    . putStack stk'
+                    $ state)
+      where
+        ((instr', fptr'), stk') = case stk of
+          []       -> error "Return applied to empty stack"
+          (i, f):s -> ((i, f), s)
   (Op op:istr)
     -> applyToStats statIncExecTime
        (putInstructions istr
