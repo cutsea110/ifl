@@ -1078,7 +1078,21 @@ showVStackTopValue [v]  = iNum v
 showVStackTopValue vstk = error $ "value stack has more than 1 value: " ++ show vstk
 
 showDump :: TimDump -> IseqRep
-showDump dump = iNil
+showDump dump
+  = iConcat [ iStr "["
+            , iIndent (iInterleave iNewline (map showTriple dump))
+            , iStr "]"
+            ]
+  where showTriple (fp, idx, stk)
+          = iConcat [ iStr "("
+                    , showFramePtr fp
+                    , iStr ", "
+                    , iNum idx
+                    -- , iStr ", "
+                    -- , showStack stk
+                    , iStr ")"
+                    ]
+
 
 showClosure :: Closure -> IseqRep
 showClosure (i, f)
