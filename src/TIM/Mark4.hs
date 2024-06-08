@@ -729,7 +729,14 @@ evacuateStack cstore from to stk = case mapAccumL update (from, to) stk of
 
 -- | NOTE: Dump はまだ使われてないので id 的な実装になっている
 evacuateDump :: CodeStore -> TimHeap -> TimHeap -> TimDump -> ((TimHeap, TimHeap), TimDump)
-evacuateDump cstore from to dmp = ((from, to), dmp)
+evacuateDump cstore from to dmp = case mapAccumL update (from, to) dmp of
+  (hs, fpstks) -> (hs, zipWith (\(_, n', _) (fp, stk) -> (fp, n', stk)) dmp fpstks)
+  where
+    update :: (TimHeap, TimHeap) -> (FramePtr, Int, TimStack) -> ((TimHeap, TimHeap), (FramePtr, TimStack))
+    update (f, t) (fp, n, stk) = ((f2, t2), (fp', stk'))
+      where ((f1, t1), stk') = evacuateStack cstore f t stk
+            ((f2, t2), fp') = evacuateFramePtr False cstore f1 t1 ([], fp)
+
 
 -- | 新しいヒープ中の FramePtr を 古いヒープから探して、
 --   新しいヒープのどのアドレスに Forward されているか見て付け替えていく
