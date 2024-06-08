@@ -722,14 +722,14 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
 -}
 evacuateStack :: CodeStore -> TimHeap -> TimHeap -> TimStack -> ((TimHeap, TimHeap), TimStack)
 evacuateStack cstore from to stk = case mapAccumL update (from, to) stk of
-  (hs,fps) -> (hs, zipWith (\(is, _) fp -> (is, fp)) stk fps)
+  (hs, fps) -> (hs, zipWith (\(is, _) fp -> (is, fp)) stk fps)
   where
-    update :: (TimHeap, TimHeap) -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
-    update (f, t) (is, fp) = evacuateFramePtr False cstore f t (is, fp)
+    update :: (TimHeap, TimHeap) -> Closure -> ((TimHeap, TimHeap), FramePtr)
+    update (f, t) = evacuateFramePtr False cstore f t
 
 -- | NOTE: Dump はまだ使われてないので id 的な実装になっている
 evacuateDump :: CodeStore -> TimHeap -> TimHeap -> TimDump -> ((TimHeap, TimHeap), TimDump)
-evacuateDump cstore from to dump = ((from, to), dump)
+evacuateDump cstore from to dmp = ((from, to), dmp)
 
 -- | 新しいヒープ中の FramePtr を 古いヒープから探して、
 --   新しいヒープのどのアドレスに Forward されているか見て付け替えていく
