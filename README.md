@@ -34,7 +34,7 @@ $ cat test.ifl
 fib n = if (n<2) 1 (fib (n-1) + fib (n-2));
 main = fib 10
 
-$ docker run -v ./:/work -it --rm cutsea110/ifl:0.3.5 ifl -c gmark7 /work/test.ifl
+$ docker run -v ./:/work -it --rm cutsea110/ifl:0.3.6 ifl -c gmark7 /work/test.ifl
 89
 ```
 
@@ -58,10 +58,10 @@ ghci> compileSc [("fib", Label "fib")] . head . parse $ p
 
 ### How to build Docker image
 
-You should specify the version 0.3.6, because the latest version is 0.3.5.
+You should specify the version 0.3.7, because the latest version is 0.3.6.
 
 ```bash
-$ docker build -t cutsea110/ifl:0.3.6 .
+$ docker build -t cutsea110/ifl:0.3.7 .
 ```
 ### How to run on Docker image
 
@@ -75,5 +75,5 @@ $ docker run -v ./examples:/work -it --rm cutsea110/ifl:0.3.6 ifl -v -c gmark7 /
 
 ```bash
 $ docker login
-$ docker push cutsea110/ifl:0.3.6
+$ docker push cutsea110/ifl:0.3.7
 ```
