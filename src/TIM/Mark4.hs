@@ -344,7 +344,7 @@ compileR e env d = case e of
       (dn, ams) = mapAccumL (\ix (_, e') -> compileA e' env' ix) (d+n) defns
       env'     | isrec     = let_env
                | otherwise = env
-      compileI | isrec     = mkIndMode
+      compileI | isrec     = mkUpdIndMode
                | otherwise = Arg
       let_env = zip (map fst defns) (map compileI [d+1..d+n]) ++ env
       (d', Compiled ns il) = compileR body let_env dn
@@ -360,8 +360,8 @@ compileR e env d = case e of
         usedSlots _         = []
         merge a b = nub . sort $ a ++ b
 
-mkIndMode :: Int -> TimAMode
-mkIndMode n = Code (Compiled [n] [Enter (Arg n)])
+mkUpdIndMode :: Int -> TimAMode
+mkUpdIndMode n = Code (Compiled [n] [PushMarker n, Enter (Arg n)])
 
 compileB :: CoreExpr -> TimCompilerEnv -> (OccupiedSlotIdx, CompiledCode) -> (OccupiedSlotIdx, CompiledCode)
 compileB e env (d, Compiled slots cont)
