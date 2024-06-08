@@ -1,0 +1,3 @@
+-- exercise 4.16
+f x = let y = x + x in y * y;
+main = f (3+5)
