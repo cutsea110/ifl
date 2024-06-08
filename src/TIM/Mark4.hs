@@ -323,7 +323,7 @@ compileSc env (name, args, body)
   where
     n = length args
     (d', cs@(Compiled ns il)) = compileR body new_env n
-    new_env = zip args (map Arg [1..]) ++ env
+    new_env = zip args (map mkUpdIndMode [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, CompiledCode)
 compileR e env d = case e of
