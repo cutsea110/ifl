@@ -834,10 +834,13 @@ step state@TimState { instructions = instrs
            . putHeap hp'
            $ state)
       where
-        ((fu, n, stk'), dmp') = case dmp of
+        ((fu, x, stk'), dmp') = case dmp of
           []  -> error "Return applied to empty dump"
           d:ds -> (d, ds)
-        hp' = fUpdate hp fu n (intCode, FrameInt n)
+        n = case vstk of
+          (n:ns) -> n
+          _      -> error "Return applied to empty vstk"
+        hp' = fUpdate hp fu x (intCode, FrameInt n)
     _ -> applyToStats statIncExecTime
                    (putInstructions instr'
                     . putFrame fptr'
