@@ -1,0 +1,3 @@
+double x = x + x;
+succ x = x + 1;
+main = compose succ double 3
