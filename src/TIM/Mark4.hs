@@ -323,6 +323,8 @@ compileSc env (name, args, body)
   where
     n = length args
     (d', cs@(Compiled ns il)) = compileR body new_env n
+    -- NOTE: exercise 4.16 で Arg -> mkUpdIndMode にしたが
+    --       これによって充足してない関数引数を取ると Take 時にエラーになる
     new_env = zip args (map mkUpdIndMode [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, CompiledCode)
