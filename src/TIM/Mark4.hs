@@ -350,7 +350,7 @@ compileR e env d = case e of
       (d', Compiled ns il) = compileR body let_env dn
       moves = zipWith Move [d+1..d+n] ams
       ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
-  EVar v -> (d', Compiled ns [Enter am])
+  EVar v -> (d', Compiled ns (mkEnter am)) -- NOTE: ns にはちゃんと am が使っているスロットが入っている
     where (d', am) = compileA (EVar v) env d
           ns = usedSlots am
   ENum n -> (d, Compiled [] [PushV (IntVConst n), Return])
@@ -361,7 +361,12 @@ compileR e env d = case e of
         merge a b = nub . sort $ a ++ b
 
 mkUpdIndMode :: Int -> TimAMode
-mkUpdIndMode n = Code (Compiled [n] [PushMarker n, Enter (Arg n)])
+mkUpdIndMode n = Code (Compiled [n] [PushMarker n, Enter (Arg n)]) -- NOTE: mkEnter 不要
+
+-- exercise 4.17
+mkEnter :: TimAMode -> [Instruction]
+mkEnter (Code am) = instrsOf am
+mkEnter am        = [Enter am]
 
 compileB :: CoreExpr -> TimCompilerEnv -> (OccupiedSlotIdx, CompiledCode) -> (OccupiedSlotIdx, CompiledCode)
 compileB e env (d, Compiled slots cont)
