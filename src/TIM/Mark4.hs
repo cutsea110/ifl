@@ -734,7 +734,6 @@ evacuateStack cstore from to stk = case mapAccumL update (from, to) stk of
     update :: (TimHeap, TimHeap) -> Closure -> ((TimHeap, TimHeap), FramePtr)
     update (f, t) = evacuateFramePtr False cstore f t
 
--- | NOTE: Dump はまだ使われてないので id 的な実装になっている
 evacuateDump :: CodeStore -> TimHeap -> TimHeap -> TimDump -> ((TimHeap, TimHeap), TimDump)
 evacuateDump cstore from to dmp = case mapAccumL update (from, to) dmp of
   (hs, fpstks) -> (hs, zipWith (\(_, n', _) (fp, stk) -> (fp, n', stk)) dmp fpstks)
