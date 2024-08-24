@@ -1,0 +1,6 @@
+f x = let y = x + x
+      in g y y;
+
+g a b = a * b;
+
+main = f 3

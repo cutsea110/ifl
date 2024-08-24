@@ -343,10 +343,10 @@ compileR e env d = case e of
   ELet isrec defns body -> (d', Compiled (merge ns ns') (moves ++ il))
     where
       n = length defns
-      (dn, ams) = mapAccumL (\ix (_, e') -> compileA e' env' ix) (d+n) defns
+      (dn, ams) = mapAccumL (\ix (i, (_, e')) -> compileU e' (d+i) env' ix) (d+n) $ zip [1..n] defns
       env'     | isrec     = let_env
                | otherwise = env
-      let_env = zip (map fst defns) (map mkUpdIndMode [d+1..d+n]) ++ env
+      let_env = zip (map fst defns) (map mkIndMode [d+1..d+n]) ++ env
       (d', Compiled ns il) = compileR body let_env dn
       moves = zipWith Move [d+1..d+n] ams
       ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
@@ -360,6 +360,11 @@ compileR e env d = case e of
         usedSlots _         = []
         merge a b = nub . sort $ a ++ b
 
+-- | I scheme
+mkIndMode :: Int -> TimAMode
+mkIndMode n = Code (Compiled [n] [Enter (Arg n)])
+
+-- | J scheme
 mkUpdIndMode :: Int -> TimAMode
 mkUpdIndMode n = Code (Compiled [n] [PushMarker n, Enter (Arg n)]) -- NOTE: mkEnter 不要
 
@@ -423,6 +428,10 @@ compileA (EVar v) env d = (d, aLookup env v $ error $ "Unknown variable " ++ v)
 compileA (ENum n) env d = (d, IntConst n)
 compileA e        env d = (d', Code il)
   where (d', il) = compileR e env d
+
+compileU :: CoreExpr -> Int -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, TimAMode)
+compileU e u env d = (d', Code (Compiled ns (PushMarker u:il)))
+  where (d', Compiled ns il) = compileR e env d
 
 eval :: Config -> TimState -> [TimState]
 eval conf state = state : rest_states
