@@ -343,7 +343,8 @@ compileR e env d = case e of
   ELet isrec defns body -> (d', Compiled (merge ns ns') (moves ++ il))
     where
       n = length defns
-      (dn, ams) = mapAccumL (\ix (i, (_, e')) -> compileU e' (d+i) env' ix) (d+n) $ zip [1..n] defns
+      indexedDefn = zipWith (\i (_, e) -> (i, e)) [1..n] defns
+      (dn, ams) = mapAccumL (\ix (i, e') -> compileU e' (d+i) env' ix) (d+n) indexedDefn
       env'     | isrec     = let_env
                | otherwise = env
       let_env = zip (map fst defns) (map mkIndMode [d+1..d+n]) ++ env
