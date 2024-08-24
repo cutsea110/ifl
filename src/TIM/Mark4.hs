@@ -336,10 +336,15 @@ compileR e env d = case e of
                                  (d2, Compiled ns2 il2) = compileR kElse env d
                                  d' = max d1 d2
                              in compileB kCond env (d', Compiled (merge ns1 ns2) [Cond il1 il2])
-            | otherwise   -> let (d1, am) = compileA e2 env d
-                                 (d2, Compiled ns2 il2) = compileR e1 env d1
-                                 ns1 = usedSlots am
-                             in (d2, Compiled (merge ns1 ns2) (Push am : il2))
+            | isVarOrConst e2 -> let (_, am) = compileA e2 env d
+                                     (d2, Compiled ns2 il2) = compileR e1 env d
+                                     ns1 = usedSlots am
+                                 in (d2, Compiled (merge ns1 ns2) (Push am:il2))
+            | otherwise -> let (d1, am) = compileU e2 (d+1) env (d+1)
+                               (d2, Compiled ns2 il2) = compileR e1 env d1
+                               ns1 = usedSlots am
+                           in (d2, Compiled (merge ns1 ns2) (Move (d+1) am:Push (Code (Compiled [d+1] [Enter (Arg (d+1))])):il2))
+
   ELet isrec defns body -> (d', Compiled (merge ns ns') (moves ++ il))
     where
       n = length defns
@@ -360,6 +365,11 @@ compileR e env d = case e of
         usedSlots (Code cs) = slotsOf cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
         usedSlots _         = []
         merge a b = nub . sort $ a ++ b
+
+isVarOrConst :: CoreExpr -> Bool
+isVarOrConst (EVar _) = True
+isVarOrConst (ENum _) = True
+isVarOrConst _        = False
 
 -- | I scheme
 mkIndMode :: Int -> TimAMode
@@ -427,8 +437,7 @@ unpackCondOp _                                      = error "unpackCondOp: not a
 compileA :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, TimAMode)
 compileA (EVar v) env d = (d, aLookup env v $ error $ "Unknown variable " ++ v)
 compileA (ENum n) env d = (d, IntConst n)
-compileA e        env d = (d', Code il)
-  where (d', il) = compileR e env d
+compileA e        env d = error "compileA: not a variable or constant"
 
 compileU :: CoreExpr -> Int -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, TimAMode)
 compileU (ENum n) u env d = (d, IntConst n)
