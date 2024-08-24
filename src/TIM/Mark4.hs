@@ -431,7 +431,8 @@ compileA e        env d = (d', Code il)
   where (d', il) = compileR e env d
 
 compileU :: CoreExpr -> Int -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, TimAMode)
-compileU e u env d = (d', Code (Compiled ns (PushMarker u:il)))
+compileU (ENum n) u env d = (d, IntConst n)
+compileU e        u env d = (d', Code (Compiled ns (PushMarker u:il)))
   where (d', Compiled ns il) = compileR e env d
 
 eval :: Config -> TimState -> [TimState]
