@@ -1,0 +1,4 @@
+f x = g x;
+g x = h x;
+h x = x + x;
+main = f (3 + 5)
