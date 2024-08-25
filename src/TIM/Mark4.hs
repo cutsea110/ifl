@@ -873,10 +873,10 @@ step state@TimState { instructions = instrs
     where
       m = length stk
       ((fu, x, s), dmp') = case dmp of
-        [] -> error "UpdateMarkers applied to empty dump"
         d:ds -> (d, ds)
+        _    -> error "UpdateMarkers applied to empty dump"
       hp' = fUpdate h' fu x (i', f')
-      (h', f') = fAlloc hp (Frame stk [(x, usedSlots)])
+      (h', f') = fAlloc hp (Frame stk [(x, usedSlots)]) -- NOTE: x slot depends on usedSlots
       i' = map (Push . Arg) (reverse usedSlots) ++ UpdateMarkers n:istr
       usedSlots = [1..m]
   [Return] -> case stk of
@@ -887,11 +887,11 @@ step state@TimState { instructions = instrs
            $ state)
       where
         ((fu, x, stk'), dmp') = case dmp of
-          []  -> error "Return applied to empty dump"
           d:ds -> (d, ds)
+          _    -> error "Return applied to empty dump"
         n = case vstk of
-          (n:ns) -> n
-          _      -> error "Return applied to empty vstk"
+          n:_ -> n
+          _   -> error "Return applied to empty vstk"
         hp' = fUpdate hp fu x (intCode, FrameInt n)
     _ -> applyToStats statIncExecTime
                    (putInstructions instr'
@@ -900,8 +900,8 @@ step state@TimState { instructions = instrs
                     $ state)
       where
         ((instr', fptr'), stk') = case stk of
-          []       -> error "Return applied to empty stack"
           (i, f):s -> ((i, f), s)
+          _        -> error "Return applied to empty stack"
   (Op op:istr)
     -> applyToStats statIncExecTime
        (putInstructions istr
@@ -910,11 +910,11 @@ step state@TimState { instructions = instrs
     where
       vstk'
         | op `elem` [Add, Sub, Mul, Div, Eq, Ne, Lt, Le, Gt, Ge] = case vstk of
-            (n1:n2:ns) -> op' n1 n2:ns
-            _          -> error "Binary op applied to empty stack"
+            n1:n2:ns -> op' n1 n2:ns
+            _        -> error "Binary op applied to empty stack"
         | op == Neg = case vstk of
-            (n:ns) -> negate n:ns
-            _      -> error "Unary op applied to empty stack"
+            n:ns -> negate n:ns
+            _    -> error "Unary op applied to empty stack"
       op' = case op of
         Add -> (+)
         Sub -> (-)
@@ -936,9 +936,9 @@ step state@TimState { instructions = instrs
        $ state)
     where
       (instr', vstk') = case vstk of
-        (0:ns) -> (i1, ns)
-        (_:ns) -> (i2, ns)
-        _      -> error "Cond applied to empty stack"
+        0:ns -> (i1, ns)
+        _:ns -> (i2, ns)
+        _    -> error "Cond applied to empty stack"
   _ -> error $ "invalid instructions: " ++ show instrs
 
 
