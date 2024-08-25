@@ -367,11 +367,6 @@ compileR e env d = case e of
         usedSlots _         = []
         merge a b = nub . sort $ a ++ b
 
-isAtomic :: CoreExpr -> Bool
-isAtomic (EVar _) = True
-isAtomic (ENum _) = True
-isAtomic _        = False
-
 -- | I scheme
 mkIndMode :: Int -> TimAMode
 mkIndMode n = Code (Compiled [n] [Enter (Arg n)])
@@ -416,6 +411,11 @@ isUniOp _                 = False
 isCondOp :: CoreExpr -> Bool
 isCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = True
 isCondOp _                                      = False
+
+isAtomic :: CoreExpr -> Bool
+isAtomic (EVar _) = True
+isAtomic (ENum _) = True
+isAtomic _        = False
 
 unpackBinOp :: CoreExpr -> (CoreExpr, Op, CoreExpr)
 unpackBinOp (EAp (EAp (EVar op) e1) e2) = (e1, op2binop op, e2)
