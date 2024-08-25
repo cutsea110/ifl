@@ -31,6 +31,7 @@ data Instruction = Take Int Int       -- take t n
                  | Push TimAMode
                  | PushV ValueAMode
                  | PushMarker Int
+                 | UpdateMarkers Int
                  | Return
                  | Op Op
                  | Cond [Instruction] [Instruction]
@@ -317,15 +318,11 @@ compiledPrimitives = map (second trans) primitives
 type TimCompilerEnv = [(Name, TimAMode)]
 
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
-compileSc env (name, args, body)
-  | d' == 0   = (name, cs)
-  | otherwise = (name, Compiled ns (Take d' n : il))
+compileSc env (name, args, body) = (name, Compiled ns (UpdateMarkers n : Take d n : il))
   where
     n = length args
-    (d', cs@(Compiled ns il)) = compileR body new_env n
-    -- NOTE: exercise 4.16 で Arg -> mkUpdIndMode にしたが
-    --       これによって充足してない関数引数を取ると Take 時にエラーになる
-    new_env = zip args (map mkUpdIndMode [1..]) ++ env
+    (d, Compiled ns il) = compileR body new_env n
+    new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, CompiledCode)
 compileR e env d = case e of
@@ -859,6 +856,24 @@ step state@TimState { instructions = instrs
          . putStack []
          . putDump ((fptr, x, stk):dmp)
          $ state)
+  (UpdateMarkers n:istr)
+    | m >= n    -> applyToStats statIncExecTime
+                   (putInstructions istr
+                    $ state)
+    | otherwise -> applyToStats statIncExecTime
+                          (putStack (stk ++ s)
+                           . putHeap hp'
+                           . putDump dmp'
+                           $ state)
+    where
+      m = length stk
+      ((fu, x, s), dmp') = case dmp of
+        [] -> error "UpdateMarkers applied to empty dump"
+        d:ds -> (d, ds)
+      hp' = fUpdate h' fu x (i', f')
+      (h', f') = fAlloc hp (Frame stk [(x, usedSlots)])
+      i' = map (Push . Arg) (reverse usedSlots) ++ UpdateMarkers n:istr
+      usedSlots = [1..m]
   [Return] -> case stk of
     [] -> applyToStats statIncExecTime
           (putStack stk'
@@ -1015,15 +1030,16 @@ showInstructions Full il
     sep = iStr "," `iAppend` iNewline
 
 showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
-showInstruction d (Take t n)     = iConcat [iStr "Take ", iNum t, iStr " ", iNum n]
-showInstruction d (Move n a)     = iConcat [iStr "Move ", iNum n, iStr " ", showArg d a]
-showInstruction d (Enter x)      = iStr "Enter " `iAppend` showArg d x
-showInstruction d (Push x)       = iStr "Push " `iAppend` showArg d x
-showInstruction d (PushV x)      = iStr "PushV " `iAppend` showValueAMode x
-showInstruction d (PushMarker x) = iStr "PushMarker " `iAppend` iNum x
-showInstruction d Return         = iStr "Return"
-showInstruction d (Op op)        = iStr "Op " `iAppend` iStr (show op)
-showInstruction d (Cond t f)     = iConcat [ iStr "Cond "
+showInstruction d (Take t n)        = iConcat [iStr "Take ", iNum t, iStr " ", iNum n]
+showInstruction d (Move n a)        = iConcat [iStr "Move ", iNum n, iStr " ", showArg d a]
+showInstruction d (Enter x)         = iStr "Enter " `iAppend` showArg d x
+showInstruction d (Push x)          = iStr "Push " `iAppend` showArg d x
+showInstruction d (PushV x)         = iStr "PushV " `iAppend` showValueAMode x
+showInstruction d (PushMarker x)    = iStr "PushMarker " `iAppend` iNum x
+showInstruction d (UpdateMarkers n) = iStr "UpdateMarkers " `iAppend` iNum n
+showInstruction d Return            = iStr "Return"
+showInstruction d (Op op)           = iStr "Op " `iAppend` iStr (show op)
+showInstruction d (Cond t f)        = iConcat [ iStr "Cond "
                                            , showInstructions d t
                                            , iStr " "
                                            , showInstructions d f
