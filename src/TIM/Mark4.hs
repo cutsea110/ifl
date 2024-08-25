@@ -318,10 +318,15 @@ compiledPrimitives = map (second trans) primitives
 type TimCompilerEnv = [(Name, TimAMode)]
 
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
-compileSc env (name, args, body) = (name, Compiled ns (UpdateMarkers n : Take d n : il))
+compileSc env (name, args, body)
+  -- exercise 4.3
+  | d == 0    = (name, cs) -- d == 0 means n == 0 too
+  -- exercise 4.22
+  | n == 0    = (name, Compiled ns (Take d 0:il))
+  | otherwise = (name, Compiled ns (UpdateMarkers n:Take d n:il))
   where
     n = length args
-    (d, Compiled ns il) = compileR body new_env n
+    (d, cs@(Compiled ns il)) = compileR body new_env n
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, CompiledCode)
