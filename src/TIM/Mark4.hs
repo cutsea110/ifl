@@ -337,7 +337,7 @@ compileR e env d = case e of
                                  d' = max d1 d2
                              in compileB kCond env (d', Compiled (merge ns1 ns2) [Cond il1 il2])
             -- exercise 4.20
-            | isAtomic e2 -> let (_, am) = compileA e2 env d
+            | isAtomic e2 -> let am = compileA e2 env
                                  (d2, Compiled ns2 il2) = compileR e1 env d
                                  ns1 = usedSlots am
                              in (d2, Compiled (merge ns1 ns2) (Push am:il2))
@@ -357,8 +357,8 @@ compileR e env d = case e of
       (d', Compiled ns il) = compileR body let_env dn
       moves = zipWith Move [d+1..d+n] ams
       ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
-  EVar v -> (d', Compiled ns (mkEnter am)) -- NOTE: ns にはちゃんと am が使っているスロットが入っている
-    where (d', am) = compileA (EVar v) env d
+  EVar v -> (d, Compiled ns (mkEnter am)) -- NOTE: ns にはちゃんと am が使っているスロットが入っている
+    where am = compileA (EVar v) env
           ns = usedSlots am
   ENum n -> (d, Compiled [] [PushV (IntVConst n), Return])
   _      -> error $ "compileR: can't do this yet: " ++ show e
@@ -435,10 +435,10 @@ unpackCondOp :: CoreExpr -> (CoreExpr, CoreExpr, CoreExpr)
 unpackCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = (e1, e2, e3)
 unpackCondOp _                                      = error "unpackCondOp: not a conditional operator"
 
-compileA :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, TimAMode)
-compileA (EVar v) env d = (d, aLookup env v $ error $ "Unknown variable " ++ v)
-compileA (ENum n) env d = (d, IntConst n)
-compileA e        env d = error "compileA: not a variable or constant"
+compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
+compileA (EVar v) env = aLookup env v $ error $ "Unknown variable " ++ v
+compileA (ENum n) env = IntConst n
+compileA e        env = error "compileA: not a variable or constant"
 
 compileU :: CoreExpr -> Int -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, TimAMode)
 compileU (ENum n) u env d = (d, IntConst n)
