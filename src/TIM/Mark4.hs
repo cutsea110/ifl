@@ -349,13 +349,13 @@ compileR e env d = case e of
   ELet isrec defns body -> (d', Compiled (merge ns ns') (moves ++ il))
     where
       n = length defns
-      indexedDefn = zipWith (\i (_, e) -> (i, e)) [1..n] defns
-      (dn, ams) = mapAccumL (\ix (i, e') -> compileU e' (d+i) env' ix) (d+n) indexedDefn
+      frameSlots = [d+1..d+n]
+      (dn, ams) = mapAccumL (\ix (u, (_, e')) -> compileU e' u env' ix) (d+n) $ zip frameSlots defns
       env'     | isrec     = let_env
                | otherwise = env
-      let_env = zip (map fst defns) (map mkIndMode [d+1..d+n]) ++ env
+      let_env = zip (map fst defns) (map mkIndMode frameSlots) ++ env
       (d', Compiled ns il) = compileR body let_env dn
-      moves = zipWith Move [d+1..d+n] ams
+      moves = zipWith Move frameSlots ams
       ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
   EVar v -> (d, Compiled ns (mkEnter am)) -- NOTE: ns にはちゃんと am が使っているスロットが入っている
     where am = compileA (EVar v) env
