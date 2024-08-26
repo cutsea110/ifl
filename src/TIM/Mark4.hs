@@ -330,25 +330,7 @@ compileSc env (name, args, body)
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, CompiledCode)
-compileR e env d = case e of
-  EAp e1 e2 | isBasicOp e -> compileB e env (d, Compiled [] [Return])
-            -- exercise 4.7
-            | isCondOp e  -> let (kCond, kThen, kElse) = unpackCondOp e
-                                 (d1, Compiled ns1 il1) = compileR kThen env d
-                                 (d2, Compiled ns2 il2) = compileR kElse env d
-                                 d' = max d1 d2
-                             in compileB kCond env (d', Compiled (merge ns1 ns2) [Cond il1 il2])
-            -- exercise 4.20
-            | isAtomic e2 -> let am = compileA e2 env
-                                 (d2, Compiled ns2 il2) = compileR e1 env d
-                                 ns1 = usedSlots am
-                             in (d2, Compiled (merge ns1 ns2) (Push am:il2))
-            | otherwise -> let (d1, am) = compileU e2 (d+1) env (d+1)
-                               (d2, Compiled ns2 il2) = compileR e1 env d1
-                               ns1 = usedSlots am
-                           in (d2, Compiled (merge ns1 ns2) (Move (d+1) am:Push (Code (Compiled [d+1] [Enter (Arg (d+1))])):il2))
-
-  ELet isrec defns body -> (d', Compiled (merge ns ns') (moves ++ il))
+compileR (ELet isrec defns body) env d = (d', Compiled (merge ns ns') (moves ++ il))
     where
       n = length defns
       frameSlots = [d+1..d+n]
@@ -359,15 +341,37 @@ compileR e env d = case e of
       (d', Compiled ns il) = compileR body let_env dn
       moves = zipWith Move frameSlots ams
       ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
-  EVar v -> (d, Compiled ns (mkEnter am)) -- NOTE: ns にはちゃんと am が使っているスロットが入っている
+compileR (EAp e1 e2) env d
+  -- exercise 4.7
+  | isAtomic e2 = let am = compileA e2 env
+                      (d2, Compiled ns2 il2) = compileR e1 env d
+                      ns1 = usedSlots am
+                  in (d2, Compiled (merge ns1 ns2) (Push am:il2))
+  -- exercise 4.20
+  | otherwise = let (d1, am) = compileU e2 (d+1) env (d+1)
+                    (d2, Compiled ns2 il2) = compileR e1 env d1
+                    ns1 = usedSlots am
+                in (d2, Compiled (merge ns1 ns2) (Move (d+1) am:Push (Code (Compiled [d+1] [Enter (Arg (d+1))])):il2))
+compileR (EVar v) env d = (d, Compiled ns (mkEnter am)) -- NOTE: ns にはちゃんと am が使っているスロットが入っている
     where am = compileA (EVar v) env
           ns = usedSlots am
-  ENum n -> (d, Compiled [] [PushV (IntVConst n), Return])
-  _      -> error $ "compileR: can't do this yet: " ++ show e
-  where usedSlots (Arg i)   = [i]
-        usedSlots (Code cs) = slotsOf cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
-        usedSlots _         = []
-        merge a b = nub . sort $ a ++ b
+compileR (ENum n) env d = (d, Compiled [] [PushV (IntVConst n), Return])
+compileR e env d
+  | isBasicOp e = compileB e env (d, Compiled [] [Return])
+  | isCondOp e  = let (kCond, kThen, kElse) = unpackCondOp e
+                      (d1, Compiled ns1 il1) = compileR kThen env d
+                      (d2, Compiled ns2 il2) = compileR kElse env d
+                      d' = max d1 d2
+                  in compileB kCond env (d', Compiled (merge ns1 ns2) [Cond il1 il2])
+  | otherwise = error $ "compileR: can't do this yet: " ++ show e
+
+usedSlots :: TimAMode -> [OccupiedSlotIdx]
+usedSlots (Arg i)   = [i]
+usedSlots (Code cs) = slotsOf cs -- NOTE: EVar, ENum のときは今のところこれは起きないはず?
+usedSlots _         = []
+
+merge :: UsedSlots -> UsedSlots -> UsedSlots
+merge a b = nub . sort $ a ++ b
 
 -- | I scheme
 mkIndMode :: Int -> TimAMode
