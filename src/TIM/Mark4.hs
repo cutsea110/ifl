@@ -333,13 +333,13 @@ compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, C
 compileR (ELet isrec defns body) env d = (d', Compiled (merge ns ns') (moves ++ il))
     where
       n = length defns
-      frameSlots = [d+1..d+n]
-      (dn, ams) = mapAccumL (\ix (u, (_, e')) -> compileU e' u env' ix) (d+n) $ zip frameSlots defns
+      frame_slots = [d+1..d+n]
+      (dn, ams) = mapAccumL (\ix (u, (_, e')) -> compileU e' u env' ix) (d+n) $ zip frame_slots defns
       env'     | isrec     = let_env
                | otherwise = env
-      let_env = zip (map fst defns) (map mkIndMode frameSlots) ++ env
+      let_env = zip (map fst defns) (map mkIndMode frame_slots) ++ env
       (d', Compiled ns il) = compileR body let_env dn
-      moves = zipWith Move frameSlots ams
+      moves = zipWith Move frame_slots ams
       ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
 compileR (EAp e1 e2) env d
   -- exercise 4.7
@@ -392,14 +392,12 @@ compileB e env (d, Compiled slots cont)
   where (e1, op, e2) = unpackBinOp e
         (d1, am1@(Compiled slots1 _))  = compileB e1 env (d, Compiled slots (Op op : cont))
         (d2,      Compiled slots2 il2) = compileB e2 env (d, am1)
-        merge a b = nub . sort $ a ++ b
 compileB e env (d, Compiled slots cont)
   | isUniOp e = compileB e1 env (d, Compiled slots (Op op : cont))
   where (op, e1) = unpackUniOp e
 compileB (ENum n) env (d, Compiled slots cont) = (d, Compiled slots (PushV (IntVConst n) : cont))
 compileB e env (d, cont@(Compiled slots _)) = (d', Compiled (merge slots slots') (Push (Code cont) : cont'))
   where (d', Compiled slots' cont') = compileR e env d
-        merge a b = nub . sort $ a ++ b
 
 isBasicOp :: CoreExpr -> Bool
 isBasicOp e = isBinOp e || isUniOp e
@@ -880,9 +878,9 @@ step state@TimState { instructions = instrs
         d:ds -> (d, ds)
         _    -> error "UpdateMarkers applied to empty dump"
       hp' = fUpdate h' fu x (i', f')
-      (h', f') = fAlloc hp (Frame stk [(x, usedSlots)]) -- NOTE: x slot depends on usedSlots
-      i' = map (Push . Arg) (reverse usedSlots) ++ UpdateMarkers n:istr
-      usedSlots = [1..m]
+      (h', f') = fAlloc hp (Frame stk [(x, used_slots)]) -- NOTE: x slot depends on used_slots
+      i' = map (Push . Arg) (reverse used_slots) ++ UpdateMarkers n:istr
+      used_slots = [1..m]
   [Return] -> case stk of
     [] -> applyToStats statIncExecTime
           (putStack stk'
