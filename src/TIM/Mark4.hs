@@ -895,15 +895,11 @@ step state@TimState { instructions = instrs
           n:_ -> n
           _   -> error "Return applied to empty vstk"
         hp' = fUpdate hp fu x (intCode, FrameInt n)
-    _ -> applyToStats statIncExecTime
-                   (putInstructions instr'
-                    . putFrame fptr'
-                    . putStack stk'
-                    $ state)
-      where
-        ((instr', fptr'), stk') = case stk of
-          (i, f):s -> ((i, f), s)
-          _        -> error "Return applied to empty stack"
+    (instr', fptr'):stk' -> applyToStats statIncExecTime
+                            (putInstructions instr'
+                             . putFrame fptr'
+                             . putStack stk'
+                             $ state)
   (Op op:istr)
     -> applyToStats statIncExecTime
        (putInstructions istr
