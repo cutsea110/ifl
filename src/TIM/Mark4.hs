@@ -351,10 +351,11 @@ compileR (EAp e1 e2) env d
   | otherwise = let (d1, am) = compileU e2 (d+1) env (d+1)
                     (d2, Compiled ns2 il2) = compileR e1 env d1
                     ns1 = usedSlots am
-                in (d2, Compiled (merge ns1 ns2) (Move (d+1) am:Push (Code (Compiled [d+1] [Enter (Arg (d+1))])):il2))
-compileR (EVar v) env d = (d, Compiled ns (mkEnter am)) -- NOTE: ns にはちゃんと am が使っているスロットが入っている
+                    is = Move (d+1) am:Push (Code (Compiled [d+1] [Enter (Arg (d+1))])):il2
+                in (d2, Compiled (merge ns1 ns2) is)
+compileR (EVar v) env d = (d, Compiled ns (mkEnter am))
     where am = compileA (EVar v) env
-          ns = usedSlots am
+          ns = usedSlots am -- am で使われているスロット
 compileR (ENum n) env d = (d, Compiled [] [PushV (IntVConst n), Return])
 compileR e env d
   | isBasicOp e = compileB e env (d, Compiled [] [Return])
