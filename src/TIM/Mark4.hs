@@ -414,8 +414,8 @@ isUniOp (EAp (EVar op) _) = op `elem` uniOps
 isUniOp _                 = False
 
 isCondOp :: CoreExpr -> Bool
-isCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = True
-isCondOp _                                      = False
+isCondOp (EAp (EAp (EAp (EVar "if") _) _) _) = True
+isCondOp _                                   = False
 
 isAtomic :: CoreExpr -> Bool
 isAtomic (EVar _) = True
