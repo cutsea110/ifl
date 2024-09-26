@@ -116,8 +116,8 @@ fAlloc heap xs = (heap', FrameAddr addr)
 
 fGet :: TimHeap -> FramePtr -> Int -> Closure
 fGet heap (FrameAddr addr) n = case frm of
-  Frame f      -> f !! (n-1)
-  Forward addr -> error $ "fGet: Unexpected " ++ show frm
+  Frame f   -> f !! (n-1)
+  Forward _ -> error $ "fGet: Unexpected " ++ show frm
   where
     frm = hLookup heap addr
 fGet _ _ _ = error "fGet: not implemented"
@@ -127,8 +127,8 @@ fUpdate heap (FrameAddr addr) n closure
   = hUpdate heap addr new_frame
   where
     frame = case frm of
-      Frame f      -> f
-      Forward addr -> error $ "fUpdate: Unexpected " ++ show frm
+      Frame f   -> f
+      Forward _ -> error $ "fUpdate: Unexpected " ++ show frm
       where
         frm = hLookup heap addr
     new_frame = Frame $ take (n-1) frame ++ [closure] ++ drop n frame
