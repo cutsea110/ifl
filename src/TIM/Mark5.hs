@@ -62,6 +62,7 @@ data TimAMode = Arg Int
 
 data TimState = TimState { instructions :: [Instruction]
                          , frame        :: FramePtr
+                         , data_frame   :: FramePtr
                          , stack        :: TimStack
                          , valstack     :: TimValueStack
                          , dump         :: TimDump
@@ -79,6 +80,10 @@ getFrame :: TimState -> FramePtr
 getFrame = frame
 putFrame :: FramePtr -> TimState -> TimState
 putFrame fr state = state { frame = fr }
+getDataFrame :: TimState -> FramePtr
+getDataFrame = data_frame
+putDataFrame :: FramePtr -> TimState -> TimState
+putDataFrame dfr state = state { data_frame = dfr }
 getStack :: TimState -> TimStack
 getStack = stack
 putStack :: TimStack -> TimState -> TimState
