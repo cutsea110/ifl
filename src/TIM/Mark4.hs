@@ -341,7 +341,13 @@ compileR (ELet isrec defns body) env d = (d', Compiled (merge ns ns') (moves ++ 
       (d', Compiled ns il) = compileR body let_env dn
       moves = zipWith Move frame_slots ams
       ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
-compileR (EAp e1 e2) env d
+compileR e@(EAp e1 e2) env d
+  | isBasicOp e = compileB e env (d, Compiled [] [Return])
+  | isCondOp e  = let (kCond, kThen, kElse) = unpackCondOp e
+                      (d1, Compiled ns1 il1) = compileR kThen env d
+                      (d2, Compiled ns2 il2) = compileR kElse env d
+                      d' = max d1 d2
+                  in compileB kCond env (d', Compiled (merge ns1 ns2) [Cond il1 il2])
   -- exercise 4.7
   | isAtomic e2 = let am = compileA e2 env
                       (d2, Compiled ns2 il2) = compileR e1 env d
@@ -357,14 +363,7 @@ compileR (EVar v) env d = (d, Compiled ns (mkEnter am))
     where am = compileA (EVar v) env
           ns = usedSlots am -- am で使われているスロット
 compileR (ENum n) env d = (d, Compiled [] [PushV (IntVConst n), Return])
-compileR e env d
-  | isBasicOp e = compileB e env (d, Compiled [] [Return])
-  | isCondOp e  = let (kCond, kThen, kElse) = unpackCondOp e
-                      (d1, Compiled ns1 il1) = compileR kThen env d
-                      (d2, Compiled ns2 il2) = compileR kElse env d
-                      d' = max d1 d2
-                  in compileB kCond env (d', Compiled (merge ns1 ns2) [Cond il1 il2])
-  | otherwise = error $ "compileR: can't do this yet: " ++ show e
+compileR e _ _ = error $ "compileR: not do this yet: " ++ show e
 
 usedSlots :: TimAMode -> [OccupiedSlotIdx]
 usedSlots (Arg i)   = [i]
