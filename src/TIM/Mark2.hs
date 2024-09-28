@@ -609,8 +609,8 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
 
               
   -- Heap には含まないので from と to で変わらない
-  FrameInt n -> ((from, to), fptr)
-  FrameNull  -> ((from, to), fptr)
+  FrameInt _  -> ((from, to), fptr)
+  FrameNull   -> ((from, to), fptr)
 
 {- |
 >>> let h = hInitial :: Heap Frame
