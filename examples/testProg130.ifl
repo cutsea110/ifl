@@ -1,0 +1,4 @@
+add a b = a+b;
+twice f x = f (f x);
+g x = add (x*x);
+main = twice (g 3) 4
