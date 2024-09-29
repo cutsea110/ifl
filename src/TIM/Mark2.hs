@@ -826,7 +826,7 @@ showUsedSlots ns = iConcat [ iStr "["
                            ]
 
 showInstructions :: HowMuchToPrint -> [Instruction] -> IseqRep
-showInstructions None il = iStr "{..}"
+showInstructions None _ = iStr "{..}"
 showInstructions Terse il
   = iConcat [ iStr "{"
             , iIndent (iInterleave (iStr ", ") body)
@@ -843,12 +843,12 @@ showInstructions Full il
     sep = iStr "," `iAppend` iNewline
 
 showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
-showInstruction d (Take n)   = iStr "Take " `iAppend` iNum n
+showInstruction _ (Take n)   = iStr "Take " `iAppend` iNum n
 showInstruction d (Enter x)  = iStr "Enter " `iAppend` showArg d x
 showInstruction d (Push x)   = iStr "Push " `iAppend` showArg d x
-showInstruction d (PushV x)  = iStr "PushV " `iAppend` showValueAMode x
-showInstruction d Return     = iStr "Return"
-showInstruction d (Op op)    = iStr "Op " `iAppend` iStr (show op)
+showInstruction _ (PushV x)  = iStr "PushV " `iAppend` showValueAMode x
+showInstruction _ Return     = iStr "Return"
+showInstruction _ (Op op)    = iStr "Op " `iAppend` iStr (show op)
 showInstruction d (Cond t f) = iConcat [ iStr "Cond "
                                        , showInstructions d t
                                        , iStr " "
@@ -860,15 +860,15 @@ showValueAMode FramePtr      = iStr "FramePtr"
 showValueAMode (IntVConst n) = iStr "IntVConst " `iAppend` iNum n
 
 showArg :: HowMuchToPrint -> TimAMode -> IseqRep
-showArg d (Arg n)   = iStr "Arg " `iAppend` iNum n
+showArg _ (Arg n)   = iStr "Arg " `iAppend` iNum n
 showArg d (Code il) = iConcat [ iStr "Code "
                               , showUsedSlots ns
                               , iStr " "
                               , showInstructions d instrs
                               ]
   where Compiled ns instrs = il
-showArg d (Label s) = iStr "Label " `iAppend` iStr s
-showArg d (IntConst n) = iStr "IntConst " `iAppend` iNum n
+showArg _ (Label s) = iStr "Label " `iAppend` iStr s
+showArg _ (IntConst n) = iStr "IntConst " `iAppend` iNum n
 
 nTerse :: Int
 nTerse = 3
