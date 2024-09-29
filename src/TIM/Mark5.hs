@@ -27,14 +27,17 @@ runProg conf = showR . eval conf . compile . parse
 
 data Instruction = Take Int Int       -- take t n
                  | Move Int TimAMode
+                 | MoveD Int Int      -- move n d
                  | Enter TimAMode
                  | Push TimAMode
                  | PushV ValueAMode
                  | PushMarker Int
                  | UpdateMarkers Int
                  | Return
+                 | ReturnConstr Tag
                  | Op Op
                  | Cond [Instruction] [Instruction]
+                 | Switch [(Tag, [Instruction])]
                  deriving (Eq, Show)
 
 type OccupiedSlotIdx = Int
@@ -55,6 +58,7 @@ data ValueAMode = FramePtr
 
 
 data TimAMode = Arg Int
+              | Data Int
               | Label Name
               | Code CompiledCode
               | IntConst Int
@@ -256,6 +260,7 @@ compile :: CoreProgram -> TimState
 compile program
   = TimState { instructions = [Enter $ Label "main"]
              , frame        = FrameNull
+             , data_frame   = FrameNull
              , stack        = initialArgStack
              , valstack     = initialValueStack
              , dump         = initialDump
@@ -1040,18 +1045,25 @@ showInstructions Full il
 showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
 showInstruction d (Take t n)        = iConcat [iStr "Take ", iNum t, iStr " ", iNum n]
 showInstruction d (Move n a)        = iConcat [iStr "Move ", iNum n, iStr " ", showArg d a]
+showInstruction d (MoveD n m)       = iConcat [iStr "MoveD ", iNum n, iStr " ", iNum m]
 showInstruction d (Enter x)         = iStr "Enter " `iAppend` showArg d x
 showInstruction d (Push x)          = iStr "Push " `iAppend` showArg d x
 showInstruction d (PushV x)         = iStr "PushV " `iAppend` showValueAMode x
 showInstruction d (PushMarker x)    = iStr "PushMarker " `iAppend` iNum x
 showInstruction d (UpdateMarkers n) = iStr "UpdateMarkers " `iAppend` iNum n
 showInstruction d Return            = iStr "Return"
+showInstruction d (ReturnConstr n)  = iStr "ReturnConstr " `iAppend` iNum n
 showInstruction d (Op op)           = iStr "Op " `iAppend` iStr (show op)
 showInstruction d (Cond t f)        = iConcat [ iStr "Cond "
-                                           , showInstructions d t
-                                           , iStr " "
-                                           , showInstructions d f
-                                           ]
+                                              , showInstructions d t
+                                              , iStr " "
+                                              , showInstructions d f
+                                              ]
+showInstruction d (Switch brs)      = iConcat [ iStr "Switch ["
+                                              , iIndent (iInterleave (iStr ", ") (map showBranch brs))
+                                              , iStr "]"
+                                              ]
+  where showBranch (tag, instrs) = iConcat [ iNum tag, iStr " -> ", showInstructions d instrs ]
 
 showValueAMode :: ValueAMode -> IseqRep
 showValueAMode FramePtr      = iStr "FramePtr"
@@ -1059,6 +1071,7 @@ showValueAMode (IntVConst n) = iStr "IntVConst " `iAppend` iNum n
 
 showArg :: HowMuchToPrint -> TimAMode -> IseqRep
 showArg d (Arg n)   = iStr "Arg " `iAppend` iNum n
+showArg d (Data n)  = iStr "Data " `iAppend` iNum n
 showArg d (Code il) = iConcat [ iStr "Code "
                               , showUsedSlots ns
                               , iStr " "
