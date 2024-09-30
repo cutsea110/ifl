@@ -1,0 +1,6 @@
+-- exercise 4.23
+length xs = case xs of
+  <1>      -> 0;
+  <2> p ps -> 1 + length ps;
+
+main = length (cons 1 (cons 2 nil))
