@@ -844,6 +844,7 @@ step state@TimState { instructions = instrs
         Code cs -> fSetRelSlots hp1 fptr (n, slotsOf cs)
         _       -> hp1
 
+  (MoveD n d:istr) -> error "TODO: MoveD not implemented"
   [Enter am]
     -> applyToStats statIncExecTime
        (putInstructions instr'
@@ -910,6 +911,29 @@ step state@TimState { instructions = instrs
                              . putFrame fptr'
                              . putStack stk'
                              $ state)
+  [ReturnConstr t] -> case stk of
+    [] -> applyToStats statIncExecTime
+          (putStack stk'
+           . putDump dmp'
+           . putHeap hp'
+           $ state)
+      where
+        ((fu, x, stk'), dmp') = case dmp of
+          d:ds -> (d, ds)
+          _    -> error "ReturnConstr applied to empty dump"
+        f = getFrame state
+        hp' = fUpdate hp fu x ([ReturnConstr t], f)
+    _  -> applyToStats statIncExecTime
+          (putInstructions i
+            . putFrame f'
+            . putDataFrame f
+            . putStack stk'
+            . putVStack vstk'
+            $ state)
+      where
+        (i, f'):stk' = stk
+        f = getFrame state
+        vstk' = t:vstk
   (Op op:istr)
     -> applyToStats statIncExecTime
        (putInstructions istr
@@ -947,8 +971,17 @@ step state@TimState { instructions = instrs
         0:ns -> (i1, ns)
         _:ns -> (i2, ns)
         _    -> error "Cond applied to empty stack"
-  _ -> error $ "invalid instructions: " ++ show instrs
+  [Switch brs] -> applyToStats statIncExecTime
+                  (putInstructions i
+                   . putVStack vstk'
+                   $ state)
+    where
+      (t, vstk') = case vstk of
+        n:ns -> (n, ns)
+        _   -> error "Switch applied to empty stack"
+      i = aLookup brs t $ error $ "no branch for " ++ show t
 
+  _ -> error $ "invalid instructions: " ++ show instrs
 
 amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> Closure
 amToClosure (Arg n)      fptr heap cstore = fGet heap fptr n
