@@ -347,7 +347,9 @@ compileSc env (name, args, body)
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, CompiledCode)
-compileR (EConstr t a) env d = (d, Compiled [] [UpdateMarkers a, Take a a, ReturnConstr t])
+compileR (EConstr t a) env d
+  | a == 0    = (d, Compiled [] [ReturnConstr t])
+  | otherwise = (d, Compiled [] [UpdateMarkers a, Take a a, ReturnConstr t])
 compileR (ECase e alts) env d = (d', Compiled (merge ns us') (Push (Code (Compiled us' [Switch brs])):ise))
     where
       (ds, us, brs) = unzip3 $ map (compileE env d) alts
