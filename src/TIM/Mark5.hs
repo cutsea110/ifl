@@ -1038,6 +1038,7 @@ showSC (name, cs)
 showState :: TimState -> IseqRep
 showState TimState { instructions = is
                    , frame        = fptr
+                   , data_frame   = dfptr
                    , stack        = stk
                    , valstack     = vstk
                    , dump         = dmp
@@ -1049,6 +1050,8 @@ showState TimState { instructions = is
               , showInstructions Terse is, iNewline
               , iStr "Frame: "
               , showFrame hp fptr, iNewline
+              , iStr "Data frame: "
+              , showFrame hp dfptr, iNewline
               , iStr "Rel slots: "
               , showRelSlots hp fptr, iNewline
               , iStr "Arg stack: "
@@ -1104,10 +1107,11 @@ showInstruction d (Cond t f)        = iConcat [ iStr "Cond "
                                               , showInstructions d f
                                               ]
 showInstruction d (Switch brs)      = iConcat [ iStr "Switch ["
-                                              , iIndent (iInterleave (iStr ", ") (map showBranch brs))
+                                              , iIndent (iInterleave sep (map showBranch brs))
                                               , iStr "]"
                                               ]
   where showBranch (tag, instrs) = iConcat [ iNum tag, iStr " -> ", showInstructions d instrs ]
+        sep = iStr "," `iAppend` iNewline
 
 showValueAMode :: ValueAMode -> IseqRep
 showValueAMode FramePtr      = iStr "FramePtr"
