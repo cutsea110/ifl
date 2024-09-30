@@ -27,7 +27,6 @@ runProg conf = showR . eval conf . compile . parse
 
 data Instruction = Take Int Int       -- take t n
                  | Move Int TimAMode
-                 | MoveD Int Int      -- move n d
                  | Enter TimAMode
                  | Push TimAMode
                  | PushV ValueAMode
@@ -857,28 +856,21 @@ step state@TimState { instructions = instrs
                        $ state)
     where
       -- NOTE: Code 以外も処理されてしまうがコンパイラがバグってなければ問題ないはず
-      hp1 = fUpdate hp fptr n (amToClosure am fptr hp cstore)
+      hp1 = fUpdate hp fptr n (amToClosure am fptr dfptr hp cstore)
       hp2 = case am of
         Code cs -> fSetRelSlots hp1 fptr (n, slotsOf cs)
         _       -> hp1
-
-  (MoveD n d:istr) -> applyToStats statIncExecTime
-                      (putInstructions istr
-                       . putHeap hp'
-                       $ state)
-    where
-      hp' = fUpdate hp fptr n (fGet hp dfptr d)
   [Enter am]
     -> applyToStats statIncExecTime
        (putInstructions instr'
         . putFrame fptr'
         $ state)
     where
-      (instr', fptr') = amToClosure am fptr hp cstore
+      (instr', fptr') = amToClosure am fptr dfptr hp cstore
   (Push am:istr)
     -> applyToStats statIncExecTime
        (putInstructions istr
-         . putStack (amToClosure am fptr hp cstore : stk)
+         . putStack (amToClosure am fptr dfptr hp cstore : stk)
          $ state)
   (PushV fp:istr)
     -> applyToStats statIncExecTime $ case fp of
@@ -1006,11 +998,12 @@ step state@TimState { instructions = instrs
 
   _ -> error $ "invalid instructions: " ++ show instrs
 
-amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> Closure
-amToClosure (Arg n)      fptr heap cstore = fGet heap fptr n
-amToClosure (Code cs)    fptr heap cstore = (instrsOf cs, fptr)
-amToClosure (Label l)    fptr heap cstore = (codeLookup cstore l, fptr)
-amToClosure (IntConst n) fptr heap cstore = (intCode, FrameInt n)
+amToClosure :: TimAMode -> FramePtr -> FramePtr -> TimHeap -> CodeStore -> Closure
+amToClosure (Arg n)      fptr dfptr heap cstore = fGet heap fptr n
+amToClosure (Data n)     fptr dfptr heap cstore = fGet heap dfptr n
+amToClosure (Code cs)    fptr dfptr heap cstore = (instrsOf cs, fptr)
+amToClosure (Label l)    fptr dfptr heap cstore = (codeLookup cstore l, fptr)
+amToClosure (IntConst n) fptr dfptr heap cstore = (intCode, FrameInt n)
 
 intCode :: [Instruction]
 intCode = [PushV FramePtr, Return]
@@ -1101,7 +1094,6 @@ showInstructions Full il
 showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
 showInstruction _ (Take t n)        = iConcat [iStr "Take ", iNum t, iStr " ", iNum n]
 showInstruction d (Move n a)        = iConcat [iStr "Move ", iNum n, iStr " ", showArg d a]
-showInstruction _ (MoveD n m)       = iConcat [iStr "MoveD ", iNum n, iStr " ", iNum m]
 showInstruction d (Enter x)         = iStr "Enter " `iAppend` showArg d x
 showInstruction d (Push x)          = iStr "Push " `iAppend` showArg d x
 showInstruction _ (PushV x)         = iStr "PushV " `iAppend` showValueAMode x
