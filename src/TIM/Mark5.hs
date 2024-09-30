@@ -269,7 +269,7 @@ compile program
              , stats        = statInitial
              }
   where
-    sc_defs = preludeDefs ++ program
+    sc_defs = preludeDefs ++ extraPreludeDefs ++ program
     compiled_sc_defs = map (compileSc initial_env) sc_defs
     compiled_code = compiled_sc_defs ++ compiledPrimitives
     initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
@@ -286,6 +286,14 @@ initialDump = []
 
 initCodeStore :: CodeStore
 initCodeStore = []
+
+extraPreludeDefs :: CoreProgram
+extraPreludeDefs = [ ("cons", [], EConstr 2 2)
+                   , ("nil",  [], EConstr 1 0)
+                   , ("true", [], EConstr 2 0)
+                   , ("false",[], EConstr 1 0)
+                   , ("if", ["c", "t", "f"], ECase (EVar "c") [(1, [], EVar "f"), (2, [], EVar "t")])
+                   ]
 
 data OpType = BinOp Op | UniOp Op | CondOp deriving (Eq, Show)
 
@@ -308,7 +316,6 @@ primitives = [ ("+",      BinOp Add)
              , ("<=",     BinOp Le)
              , (">",      BinOp Gt)
              , (">=",     BinOp Ge)
-             , ("if",     CondOp)
              ]
 
 compiledPrimitives :: [(Name, CompiledCode)]
@@ -423,10 +430,6 @@ isUniOp (EAp (EVar op) _) = op `elem` uniOps
   where uniOps = map fst $ filter (isUni . snd) primitives
 isUniOp _                 = False
 
-isCondOp :: CoreExpr -> Bool
-isCondOp (EAp (EAp (EAp (EVar "if") _) _) _) = True
-isCondOp _                                   = False
-
 isAtomic :: CoreExpr -> Bool
 isAtomic (EVar _) = True
 isAtomic (ENum _) = True
@@ -445,10 +448,6 @@ unpackUniOp (EAp (EVar op) e1) = (op2uniop op, e1)
           Just (UniOp op') -> op'
           _                -> error "unpackUniOp: not a unary operator"
 unpackUniOp _                  = error "unpackUniOp: not a unary operator"
-
-unpackCondOp :: CoreExpr -> (CoreExpr, CoreExpr, CoreExpr)
-unpackCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = (e1, e2, e3)
-unpackCondOp _                                      = error "unpackCondOp: not a conditional operator"
 
 compileE :: TimCompilerEnv -> OccupiedSlotIdx -> CoreAlt -> (OccupiedSlotIdx, UsedSlots, Branch)
 compileE env d (tag, vars, body) = (d', merge ns used_slots, (tag, is_moves ++ is_body))
