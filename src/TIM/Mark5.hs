@@ -343,7 +343,7 @@ compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, C
 compileR (EConstr t a) env d = (d, Compiled [] [UpdateMarkers a, Take a a, ReturnConstr t])
 compileR (ECase e alts) env d = (d', Compiled (merge ns us') (Push (Code (Compiled us' [Switch brs])):ise))
     where
-      (ds, us, brs) = unzip3 $ map (\alt -> compileE alt env d) alts
+      (ds, us, brs) = unzip3 $ map (compileE env d) alts
       us' = nub . sort $ concat us
       (d', Compiled ns ise) = compileR e env (maximum ds)
 compileR (ELet isrec defns body) env d = (d', Compiled (merge ns ns') (moves ++ il))
@@ -455,8 +455,8 @@ unpackCondOp :: CoreExpr -> (CoreExpr, CoreExpr, CoreExpr)
 unpackCondOp (EAp (EAp (EAp (EVar "if") e1) e2) e3) = (e1, e2, e3)
 unpackCondOp _                                      = error "unpackCondOp: not a conditional operator"
 
-compileE :: CoreAlt -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, UsedSlots, Branch)
-compileE (tag, vars, body) env d = (d', merge ns used_slots, (tag, is_moves ++ is_body))
+compileE :: TimCompilerEnv -> OccupiedSlotIdx -> CoreAlt -> (OccupiedSlotIdx, UsedSlots, Branch)
+compileE env d (tag, vars, body) = (d', merge ns used_slots, (tag, is_moves ++ is_body))
   where
     no_of_args = length vars
     used_slots = [d+1..d+no_of_args]
