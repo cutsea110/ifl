@@ -864,6 +864,7 @@ step state@TimState { instructions = instrs
     -> applyToStats statIncExecTime
        (putInstructions instr'
         . putFrame fptr'
+        . putDataFrame FrameNull
         $ state)
     where
       (instr', fptr') = amToClosure am fptr dfptr hp cstore
@@ -924,6 +925,7 @@ step state@TimState { instructions = instrs
     (instr', fptr'):stk' -> applyToStats statIncExecTime
                             (putInstructions instr'
                              . putFrame fptr'
+                             . putDataFrame FrameNull
                              . putStack stk'
                              $ state)
   [ReturnConstr t] -> case stk of
