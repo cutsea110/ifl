@@ -813,6 +813,7 @@ applyToStats stats_fun state
 step :: TimState -> TimState
 step state@TimState { instructions = instrs
                     , frame        = fptr
+                    , data_frame   = dfptr
                     , stack        = stk
                     , valstack     = vstk
                     , dump         = dmp
@@ -844,7 +845,12 @@ step state@TimState { instructions = instrs
         Code cs -> fSetRelSlots hp1 fptr (n, slotsOf cs)
         _       -> hp1
 
-  (MoveD n d:istr) -> error "TODO: MoveD not implemented"
+  (MoveD n d:istr) -> applyToStats statIncExecTime
+                      (putInstructions istr
+                       . putHeap hp'
+                       $ state)
+    where
+      hp' = fUpdate hp fptr n (fGet hp dfptr d)
   [Enter am]
     -> applyToStats statIncExecTime
        (putInstructions instr'
