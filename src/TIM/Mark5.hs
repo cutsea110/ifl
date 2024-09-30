@@ -359,11 +359,6 @@ compileR (ELet isrec defns body) env d = (d', Compiled (merge ns ns') (moves ++ 
       ns' = nub . sort $ concatMap usedSlots ams -- moves で使われているスロット
 compileR e@(EAp e1 e2) env d
   | isBasicOp e = compileB e env (d, Compiled [] [Return])
-  | isCondOp e  = let (kCond, kThen, kElse) = unpackCondOp e
-                      (d1, Compiled ns1 il1) = compileR kThen env d
-                      (d2, Compiled ns2 il2) = compileR kElse env d
-                      d' = max d1 d2
-                  in compileB kCond env (d', Compiled (merge ns1 ns2) [Cond il1 il2])
   -- exercise 4.7
   | isAtomic e2 = let am = compileA e2 env
                       (d2, Compiled ns2 il2) = compileR e1 env d
