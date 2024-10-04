@@ -973,7 +973,7 @@ step state@TimState { instructions = instrs
         Ge  -> b2i (>=)
         _   -> error $ "unsupported op: " ++ show op
         where
-          b2i cmp x y = if x `cmp` y then 0 else 1
+          b2i cmp x y = if x `cmp` y then 1 else 2 -- tag of true/false defined in extraPreludeDefs
   [Cond i1 i2]
     -> applyToStats statIncExecTime
        (putInstructions instr'
