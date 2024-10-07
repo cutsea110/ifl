@@ -73,7 +73,7 @@ data TimState = TimState { instructions :: [Instruction]
                          , dump         :: TimDump
                          , heap         :: TimHeap
                          , codes        :: CodeStore
-                         , output       :: [Int]
+                         , output       :: TimOutput
                          , stats        :: TimStats
                          }
               deriving (Eq, Show)
@@ -117,9 +117,9 @@ getStats :: TimState -> TimStats
 getStats = stats
 putStats :: TimStats -> TimState -> TimState
 putStats sts state = state { stats = sts }
-getOutput :: TimState -> [Int]
+getOutput :: TimState -> TimOutput
 getOutput = output
-putOutput :: [Int] -> TimState -> TimState
+putOutput :: TimOutput -> TimState -> TimState
 putOutput o state = state { output = o }
 
 
@@ -142,6 +142,8 @@ instance {-# Overlapping #-} Show (Heap Frame) where
   show (allocs, size, _, cts) = show (allocs, size, cts)
 
 type RelSlot = Assoc UsedSlot UsedSlots
+
+type TimOutput = [Int]
 
 data Frame = Frame [Closure] RelSlot
            | Forward Addr
@@ -1245,7 +1247,7 @@ showDump dump
                     , iStr ")"
                     ]
 
-showOutput :: [Int] -> IseqRep
+showOutput :: TimOutput -> IseqRep
 showOutput out = iConcat [ iStr "["
                          , iIndent (iInterleave (iStr ",") (map iNum out))
                          , iStr "]"
