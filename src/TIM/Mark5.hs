@@ -37,6 +37,7 @@ data Instruction = Take Int Int       -- take t n
                  | Op Op
                  | Cond [Instruction] [Instruction]
                  | Switch [Branch]
+                 | Print
                  deriving (Eq, Show)
 
 type Branch = (Tag, [Instruction])
@@ -72,6 +73,7 @@ data TimState = TimState { instructions :: [Instruction]
                          , dump         :: TimDump
                          , heap         :: TimHeap
                          , codes        :: CodeStore
+                         , output       :: [Int]
                          , stats        :: TimStats
                          }
               deriving (Eq, Show)
@@ -115,6 +117,10 @@ getStats :: TimState -> TimStats
 getStats = stats
 putStats :: TimStats -> TimState -> TimState
 putStats sts state = state { stats = sts }
+getOutput :: TimState -> [Int]
+getOutput = output
+putOutput :: [Int] -> TimState -> TimState
+putOutput o state = state { output = o }
 
 
 data FramePtr = FrameAddr Addr      -- The address of a frame
@@ -261,22 +267,35 @@ compile program
   = TimState { instructions = [Enter $ Label "main"]
              , frame        = FrameNull
              , data_frame   = FrameNull
-             , stack        = initialArgStack
+             , stack        = [(topCont, init_fp)]
              , valstack     = initialValueStack
              , dump         = initialDump
-             , heap         = hInitial
+             , heap         = init_heap
              , codes        = compiled_code
+             , output       = []
              , stats        = statInitial
              }
   where
     sc_defs = preludeDefs ++ extraPreludeDefs ++ program
     compiled_sc_defs = map (compileSc initial_env) sc_defs
     compiled_code = compiled_sc_defs ++ compiledPrimitives
+    (init_heap, init_fp) = fAlloc hInitial (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
     initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
                   [(name, Label name) | (name, _) <- compiledPrimitives]
 
-initialArgStack :: TimStack
-initialArgStack = [([], FrameNull)] -- initial continuation
+
+topCont :: [Instruction]
+topCont = [ Switch [ (1, [])
+                   , (2, [ Move 1 (Data 1)  -- Head
+                         , Move 2 (Data 2)  -- Tail
+                         , Push (Code (Compiled [1, 2] headCont))
+                         , Enter (Arg 1)
+                         ])
+                   ]
+          ]
+headCont :: [Instruction]
+headCont = [Print, Push (Code (Compiled [1, 2] topCont)), Enter (Arg 2)]
+
 
 initialValueStack :: TimValueStack
 initialValueStack = []
@@ -993,6 +1012,16 @@ step state@TimState { instructions = instrs
         n:ns -> (n, ns)
         _   -> error "Switch applied to empty stack"
       i = aLookup brs t $ error $ "no branch for " ++ show t
+  (Print:istr) -> applyToStats statIncExecTime
+                  (putInstructions istr
+                   . putVStack vstk'
+                   . putOutput out'
+                   $ state)
+    where
+      (o, vstk') = case vstk of
+        n:ns -> (n, ns)
+        _    -> error "Print applied to empty stack"
+      out'  = getOutput state ++ [o]
 
   _ -> error $ "invalid instructions: " ++ show instrs
 
@@ -1046,6 +1075,7 @@ showState TimState { instructions = is
                    , dump         = dmp
                    , heap         = hp
                    , codes        = cs
+                   , output       = out
                    , stats        = stat
                    }
   = iConcat $ [ iStr "Code:  "
@@ -1062,6 +1092,8 @@ showState TimState { instructions = is
               , showValueStack vstk, iNewline
               , iStr "Dump: "
               , showDump dmp, iNewline
+              , iStr "Output: "
+              , showOutput out, iNewline
               ] ++ gcinfo
     where gcinfo = case find (\i -> stepAt i == getSteps stat) (getGCInfo stat) of
             Nothing -> []
@@ -1103,6 +1135,7 @@ showInstruction _ (UpdateMarkers n) = iStr "UpdateMarkers " `iAppend` iNum n
 showInstruction _ Return            = iStr "Return"
 showInstruction _ (ReturnConstr n)  = iStr "ReturnConstr " `iAppend` iNum n
 showInstruction _ (Op op)           = iStr "Op " `iAppend` iStr (show op)
+showInstruction _ Print             = iStr "Print"
 showInstruction d (Cond t f)        = iConcat [ iStr "Cond "
                                               , showInstructions d t
                                               , iStr " "
@@ -1211,6 +1244,12 @@ showDump dump
                     -- , showStack stk
                     , iStr ")"
                     ]
+
+showOutput :: [Int] -> IseqRep
+showOutput out = iConcat [ iStr "["
+                         , iIndent (iInterleave (iStr ",") (map iNum out))
+                         , iStr "]"
+                         ]
 
 
 showClosure :: Closure -> IseqRep
