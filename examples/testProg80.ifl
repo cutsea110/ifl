@@ -1,5 +1,4 @@
 -- kluge
-B f g x = f (g x);
 G a b c d = let e = c d in a (b e) e;
 
 -- map over Maybe
@@ -58,9 +57,9 @@ sub x = case unwrap x of
 
 -- histo over Maybe
 histo phi = letrec
-              u = G (S (B maybe unit) cons) phi (B (fmap u) out)
-            in B extract u;
-dyna f g = B (histo f) (unfoldn g);
+              u = G (S (compose maybe unit) cons) phi (compose (fmap u) out)
+            in compose extract u;
+dyna f g = compose (histo f) (unfoldn g);
 
 -- for concrete phi and psi for dyna
 phi x = case x of
