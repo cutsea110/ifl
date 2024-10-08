@@ -59,6 +59,8 @@ sub x = case unwrap x of
 histo phi = letrec
               u = G (S (compose maybe unit) cons) phi (compose (fmap u) out)
             in compose extract u;
+
+-- dyna over Maybe
 dyna f g = compose (histo f) (unfoldn g);
 
 -- for concrete phi and psi for dyna
