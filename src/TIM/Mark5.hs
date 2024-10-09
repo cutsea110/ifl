@@ -196,16 +196,19 @@ codeLookup :: CodeStore -> Name -> [Instruction]
 codeLookup cstore l = instrsOf cs
   where cs = aLookup cstore l $ error $ "Attempt to jump to unknown label " ++ show l
 
-data GCInfo = GCInfo { stepAt                  :: Int
-                     , instr                   :: [Instruction]
-                     , stackInit               :: TimStack
-                     , fptrInit                :: FramePtr
-                     , heapBefore              :: TimHeap
-                     , heapEvacuatedByStack    :: (TimHeap, TimHeap)
-                     , heapEvacuatedByDump     :: (TimHeap, TimHeap)
-                     , heapEvacuatedByFramePtr :: (TimHeap, TimHeap)
-                     , heapScavenged           :: TimHeap
-                     , fptrDone                :: FramePtr
+data GCInfo = GCInfo { stepAt                      :: Int
+                     , instr                       :: [Instruction]
+                     , stackInit                   :: TimStack
+                     , fptrInit                    :: FramePtr
+                     , dfptrInit                   :: FramePtr
+                     , heapBefore                  :: TimHeap
+                     , heapEvacuatedByStack        :: (TimHeap, TimHeap)
+                     , heapEvacuatedByDump         :: (TimHeap, TimHeap)
+                     , heapEvacuatedByFramePtr     :: (TimHeap, TimHeap)
+                     , heapEvacuatedByDataFramePtr :: (TimHeap, TimHeap)
+                     , heapScavenged               :: TimHeap
+                     , fptrDone                    :: FramePtr
+                     , dfptrDone                   :: FramePtr
                      } deriving (Eq, Show)
 
 data TimStats
@@ -510,6 +513,7 @@ doAdmin conf state
 gc :: TimState -> TimState
 gc state@TimState { instructions = instrs
                   , frame        = fptr
+                  , data_frame   = dfptr
                   , stack        = stk
                   , dump         = dmp
                   , heap         = from
@@ -519,24 +523,29 @@ gc state@TimState { instructions = instrs
   = case evacuateStack cstore from hInitial stk of
   ((from1, to1), stk1) -> case evacuateDump cstore from1 to1 dmp of
     ((from2, to2), dmp1) -> case evacuateFramePtr True cstore from2 to2  (instrs, fptr) of
-      ((from3, to3),  fptr1) -> case scavenge from3 to3 of
-        to4 -> let gcinfo = GCInfo { stepAt = statGetSteps sts
-                                   , instr = instrs
-                                   , stackInit = stk
-                                   , fptrInit = fptr
-                                   , heapBefore = from
-                                   , heapEvacuatedByStack = (from1, to1)
-                                   , heapEvacuatedByDump = (from2, to2)
-                                   , heapEvacuatedByFramePtr = (from3, to3)
-                                   , heapScavenged = to4
-                                   , fptrDone = fptr1
-                                   }
-               in applyToStats (statIncGCCount gcinfo)
-                            $ state { frame = fptr1
-                                    , stack = stk1
-                                    , dump = dmp1
-                                    , heap = to4
-                                    }
+      ((from3, to3), fptr1) -> case evacuateFramePtr False cstore from3 to3 (instrs, dfptr) of
+        ((from4, to4),  dfptr1) -> case scavenge from4 to4 of
+          to5 -> let gcinfo = GCInfo { stepAt = statGetSteps sts
+                                     , instr = instrs
+                                     , stackInit = stk
+                                     , fptrInit = fptr
+                                     , dfptrInit = dfptr
+                                     , heapBefore = from
+                                     , heapEvacuatedByStack = (from1, to1)
+                                     , heapEvacuatedByDump = (from2, to2)
+                                     , heapEvacuatedByFramePtr = (from3, to3)
+                                     , heapEvacuatedByDataFramePtr = (from4, to4)
+                                     , heapScavenged = to5
+                                     , fptrDone = fptr1
+                                     , dfptrDone = dfptr1
+                                     }
+                 in applyToStats (statIncGCCount gcinfo)
+                                $ state { frame = fptr1
+                                        , data_frame = dfptr1
+                                        , stack = stk1
+                                        , dump = dmp1
+                                        , heap = to5
+                                        }
 
 showGCInfo :: GCInfo -> IseqRep
 showGCInfo gcinfo
@@ -556,18 +565,26 @@ showGCInfo gcinfo
             , iStr "   ", iIndent (showHeap f3), iNewline, iNewline
             , iStr ">>> EVACUATED frameptr: to3", iNewline
             , iStr "   ", iIndent (showHeap t3), iNewline, iNewline
-            , iStr ">>> SCAVENGED: to4", iNewline
+            , iStr ">>> EVACUATED data frameptr: from4", iNewline
+            , iStr "   ", iIndent (showHeap f4), iNewline, iNewline
+            , iStr ">>> EVACUATED data frameptr: to4", iNewline
             , iStr "   ", iIndent (showHeap t4), iNewline, iNewline
+            , iStr ">>> SCAVENGED: to5", iNewline
+            , iStr "   ", iIndent (showHeap t5), iNewline, iNewline
             , iStr "new frame ptr: "
             , iIndent (showFramePtr fp'), iNewline
+            , iStr "new data frame ptr: "
+            , iIndent (showFramePtr dfp'), iNewline
             , iStr "^^^^^^^^^^^^^^^^^^^^^^^^", iNewline
             ]
   where f0 = heapBefore gcinfo
         (f1, t1) = heapEvacuatedByStack gcinfo
         (f2, t2) = heapEvacuatedByDump gcinfo
         (f3, t3) = heapEvacuatedByFramePtr gcinfo
-        t4 = heapScavenged gcinfo
+        (f4, t4) = heapEvacuatedByDataFramePtr gcinfo
+        t5 = heapScavenged gcinfo
         fp' = fptrDone gcinfo
+        dfp' = dfptrDone gcinfo
 
 
 -- | NOTE: Closure = ([Instruction], FramePtr) なので
@@ -754,8 +771,10 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
     where
       update :: RelSlot -> (TimHeap, TimHeap) -> (Int, Closure) -> ((TimHeap, TimHeap), Closure)
       update dict (f, t) (i, cls)
-        | not liveCheck || i `elem` go liveArgs = (hs, cls)
-        | otherwise                             = ((f, t), ([], FrameNull))
+        | not liveCheck ||
+          holdInDataFrame instrs ||
+          i `elem` go liveArgs = (hs, cls)
+        | otherwise            = ((f, t), ([], FrameNull))
         where
           (hs, _) = evacuateFramePtr False cstore f t cls
           -- NOTE: ここで2段階以上の間接参照があるとスロットが GC されてしまう可能性がある
@@ -764,16 +783,24 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
           go cur = if cur == new then cur else go new
             where new = nub . sort $ concatMap extract cur
           extract n = maybe [n] (n:) $ lookup n dict
+      -- ReturnConstr があるなら data_frame で保持されてアクセスされうる
+      -- アクセスする方の instruction は他から来るのでそこまでは解析せず全部保持する方針とした
+      holdInDataFrame []                 = False
+      holdInDataFrame (ReturnConstr _:_) = True
+      holdInDataFrame (_:xs)             = holdInDataFrame xs
+
       liveArgs :: [Int]
       liveArgs = nub . sort $ foldl' g [] instrs
         where
-          g ns (Move _ am) = h ns am
-          g ns (Push am)   = h ns am
-          g ns (Enter am)  = h ns am
-          g ns (Cond t f)  = nub $ foldl' g ns (t ++ f)
-          g ns _           = ns
+          g ns (Move _ am)  = h ns am
+          g ns (Push am)    = h ns am
+          g ns (Enter am)   = h ns am
+          g ns (Cond t f)   = nub $ foldl' g ns (t ++ f)
+          g ns (Switch brs) = nub $ foldl' g ns (concatMap snd brs)
+          g ns _            = ns
 
           h ns (Arg n)   = n:ns
+          h ns (Data n)  = n:ns
           h ns (Code cs) = slotsOf cs ++ ns
           h ns (Label l) = ns
           h ns _         = ns
@@ -810,7 +837,6 @@ evacuateDump cstore from to dmp = case mapAccumL update (from, to) dmp of
     update (f, t) (fp, n, stk) = ((f2, t2), (fp', stk'))
       where ((f1, t1), stk') = evacuateStack cstore f t stk
             ((f2, t2), fp') = evacuateFramePtr False cstore f1 t1 ([], fp)
-
 
 -- | 新しいヒープ中の FramePtr を 古いヒープから探して、
 --   新しいヒープのどのアドレスに Forward されているか見て付け替えていく
