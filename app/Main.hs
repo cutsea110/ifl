@@ -71,7 +71,7 @@ executer opts = putStr . run
           TIMark2     -> TIMark2.runProg   $ TIMark2.Config verbose threshold
           TIMark3     -> TIMark3.runProg   $ TIMark3.Config verbose threshold
           TIMark4     -> TIMark4.runProg   $ TIMark4.Config verbose threshold
-          TIMark5     -> TIMark5.runProg   $ TIMark5.Config verbose threshold
+          TIMark5     -> TIMark5.runProg   $ TIMark5.Config verbose threshold convertList
           (Noco name) -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------

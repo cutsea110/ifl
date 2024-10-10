@@ -16,14 +16,23 @@ import Iseq
 import Language
 import Utils
 
-data Config = Config { verbose     :: !Bool
-                     , gcThreshold :: !Int
+data Config = Config { verbose           :: !Bool
+                     , gcThreshold       :: !Int
+                     , convertToListBase :: !Bool
                      }
 
 runProg :: Config -> String -> String
-runProg conf = showR . eval conf . compile . parse
+runProg conf
+  | convertToListBase conf = showR . eval conf . cnv . compile . parse
+  | otherwise              = showR . eval conf . compile . parse
   where showR | verbose conf = showResults
               | otherwise    = showSimpleResult
+
+-- | convert to newer version
+--   main := cons main nil
+cnv :: TimState -> TimState
+cnv state = state { instructions = [Enter (Label "__main")] }
+
 
 data Instruction = Take Int Int       -- take t n
                  | Move Int TimAMode
@@ -317,6 +326,8 @@ extraPreludeDefs = [ ("cons", [], EConstr 2 2)
                    , ("true", [], EConstr 2 0)
                    , ("false",[], EConstr 1 0)
                    , ("if", ["c", "t", "f"], ECase (EVar "c") [(1, [], EVar "f"), (2, [], EVar "t")])
+                   -- __main will use in case of convertList option is on
+                   , ("__main", [], EAp (EAp (EVar "cons") (EVar "main")) (EVar "nil"))
                    ]
 
 data OpType = BinOp Op | UniOp Op | CondOp deriving (Eq, Show)
