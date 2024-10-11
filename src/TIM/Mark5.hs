@@ -1075,9 +1075,9 @@ intCode :: [Instruction]
 intCode = [PushV FramePtr, Return]
 
 showSimpleResult :: [TimState] -> String
-showSimpleResult states = iDisplay $ showVStackTopValue vs -- FIXME: 返り値がリストになったので使えない
+showSimpleResult states = iDisplay $ showOutput o
   where last_state = last states
-        vs = getVStack last_state
+        o = getOutput last_state
 
 showResults :: [TimState] -> String
 showResults [] = error "no TimState"
