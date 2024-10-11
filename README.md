@@ -71,6 +71,12 @@ I suppose that you have some test programs for ifl in `${PWD}/examples` director
 $ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.12 ifl -v -c gmark7 /work/testProg80.ifl
 ```
 
+or try this.
+
+```bash
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.12 ifl -t 300 -l -v -c timark5 /work/testProg134.ifl
+```
+
 ### Share Dockerhub
 
 ```bash
