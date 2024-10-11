@@ -85,7 +85,7 @@ data TimState = TimState { instructions :: [Instruction]
                          , output       :: TimOutput
                          , stats        :: TimStats
                          }
-              deriving (Eq, Show)
+              deriving (Show)
 
 getInstructions :: TimState -> [Instruction]
 getInstructions = instructions
@@ -130,6 +130,11 @@ getOutput :: TimState -> TimOutput
 getOutput = output
 putOutput :: TimOutput -> TimState -> TimState
 putOutput o state = state { output = o }
+outputLast :: TimOutput -> IseqRep
+outputLast (_, i) = i
+clearOutputLast :: TimState -> TimState
+clearOutputLast state = putOutput (o, iNil) state
+  where (o, _) = getOutput state
 
 
 data FramePtr = FrameAddr Addr      -- The address of a frame
@@ -152,7 +157,7 @@ instance {-# Overlapping #-} Show (Heap Frame) where
 
 type RelSlot = Assoc UsedSlot UsedSlots
 
-type TimOutput = [Int]
+type TimOutput = ([Int], IseqRep)
 
 data Frame = Frame [Closure] RelSlot
            | Forward Addr
@@ -286,7 +291,7 @@ compile program
              , dump         = initialDump
              , heap         = init_heap
              , codes        = compiled_code
-             , output       = []
+             , output       = ([], iNil)
              , stats        = statInitial
              }
   where
@@ -889,6 +894,7 @@ step state@TimState { instructions = instrs
                     , dump         = dmp
                     , heap         = hp
                     , codes        = cstore
+                    , output       = out
                     }
   = case instrs of
   (Take t n:instr)
@@ -899,6 +905,7 @@ step state@TimState { instructions = instrs
           . putFrame fptr'
           . putStack stk'
           . putHeap hp'
+          . clearOutputLast
           $ state)
     | otherwise -> error "Too few args for Take instruction"
     where
@@ -907,6 +914,7 @@ step state@TimState { instructions = instrs
   (Move n am:istr) -> applyToStats statIncExecTime
                       (putInstructions istr
                        . putHeap hp2
+                       . clearOutputLast
                        $ state)
     where
       -- NOTE: Code 以外も処理されてしまうがコンパイラがバグってなければ問題ないはず
@@ -919,6 +927,7 @@ step state@TimState { instructions = instrs
        (putInstructions instr'
         . putFrame fptr'
         . putDataFrame FrameNull
+        . clearOutputLast
         $ state)
     where
       (instr', fptr') = amToClosure am fptr dfptr hp cstore
@@ -926,32 +935,38 @@ step state@TimState { instructions = instrs
     -> applyToStats statIncExecTime
        (putInstructions istr
          . putStack (amToClosure am fptr dfptr hp cstore : stk)
+         . clearOutputLast
          $ state)
   (PushV fp:istr)
     -> applyToStats statIncExecTime $ case fp of
       FramePtr -> putInstructions istr
                   . putVStack (n:vstk)
+                  . clearOutputLast
                   $ state
         where n = case fptr of
                 FrameInt n' -> n'
                 _           -> error "PushV applied to non-int frame"
       IntVConst n -> putInstructions istr
                      . putVStack (n:vstk)
+                     . clearOutputLast
                      $ state
   (PushMarker x:istr)
     -> applyToStats statIncExecTime
        (putInstructions istr
          . putStack []
          . putDump ((fptr, x, stk):dmp)
+         . clearOutputLast
          $ state)
   (UpdateMarkers n:istr)
     | m >= n    -> applyToStats statIncExecTime
                    (putInstructions istr
+                    . clearOutputLast
                     $ state)
     | otherwise -> applyToStats statIncExecTime
                           (putStack (stk ++ s)
                            . putHeap hp'
                            . putDump dmp'
+                           . clearOutputLast
                            $ state)
     where
       m = length stk
@@ -967,6 +982,7 @@ step state@TimState { instructions = instrs
           (putStack stk'
            . putDump dmp'
            . putHeap hp'
+           . clearOutputLast
            $ state)
       where
         ((fu, x, stk'), dmp') = case dmp of
@@ -981,12 +997,14 @@ step state@TimState { instructions = instrs
                              . putFrame fptr'
                              . putDataFrame FrameNull
                              . putStack stk'
+                             . clearOutputLast
                              $ state)
   [ReturnConstr t] -> case stk of
     [] -> applyToStats statIncExecTime
           (putStack stk'
            . putDump dmp'
            . putHeap hp'
+           . clearOutputLast
            $ state)
       where
         ((fu, x, stk'), dmp') = case dmp of
@@ -1000,6 +1018,7 @@ step state@TimState { instructions = instrs
             . putDataFrame f
             . putStack stk'
             . putVStack vstk'
+            . clearOutputLast
             $ state)
       where
         (i, f'):stk' = stk
@@ -1009,6 +1028,7 @@ step state@TimState { instructions = instrs
     -> applyToStats statIncExecTime
        (putInstructions istr
         . putVStack vstk'
+        . clearOutputLast
         $ state)
     where
       vstk'
@@ -1036,6 +1056,7 @@ step state@TimState { instructions = instrs
     -> applyToStats statIncExecTime
        (putInstructions instr'
        . putVStack vstk'
+       . clearOutputLast
        $ state)
     where
       (instr', vstk') = case vstk of
@@ -1045,6 +1066,7 @@ step state@TimState { instructions = instrs
   [Switch brs] -> applyToStats statIncExecTime
                   (putInstructions i
                    . putVStack vstk'
+                   . clearOutputLast
                    $ state)
     where
       (t, vstk') = case vstk of
@@ -1054,13 +1076,16 @@ step state@TimState { instructions = instrs
   (Print:istr) -> applyToStats statIncExecTime
                   (putInstructions istr
                    . putVStack vstk'
-                   . putOutput out'
+                   . putOutput (out' ++ [o], last_output)
                    $ state)
     where
       (o, vstk') = case vstk of
         n:ns -> (n, ns)
         _    -> error "Print applied to empty stack"
-      out'  = getOutput state ++ [o]
+      (out', _)  = getOutput state
+      last_output = case out' of
+        [] -> iStr ("[" ++ show o)
+        _:_ -> iStr ("," ++ show o)
 
   _ -> error $ "invalid instructions: " ++ show instrs
 
@@ -1075,9 +1100,7 @@ intCode :: [Instruction]
 intCode = [PushV FramePtr, Return]
 
 showSimpleResult :: [TimState] -> String
-showSimpleResult states = iDisplay $ showOutput o
-  where last_state = last states
-        o = getOutput last_state
+showSimpleResult states = concatMap (iDisplay . outputLast . getOutput) states ++ "]"
 
 showResults :: [TimState] -> String
 showResults [] = error "no TimState"
@@ -1285,11 +1308,10 @@ showDump dump
                     ]
 
 showOutput :: TimOutput -> IseqRep
-showOutput out = iConcat [ iStr "["
-                         , iIndent (iInterleave (iStr ",") (map iNum out))
-                         , iStr "]"
-                         ]
-
+showOutput (out, _) = iConcat [ iStr "["
+                              , iIndent (iInterleave (iStr ",") (map iNum out))
+                              , iStr "]"
+                              ]
 
 showClosure :: Closure -> IseqRep
 showClosure (i, f)
