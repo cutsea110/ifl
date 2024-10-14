@@ -9,7 +9,7 @@ module TIM.Mark5
   ) where
 
 import Control.Arrow (second)
-import Data.List (find, foldl', mapAccumL, nub, sort)
+import Data.List (find, foldl', intersect, mapAccumL, nub, sort)
 
 import Heap
 import Iseq
@@ -496,7 +496,8 @@ compileE env d (tag, vars, body) = (d', merge ns used_slots, (tag, is_moves ++ i
   where
     no_of_args = length vars
     used_slots = [d+1..d+no_of_args]
-    is_moves = map (\i -> Move i (Data (i-d))) used_slots
+    -- section 4.6.5 optimization idea-1
+    is_moves = map (\i -> Move i (Data (i-d))) $ used_slots `intersect` ns
     env' = zipWith (\n i -> (n, Arg i)) vars used_slots ++ env
     (d', Compiled ns is_body) = compileR body env' (d+no_of_args)
 

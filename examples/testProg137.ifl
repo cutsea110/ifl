@@ -1,0 +1,7 @@
+head xs = case xs of
+  <1>      -> negate 1; -- -1 means error in this program.
+  <2> y ys -> y;
+
+from n = cons n (from (n+1));
+
+main = head (from 3)

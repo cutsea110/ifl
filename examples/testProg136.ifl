@@ -1,0 +1,7 @@
+sum xs = case xs of
+  <1>      -> 0;
+  <2> y ys -> y + sum ys;
+
+between n m = if (n>m) nil (cons n (between (n+1) m));
+
+main = sum (between 1 10)
