@@ -388,6 +388,7 @@ compileSc env (name, args, body)
 
 compileR :: CoreExpr -> TimCompilerEnv -> OccupiedSlotIdx -> (OccupiedSlotIdx, CompiledCode)
 compileR (EConstr t a) env d
+  -- exercise 4.24
   | a == 0    = (d, Compiled [] [ReturnConstr t])
   | otherwise = (d, Compiled [] [UpdateMarkers a, Take a a, ReturnConstr t])
 compileR (ECase e alts) env d = (d', Compiled (merge ns us') (Push (Code (Compiled us' [Switch brs])):ise))
