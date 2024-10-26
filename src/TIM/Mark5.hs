@@ -1184,11 +1184,13 @@ showInstruction _ (ReturnConstr n)  = iStr "ReturnConstr " `iAppend` iNum n
 showInstruction _ (Op op)           = iStr "Op " `iAppend` iStr (show op)
 showInstruction _ Print             = iStr "Print"
 showInstruction d (Switch brs)      = iConcat [ iStr "Switch ["
-                                              , iIndent (iInterleave sep (map showBranch brs))
+                                              , iIndent (iInterleave sep (map (showBranch d) brs))
                                               , iStr "]"
                                               ]
-  where showBranch (tag, instrs) = iConcat [ iNum tag, iStr " -> ", showInstructions d instrs ]
-        sep = iStr "," `iAppend` iNewline
+  where sep = iStr "," `iAppend` iNewline
+
+showBranch :: HowMuchToPrint -> Branch -> IseqRep
+showBranch d (tag, instrs) = iConcat [ iNum tag, iStr " -> ", showInstructions d instrs ]
 
 showValueAMode :: ValueAMode -> IseqRep
 showValueAMode FramePtr      = iStr "FramePtr"
