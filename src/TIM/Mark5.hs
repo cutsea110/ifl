@@ -44,7 +44,6 @@ data Instruction = Take Int Int       -- take t n
                  | Return
                  | ReturnConstr Tag
                  | Op Op
-                 | Cond [Instruction] [Instruction]
                  | Switch [Branch]
                  | Print
                  deriving (Eq, Show)
@@ -335,7 +334,7 @@ extraPreludeDefs = [ ("cons", [], EConstr 2 2)
                    , ("__main", [], EAp (EAp (EVar "cons") (EVar "main")) (EVar "nil"))
                    ]
 
-data OpType = BinOp Op | UniOp Op | CondOp deriving (Eq, Show)
+data OpType = BinOp Op | UniOp Op deriving (Eq, Show)
 
 isBin :: OpType -> Bool
 isBin (BinOp _) = True
@@ -368,10 +367,6 @@ compiledPrimitives = map (second trans) primitives
           UniOp op -> Compiled [1] [ Take 1 1
                                    , Push (Code (Compiled [] [Op op, Return]))
                                    , Enter (Arg 1)]
-          CondOp   -> Compiled [1, 2, 3] [ Take 3 3
-                                         , Push (Code (Compiled [2, 3] [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]))
-                                         , Enter (Arg 1)]
-        
 type TimCompilerEnv = [(Name, TimAMode)]
 
 compileSc :: TimCompilerEnv -> CoreScDefn -> (Name, CompiledCode)
@@ -813,7 +808,6 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
           g ns (Move _ am)  = h ns am
           g ns (Push am)    = h ns am
           g ns (Enter am)   = h ns am
-          g ns (Cond t f)   = nub $ foldl' g ns (t ++ f)
           g ns (Switch brs) = nub $ foldl' g ns (concatMap snd brs)
           g ns _            = ns
 
@@ -1054,17 +1048,6 @@ step state@TimState { instructions = instrs
         _   -> error $ "unsupported op: " ++ show op
         where
           b2i cmp x y = if x `cmp` y then 2 else 1 -- tag of true/false defined in extraPreludeDefs
-  [Cond i1 i2]
-    -> applyToStats statIncExecTime
-       (putInstructions instr'
-       . putVStack vstk'
-       . clearOutputLast
-       $ state)
-    where
-      (instr', vstk') = case vstk of
-        0:ns -> (i1, ns)
-        _:ns -> (i2, ns)
-        _    -> error "Cond applied to empty stack"
   [Switch brs] -> applyToStats statIncExecTime
                   (putInstructions i
                    . putVStack vstk'
@@ -1200,11 +1183,6 @@ showInstruction _ Return            = iStr "Return"
 showInstruction _ (ReturnConstr n)  = iStr "ReturnConstr " `iAppend` iNum n
 showInstruction _ (Op op)           = iStr "Op " `iAppend` iStr (show op)
 showInstruction _ Print             = iStr "Print"
-showInstruction d (Cond t f)        = iConcat [ iStr "Cond "
-                                              , showInstructions d t
-                                              , iStr " "
-                                              , showInstructions d f
-                                              ]
 showInstruction d (Switch brs)      = iConcat [ iStr "Switch ["
                                               , iIndent (iInterleave sep (map showBranch brs))
                                               , iStr "]"
