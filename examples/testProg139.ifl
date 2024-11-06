@@ -1,0 +1,5 @@
+sum xs = case xs of
+  <1>      -> 0;
+  <2> y ys -> y + sum ys;
+
+main = sum (cons (1+2) (cons (3+4) nil))
