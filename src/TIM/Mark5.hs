@@ -488,14 +488,18 @@ unpackUniOp (EAp (EVar op) e1) = (op2uniop op, e1)
 unpackUniOp _                  = error "unpackUniOp: not a unary operator"
 
 compileE :: TimCompilerEnv -> OccupiedSlotIdx -> CoreAlt -> (OccupiedSlotIdx, UsedSlots, Branch)
-compileE env d (tag, vars, body) = (d', merge ns used_slots, (tag, is_moves ++ is_body))
+compileE env d (tag, vars, body) = (d', merge ns used_slots, (tag, new_body))
   where
     no_of_args = length vars
     used_slots = [d+1..d+no_of_args]
-    -- section 4.6.5 optimization idea-1
+    -- section 4.6.5 optimization idea-2
     is_moves = map (\i -> Move i (Data (i-d))) $ used_slots `intersect` ns
     env' = zipWith (\n i -> (n, Arg i)) vars used_slots ++ env
     (d', Compiled ns is_body) = compileR body env' (d+no_of_args)
+    new_body = case is_moves ++ is_body of
+      -- section 4.6.5 optimization idea-1
+      [Move i (Data j), Enter (Arg k)] | i == k -> [Enter (Data j)]
+      instrs -> instrs
 
 
 compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
