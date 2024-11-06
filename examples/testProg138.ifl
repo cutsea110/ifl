@@ -1,0 +1,4 @@
+head xs = case xs of
+  <2> y ys -> y;
+
+main = head (cons 42 nil)
