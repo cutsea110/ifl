@@ -1,7 +1,7 @@
 factF f n = if (n == 0) 1 (n * f (n-1));
 
-undefined = undefined;
-fact0 = undefined;
+fact0 = letrec undefined = undefined
+        in undefined;
 
 fact1 = factF fact0;
 fact2 = factF fact1;
