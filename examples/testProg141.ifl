@@ -1,13 +1,13 @@
 factF f n = if (n == 0) 1 (n * f (n-1));
 
-fact0 = letrec undefined = undefined
-        in undefined;
-
-fact1 = factF fact0;
-fact2 = factF fact1;
-fact3 = factF fact2;
-fact4 = factF fact3;
-fact5 = factF fact4;
+-- fact0 = letrec undefined = undefined
+--         in undefined;
+--
+-- fact1 = factF fact0;
+-- fact2 = factF fact1;
+-- fact3 = factF fact2;
+-- fact4 = factF fact3;
+-- fact5 = factF fact4;
 
 fix f = letrec g = f g in g;
 fact = fix factF;
