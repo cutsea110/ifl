@@ -934,9 +934,9 @@ step state@TimState { instructions = instrs
   (Push am:istr)
     -> applyToStats statIncExecTime
        (putInstructions istr
-         . putStack (amToClosure am fptr dfptr hp cstore : stk)
-         . clearOutputLast
-         $ state)
+        . putStack (amToClosure am fptr dfptr hp cstore : stk)
+        . clearOutputLast
+        $ state)
   (PushV fp:istr)
     -> applyToStats statIncExecTime $ case fp of
       FramePtr -> putInstructions istr
@@ -953,10 +953,10 @@ step state@TimState { instructions = instrs
   (PushMarker x:istr)
     -> applyToStats statIncExecTime
        (putInstructions istr
-         . putStack []
-         . putDump ((fptr, x, stk):dmp)
-         . clearOutputLast
-         $ state)
+        . putStack []
+        . putDump ((fptr, x, stk):dmp)
+        . clearOutputLast
+        $ state)
   (UpdateMarkers n:istr)
     | m >= n    -> applyToStats statIncExecTime
                    (putInstructions istr
@@ -1014,12 +1014,12 @@ step state@TimState { instructions = instrs
         hp' = fUpdate hp fu x ([ReturnConstr t], f)
     _  -> applyToStats statIncExecTime
           (putInstructions i
-            . putFrame f'
-            . putDataFrame f
-            . putStack stk'
-            . putVStack vstk'
-            . clearOutputLast
-            $ state)
+           . putFrame f'
+           . putDataFrame f
+           . putStack stk'
+           . putVStack vstk'
+           . clearOutputLast
+           $ state)
       where
         (i, f'):stk' = stk
         f = getFrame state
