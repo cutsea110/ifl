@@ -205,11 +205,10 @@ fList (Forward a) = Left a
 
 type CodeStore = (Addr, Assoc Name Int)
 
-codeLookup :: CodeStore -> Name -> TimHeap -> [Instruction]
-codeLookup (fG, g) l h = instrs
+codeLookup :: CodeStore -> Name -> TimHeap -> Closure
+codeLookup (fG, g) l h = fGet h (FrameAddr fG) idx
   where
     idx = aLookup g l (error $ "codeLookup: not found " ++ l)
-    (instrs, _) = fGet h (FrameAddr fG) idx
 
 data GCInfo = GCInfo { stepAt                      :: Int
                      , instr                       :: [Instruction]
@@ -1089,7 +1088,7 @@ amToClosure :: TimAMode -> FramePtr -> FramePtr -> TimHeap -> CodeStore -> Closu
 amToClosure (Arg n)      fptr dfptr heap cstore = fGet heap fptr n
 amToClosure (Data n)     fptr dfptr heap cstore = fGet heap dfptr n
 amToClosure (Code cs)    fptr dfptr heap cstore = (instrsOf cs, fptr)
-amToClosure (Label l)    fptr dfptr heap cstore = (codeLookup cstore l heap, fptr)
+amToClosure (Label l)    fptr dfptr heap cstore = codeLookup cstore l heap
 amToClosure (IntConst n) fptr dfptr heap cstore = (intCode, FrameInt n)
 
 intCode :: [Instruction]
