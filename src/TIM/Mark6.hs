@@ -203,11 +203,13 @@ fList :: Frame -> Either Addr [Closure]
 fList (Frame f _) = Right f
 fList (Forward a) = Left a
 
-type CodeStore = Assoc Name CompiledCode
+type CodeStore = (Addr, Assoc Name Int)
 
-codeLookup :: CodeStore -> Name -> [Instruction]
-codeLookup cstore l = instrsOf cs
-  where cs = aLookup cstore l $ error $ "Attempt to jump to unknown label " ++ show l
+codeLookup :: CodeStore -> Name -> TimHeap -> [Instruction]
+codeLookup (fG, g) l h = instrs
+  where
+    idx = aLookup g l (error $ "codeLookup: not found " ++ l)
+    (instrs, _) = fGet h (FrameAddr fG) idx
 
 data GCInfo = GCInfo { stepAt                      :: Int
                      , instr                       :: [Instruction]
@@ -289,7 +291,7 @@ compile program
              , valstack     = initialValueStack
              , dump         = initialDump
              , heap         = init_heap
-             , codes        = compiled_code
+             , codes        = (g_addr, init_sc_assoc_list)
              , output       = ([], iNil)
              , stats        = statInitial
              }
@@ -297,7 +299,12 @@ compile program
     sc_defs = preludeDefs ++ extraPreludeDefs ++ program
     compiled_sc_defs = map (compileSc initial_env) sc_defs
     compiled_code = compiled_sc_defs ++ compiledPrimitives
-    (init_heap, init_fp) = fAlloc hInitial (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
+    (init_sc_assoc_list, ccs) = unzip $ zipWith (\i (name, cc) -> ((name, i), cc)) [1..] compiled_code
+    (epoch_heap, g_addr) = case fAlloc hInitial (Frame is []) of -- code store
+      (eh, FrameAddr addr) -> (eh, addr)
+      (_,  frm)              -> error $ "Unexpected FramePtr: " ++ show frm
+      where is = map (\cls -> (instrsOf cls, FrameNull)) ccs -- TODO: FrameNull?
+    (init_heap, init_fp) = fAlloc epoch_heap (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
     initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
                   [(name, Label name) | (name, _) <- compiledPrimitives]
 
@@ -322,7 +329,7 @@ initialDump :: TimDump
 initialDump = []
 
 initCodeStore :: CodeStore
-initCodeStore = []
+initCodeStore = (0, []) -- FIXME: fail doctests and crash gc
 
 extraPreludeDefs :: CoreProgram
 extraPreludeDefs = [ ("cons", [], EConstr 2 2)
@@ -1082,7 +1089,7 @@ amToClosure :: TimAMode -> FramePtr -> FramePtr -> TimHeap -> CodeStore -> Closu
 amToClosure (Arg n)      fptr dfptr heap cstore = fGet heap fptr n
 amToClosure (Data n)     fptr dfptr heap cstore = fGet heap dfptr n
 amToClosure (Code cs)    fptr dfptr heap cstore = (instrsOf cs, fptr)
-amToClosure (Label l)    fptr dfptr heap cstore = (codeLookup cstore l, fptr)
+amToClosure (Label l)    fptr dfptr heap cstore = (codeLookup cstore l heap, fptr)
 amToClosure (IntConst n) fptr dfptr heap cstore = (intCode, FrameInt n)
 
 intCode :: [Instruction]
@@ -1105,7 +1112,10 @@ showResults states@(s:ss)
             )
 
 showSCDefns :: TimState -> IseqRep
-showSCDefns TimState { codes = cstore } = iInterleave iNewline (map showSC cstore)
+showSCDefns TimState { codes = cs, heap = hp } = iInterleave iNewline (map showSC cs')
+  where (addr, sc_assoc_list) = cs
+        cs' = map (second f) sc_assoc_list
+          where f = Compiled [] . fst . fGet hp (FrameAddr addr)
 
 showSC :: (Name, CompiledCode) -> IseqRep
 showSC (name, cs)
