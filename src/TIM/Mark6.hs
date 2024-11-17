@@ -286,7 +286,7 @@ compile program
   = TimState { instructions = [Enter $ Label "main"]
              , frame        = FrameNull
              , data_frame   = FrameNull
-             , stack        = [(topCont, init_fp)]
+             , stack        = [(top_cont_code, init_fp)]
              , valstack     = initialValueStack
              , dump         = initialDump
              , heap         = init_heap
@@ -297,30 +297,42 @@ compile program
   where
     sc_defs = preludeDefs ++ extraPreludeDefs ++ program
     compiled_sc_defs = map (compileSc initial_env) sc_defs
-    compiled_code = compiled_sc_defs ++ compiledPrimitives
+    compiled_code = bootstraps ++ compiled_sc_defs ++ compiledPrimitives
+    top_cont_code = instrsOf $ snd topCont
+
+    (epoch_heap, init_fp)
+      = fAlloc hInitial (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
     (init_sc_assoc_list, ccs) = unzip $ zipWith (curry (first swap . assocl)) [1..] compiled_code
-    (epoch_heap, g_addr) = case fAlloc hInitial (Frame is []) of -- code store
-      (eh, FrameAddr addr) -> (eh, addr)
-      (_,  frm)            -> error $ "Unexpected FramePtr: " ++ show frm
-      where is = map (\cls -> (instrsOf cls, FrameNull)) ccs -- NOTE: SCs does not use current frame.
-    (init_heap, init_fp)
-      = fAlloc epoch_heap (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
+    (init_heap, g_addr) = case fAlloc epoch_heap (Frame is []) of -- code store
+      (h, FrameAddr addr) -> (h, addr)
+      (_,  frm)           -> error $ "Unexpected FramePtr: " ++ show frm
+      where
+        -- NOTE: topCont and headCont needs to 2 slot frame of init_fp above.
+        top_cont_idx = aLookup init_sc_assoc_list "topCont" (error "topCont not found")
+        head_cont_idx = aLookup init_sc_assoc_list "headCont" (error "headCont not found")
+        -- NOTE: SCs does not use current frame except topCont and headCont.
+        is = zipWith (\i cls -> (instrsOf cls, fp i)) [1..] ccs
+          where fp i = if i `elem` [top_cont_idx, head_cont_idx] then init_fp else FrameNull
+
     initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
                   [(name, Label name) | (name, _) <- compiledPrimitives]
 
+bootstraps :: [(Name, CompiledCode)]
+bootstraps = [topCont, headCont]
 
-topCont :: [Instruction]
-topCont = [ Switch [ (1, [])
-                   , (2, [ Move 1 (Data 1)  -- Head
-                         , Move 2 (Data 2)  -- Tail
-                         , Push (Code (Compiled [1, 2] headCont))
-                         , Enter (Arg 1)
-                         ])
-                   ]
-
-          ]
-headCont :: [Instruction]
-headCont = [Print, Push (Code (Compiled [1, 2] topCont)), Enter (Arg 2)]
+topCont :: (Name, CompiledCode)
+topCont = ("topCont"
+          , Compiled [1,2] [ Switch [ (1, [])
+                                    , (2, [ Move 1 (Data 1)  -- Head
+                                          , Move 2 (Data 2)  -- Tail
+                                          , Push (Label "headCont")
+                                          , Enter (Arg 1)
+                                          ])
+                                    ]
+                           ]
+          )
+headCont :: (Name, CompiledCode)
+headCont = ("headCont", Compiled [1,2] [Print, Push (Label "topCont"), Enter (Arg 2)])
 
 
 initialValueStack :: TimValueStack
@@ -1141,7 +1153,7 @@ showState TimState { instructions = is
                    , stats        = stat
                    }
   = iConcat $ [ iStr "Code:  "
-              , showInstructions Terse is, iNewline
+              , showInstructions Full is, iNewline
               , iStr "Frame: "
               , showFrame hp fptr, iNewline
               , iStr "Data frame: "
