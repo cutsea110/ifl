@@ -7,6 +7,8 @@ module Utils
   , aInsert
   , aDelete
   , aUpdate
+  , assocl, assocr
+  , swap
   ) where
 
 {- |
@@ -57,3 +59,10 @@ aDelete m k = filter ((/= k) . fst) m
 
 aUpdate :: Eq k => Assoc k v -> k -> v -> Assoc k v
 aUpdate m k v = (k, v):aDelete m k
+
+assocl :: (a, (b, c)) -> ((a, b), c)
+assocl (x, (y, z)) = ((x, y), z)
+assocr :: ((a, b), c) -> (a, (b, c))
+assocr ((x, y), z) = (x, (y, z))
+swap :: (a, b) -> (b, a)
+swap (x, y) = (y, x)

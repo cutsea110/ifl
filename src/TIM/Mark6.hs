@@ -8,7 +8,7 @@ module TIM.Mark6
   , Config(..)
   ) where
 
-import Control.Arrow (second)
+import Control.Arrow (first, second)
 import Data.List (find, foldl', intersect, mapAccumL, nub, sort)
 
 import Heap
@@ -298,7 +298,7 @@ compile program
     sc_defs = preludeDefs ++ extraPreludeDefs ++ program
     compiled_sc_defs = map (compileSc initial_env) sc_defs
     compiled_code = compiled_sc_defs ++ compiledPrimitives
-    (init_sc_assoc_list, ccs) = unzip $ zipWith (\i (name, cc) -> ((name, i), cc)) [1..] compiled_code
+    (init_sc_assoc_list, ccs) = unzip $ zipWith (curry (first swap . assocl)) [1..] compiled_code
     (epoch_heap, g_addr) = case fAlloc hInitial (Frame is []) of -- code store
       (eh, FrameAddr addr) -> (eh, addr)
       (_,  frm)            -> error $ "Unexpected FramePtr: " ++ show frm
@@ -317,6 +317,7 @@ topCont = [ Switch [ (1, [])
                          , Enter (Arg 1)
                          ])
                    ]
+
           ]
 headCont :: [Instruction]
 headCont = [Print, Push (Code (Compiled [1, 2] topCont)), Enter (Arg 2)]
