@@ -285,7 +285,7 @@ compile program
   = TimState { instructions = [Enter $ Label "main"]
              , frame        = FrameNull
              , data_frame   = FrameNull
-             , stack        = [(topCont, init_fp)]
+             , stack        = [(top_cont_code, init_fp)]
              , valstack     = initialValueStack
              , dump         = initialDump
              , heap         = init_heap
@@ -296,25 +296,30 @@ compile program
   where
     sc_defs = preludeDefs ++ extraPreludeDefs ++ program
     compiled_sc_defs = map (compileSc initial_env) sc_defs
-    compiled_code = compiled_sc_defs ++ compiledPrimitives
+    compiled_code = bootstraps ++ compiled_sc_defs ++ compiledPrimitives
+    top_cont_code = instrsOf $ snd topCont
     (init_heap, init_fp)
       = fAlloc hInitial (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
     initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
                   [(name, Label name) | (name, _) <- compiledPrimitives]
 
+bootstraps :: [(Name, CompiledCode)]
+bootstraps = [topCont, headCont]
 
-topCont :: [Instruction]
-topCont = [ Switch [ (1, [])
-                   , (2, [ Move 1 (Data 1)  -- Head
-                         , Move 2 (Data 2)  -- Tail
-                         , Push (Code (Compiled [1, 2] headCont))
-                         , Enter (Arg 1)
-                         ])
-                   ]
-          ]
-headCont :: [Instruction]
-headCont = [Print, Push (Code (Compiled [1, 2] topCont)), Enter (Arg 2)]
+topCont :: (Name, CompiledCode)
+topCont = ("topCont"
+          , Compiled [1,2] [ Switch [ (1, [])
+                                    , (2, [ Move 1 (Data 1)  -- Head
+                                          , Move 2 (Data 2)  -- Tail
+                                          , Push (Label "headCont")
+                                          , Enter (Arg 1)
+                                          ])
+                                    ]
+                           ]
+          )
 
+headCont :: (Name, CompiledCode)
+headCont = ("headCont", Compiled [1,2] [Print, Push (Label "topCont"), Enter (Arg 2)])
 
 initialValueStack :: TimValueStack
 initialValueStack = []
