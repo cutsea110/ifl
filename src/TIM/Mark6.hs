@@ -299,7 +299,6 @@ compile program
     compiled_sc_defs = map (compileSc initial_env) sc_defs
     compiled_code = bootstraps ++ compiled_sc_defs ++ compiledPrimitives
     top_cont_code = instrsOf $ snd topCont
-
     (epoch_heap, init_fp)
       = fAlloc hInitial (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
     (init_sc_assoc_list, ccs) = unzip $ zipWith (curry (first swap . assocl)) [1..] compiled_code
@@ -308,12 +307,12 @@ compile program
       (_,  frm)           -> error $ "Unexpected FramePtr: " ++ show frm
       where
         -- NOTE: topCont and headCont needs to 2 slot frame of init_fp above.
-        top_cont_idx = aLookup init_sc_assoc_list "topCont" (error "topCont not found")
-        head_cont_idx = aLookup init_sc_assoc_list "headCont" (error "headCont not found")
+        tcidx = aLookup init_sc_assoc_list "topCont" (error "topCont not found")
+        hcidx = aLookup init_sc_assoc_list "headCont" (error "headCont not found")
         -- NOTE: SCs does not use current frame except topCont and headCont.
         is = zipWith (\i cls -> (instrsOf cls, fp i)) [1..] ccs
-          where fp i = if i `elem` [top_cont_idx, head_cont_idx] then init_fp else FrameNull
-
+          where fp i | i `elem` [tcidx, hcidx] = init_fp
+                     | otherwise               = FrameNull
     initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
                   [(name, Label name) | (name, _) <- compiledPrimitives]
 
