@@ -286,11 +286,11 @@ compile program
   = TimState { instructions = [Enter $ Label "main"]
              , frame        = FrameNull
              , data_frame   = FrameNull
-             , stack        = [(top_cont_code, init_fp)]
+             , stack        = [top_cont_code]
              , valstack     = initialValueStack
              , dump         = initialDump
              , heap         = init_heap
-             , codes        = (g_addr, init_sc_assoc_list)
+             , codes        = init_cs
              , output       = ([], iNil)
              , stats        = statInitial
              }
@@ -298,23 +298,25 @@ compile program
     sc_defs = preludeDefs ++ extraPreludeDefs ++ program
     compiled_sc_defs = map (compileSc initial_env) sc_defs
     compiled_code = bootstraps ++ compiled_sc_defs ++ compiledPrimitives
-    top_cont_code = instrsOf $ snd topCont
-    (epoch_heap, init_fp)
-      = fAlloc hInitial (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
-    (init_sc_assoc_list, ccs) = unzip $ zipWith (curry (first swap . assocl)) [1..] compiled_code
-    (init_heap, g_addr) = case fAlloc epoch_heap (Frame is []) of -- code store
-      (h, FrameAddr addr) -> (h, addr)
-      (_,  frm)           -> error $ "Unexpected FramePtr: " ++ show frm
-      where
-        -- NOTE: topCont and headCont needs to 2 slot frame of init_fp above.
-        tcidx = aLookup init_sc_assoc_list "topCont" (error "topCont not found")
-        hcidx = aLookup init_sc_assoc_list "headCont" (error "headCont not found")
-        -- NOTE: SCs does not use current frame except topCont and headCont.
-        is = zipWith (\i cls -> (instrsOf cls, fp i)) [1..] ccs
-          where fp i | i `elem` [tcidx, hcidx] = init_fp
-                     | otherwise               = FrameNull
+    (init_heap, init_cs) = allocateInitialHeap compiled_code
+    top_cont_code = codeLookup init_cs "topCont" init_heap
     initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
                   [(name, Label name) | (name, _) <- compiledPrimitives]
+
+allocateInitialHeap :: [(Name, CompiledCode)] -> (TimHeap, CodeStore)
+allocateInitialHeap compiled_code
+  = (heap, (global_frame_addr, offsets))
+  where
+    -- NOTE: slots 1, 2 are reserved for topCont's Move from Data.
+    indexed_code = zip [3..] compiled_code -- topCont, headCont use slots 1 and 2.
+    offsets = [(name, offset) | (offset, (name, _)) <- indexed_code]
+    reserved_for_topCont = [([], FrameAddr global_frame_addr), ([], FrameAddr global_frame_addr)]
+    closures = reserved_for_topCont ++ [ (PushMarker offset:code, FrameAddr global_frame_addr)
+                                       | (offset, (_, Compiled _ code)) <- indexed_code
+                                       ]
+    (heap, global_frame_addr) = case fAlloc hInitial (Frame closures []) of  -- NOTE: RelSlot is []
+      (h, FrameAddr gaddr) -> (h, gaddr)
+      (_, frm)             -> error $ "Unexpected FramePtr: " ++ show frm
 
 bootstraps :: [(Name, CompiledCode)]
 bootstraps = [topCont, headCont]
