@@ -302,7 +302,7 @@ compile program
     (epoch_heap, g_addr) = case fAlloc hInitial (Frame is []) of -- code store
       (eh, FrameAddr addr) -> (eh, addr)
       (_,  frm)            -> error $ "Unexpected FramePtr: " ++ show frm
-      where is = map (\cls -> (instrsOf cls, FrameNull)) ccs -- TODO: FrameNull?
+      where is = map (\cls -> (instrsOf cls, FrameNull)) ccs -- NOTE: SCs does not use current frame.
     (init_heap, init_fp)
       = fAlloc epoch_heap (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
     initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
