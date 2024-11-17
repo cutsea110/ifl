@@ -297,7 +297,8 @@ compile program
     sc_defs = preludeDefs ++ extraPreludeDefs ++ program
     compiled_sc_defs = map (compileSc initial_env) sc_defs
     compiled_code = compiled_sc_defs ++ compiledPrimitives
-    (init_heap, init_fp) = fAlloc hInitial (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
+    (init_heap, init_fp)
+      = fAlloc hInitial (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
     initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
                   [(name, Label name) | (name, _) <- compiledPrimitives]
 
@@ -1060,7 +1061,7 @@ step state@TimState { instructions = instrs
     where
       (t, vstk') = case vstk of
         n:ns -> (n, ns)
-        _   -> error "Switch applied to empty stack"
+        _    -> error "Switch applied to empty stack"
       i = aLookup brs t $ error $ "no branch for " ++ show t
   (Print:istr) -> applyToStats statIncExecTime
                   (putInstructions istr
@@ -1073,7 +1074,7 @@ step state@TimState { instructions = instrs
         _    -> error "Print applied to empty stack"
       (out', _)  = getOutput state
       last_output = case out' of
-        [] -> iStr ("[" ++ show o)
+        []  -> iStr ("[" ++ show o)
         _:_ -> iStr ("," ++ show o)
 
   _ -> error $ "invalid instructions: " ++ show instrs

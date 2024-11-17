@@ -301,9 +301,10 @@ compile program
     (init_sc_assoc_list, ccs) = unzip $ zipWith (\i (name, cc) -> ((name, i), cc)) [1..] compiled_code
     (epoch_heap, g_addr) = case fAlloc hInitial (Frame is []) of -- code store
       (eh, FrameAddr addr) -> (eh, addr)
-      (_,  frm)              -> error $ "Unexpected FramePtr: " ++ show frm
+      (_,  frm)            -> error $ "Unexpected FramePtr: " ++ show frm
       where is = map (\cls -> (instrsOf cls, FrameNull)) ccs -- TODO: FrameNull?
-    (init_heap, init_fp) = fAlloc epoch_heap (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
+    (init_heap, init_fp)
+      = fAlloc epoch_heap (Frame [([], FrameNull), ([], FrameNull)] []) -- topCont needs 2 slots frame
     initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
                   [(name, Label name) | (name, _) <- compiledPrimitives]
 
@@ -1066,7 +1067,7 @@ step state@TimState { instructions = instrs
     where
       (t, vstk') = case vstk of
         n:ns -> (n, ns)
-        _   -> error "Switch applied to empty stack"
+        _    -> error "Switch applied to empty stack"
       i = aLookup brs t $ error $ "no branch for " ++ show t
   (Print:istr) -> applyToStats statIncExecTime
                   (putInstructions istr
@@ -1079,7 +1080,7 @@ step state@TimState { instructions = instrs
         _    -> error "Print applied to empty stack"
       (out', _)  = getOutput state
       last_output = case out' of
-        [] -> iStr ("[" ++ show o)
+        []  -> iStr ("[" ++ show o)
         _:_ -> iStr ("," ++ show o)
 
   _ -> error $ "invalid instructions: " ++ show instrs
