@@ -311,12 +311,11 @@ allocateInitialHeap compiled_code
     indexed_code = zip [3..] compiled_code -- topCont, headCont use slots 1 and 2.
     offsets = [(name, offset) | (offset, (name, _)) <- indexed_code]
     reserved_for_topCont = [([], FrameAddr global_frame_addr), ([], FrameAddr global_frame_addr)]
-    closures = reserved_for_topCont ++ [ (instrs, FrameAddr global_frame_addr)
+    closures = reserved_for_topCont ++ [ (gen offset code, FrameAddr global_frame_addr)
                                        | (offset, (_, Compiled _ code)) <- indexed_code
-                                       , let instrs = if isNonCAFs code
-                                                      then code
-                                                      else PushMarker offset:code
                                        ]
+      where gen offset code | isNonCAFs code = code
+                            | otherwise      = PushMarker offset:code
     (heap, global_frame_addr) = case fAlloc hInitial (Frame closures []) of  -- NOTE: RelSlot is []
       (h, FrameAddr gaddr) -> (h, gaddr)
       (_, frm)             -> error $ "Unexpected FramePtr: " ++ show frm
