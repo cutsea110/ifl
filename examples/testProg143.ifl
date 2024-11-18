@@ -1,0 +1,4 @@
+f = let x = 3 + 4
+    in x + x;
+main = f + f
+

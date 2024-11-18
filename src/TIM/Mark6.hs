@@ -321,7 +321,7 @@ allocateInitialHeap compiled_code
       (_, frm)             -> error $ "Unexpected FramePtr: " ++ show frm
 
 isNonCAFs :: [Instruction] -> Bool
-isNonCAFs (Take _ _:_) = True
+isNonCAFs (Take _ n:_) = n > 0
 isNonCAFs _            = False
 
 bootstraps :: [(Name, CompiledCode)]
