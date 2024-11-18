@@ -299,7 +299,7 @@ compile program
     compiled_sc_defs = map (compileSc initial_env) sc_defs
     compiled_code = bootstraps ++ compiled_sc_defs ++ compiledPrimitives
     (init_heap, init_cs) = allocateInitialHeap compiled_code
-    top_cont_code = codeLookup init_cs "topCont" init_heap
+    top_cont_code = codeLookup init_cs "__topCont" init_heap
     initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
                   [(name, Label name) | (name, _) <- compiledPrimitives]
 
@@ -330,18 +330,18 @@ bootstraps :: [(Name, CompiledCode)]
 bootstraps = [topCont, headCont]
 
 topCont :: (Name, CompiledCode)
-topCont = ("topCont"
+topCont = ("__topCont"
           , Compiled [1,2] [ Switch [ (1, [])
                                     , (2, [ Move 1 (Data 1)  -- Head
                                           , Move 2 (Data 2)  -- Tail
-                                          , Push (Label "headCont")
+                                          , Push (Label "__headCont")
                                           , Enter (Arg 1)
                                           ])
                                     ]
                            ]
           )
 headCont :: (Name, CompiledCode)
-headCont = ("headCont", Compiled [1,2] [Print, Push (Label "topCont"), Enter (Arg 2)])
+headCont = ("__headCont", Compiled [1,2] [Print, Push (Label "__topCont"), Enter (Arg 2)])
 
 
 initialValueStack :: TimValueStack

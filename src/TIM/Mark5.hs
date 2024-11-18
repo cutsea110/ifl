@@ -307,11 +307,11 @@ bootstraps :: [(Name, CompiledCode)]
 bootstraps = [topCont, headCont]
 
 topCont :: (Name, CompiledCode)
-topCont = ("topCont"
+topCont = ("__topCont"
           , Compiled [1,2] [ Switch [ (1, [])
                                     , (2, [ Move 1 (Data 1)  -- Head
                                           , Move 2 (Data 2)  -- Tail
-                                          , Push (Label "headCont")
+                                          , Push (Label "__headCont")
                                           , Enter (Arg 1)
                                           ])
                                     ]
@@ -319,7 +319,7 @@ topCont = ("topCont"
           )
 
 headCont :: (Name, CompiledCode)
-headCont = ("headCont", Compiled [1,2] [Print, Push (Label "topCont"), Enter (Arg 2)])
+headCont = ("__headCont", Compiled [1,2] [Print, Push (Label "__topCont"), Enter (Arg 2)])
 
 initialValueStack :: TimValueStack
 initialValueStack = []
