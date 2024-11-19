@@ -188,11 +188,11 @@ checkOption opts = compilerSupported ++ convToListSupported ++ gcThresholdSuppor
       | otherwise = ["The compiler is not supported."]
     convToListSupported
       | not (optConvertList opts) ||
-        compiler `elem` [Mark5, Mark5Alt, Mark5GC, Mark5RevGC, Mark5Cp, TIMark5] = []
+        compiler `elem` [Mark5, Mark5Alt, Mark5GC, Mark5RevGC, Mark5Cp, TIMark5, TIMark6] = []
       | otherwise = ["The compiler does not support the option of converting to list based program."]
     gcThresholdSupported
       | optThreshold opts == optThreshold defaultOptions ||
-        compiler `elem` [Mark5GC, Mark5RevGC, Mark5Cp, TIMark1Cp, TIMark2, TIMark3, TIMark4, TIMark5] = []
+        compiler `elem` [Mark5GC, Mark5RevGC, Mark5Cp, TIMark1Cp, TIMark2, TIMark3, TIMark4, TIMark5, TIMark6] = []
       | otherwise = ["The compiler does not support the option of GC threshold."]
 
 run :: Options -> FilePath -> IO ()
