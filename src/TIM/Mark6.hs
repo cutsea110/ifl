@@ -298,10 +298,17 @@ compile program
     sc_defs = preludeDefs ++ extraPreludeDefs ++ program
     compiled_sc_defs = map (compileSc initial_env) sc_defs
     compiled_code = bootstraps ++ compiled_sc_defs ++ compiledPrimitives
-    (init_heap, init_cs) = allocateInitialHeap compiled_code
+    (init_heap, init_cs@(_, sc_assoc_list)) = allocateInitialHeap compiled_code
     top_cont_code = codeLookup init_cs "__topCont" init_heap
-    initial_env = [(name, Label name) | (name, _, _) <- sc_defs] ++
+    initial_env = [(name, timAMode name) | (name, _, _) <- sc_defs] ++
                   [(name, Label name) | (name, _) <- compiledPrimitives]
+      where
+        -- exercise 4.29
+        timAMode name
+          | found > 0 && isCAFs il = Code (Compiled [] [Enter (Label name)]) -- CAF
+          | otherwise              = Label name
+          where found = aLookup sc_assoc_list name 0
+                (il, _) = codeLookup init_cs name init_heap
 
 allocateInitialHeap :: [(Name, CompiledCode)] -> (TimHeap, CodeStore)
 allocateInitialHeap compiled_code
@@ -323,6 +330,8 @@ allocateInitialHeap compiled_code
 isNonCAFs :: [Instruction] -> Bool
 isNonCAFs (Take _ n:_) = n > 0
 isNonCAFs _            = False
+isCAFs :: [Instruction] -> Bool
+isCAFs = not . isNonCAFs
 
 bootstraps :: [(Name, CompiledCode)]
 bootstraps = [topCont, headCont]
