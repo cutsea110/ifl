@@ -50,6 +50,7 @@ executer opts = putStr . run
         compiler = optCompiler opts
         threshold = optThreshold opts
         convertList = optConvertList opts
+        profile = optProfile opts
         run = case compiler of
           Mark1       -> Mark1.runProg
           Mark2       -> Mark2.runProg
@@ -73,7 +74,7 @@ executer opts = putStr . run
           TIMark3     -> TIMark3.runProg   $ TIMark3.Config verbose threshold
           TIMark4     -> TIMark4.runProg   $ TIMark4.Config verbose threshold
           TIMark5     -> TIMark5.runProg   $ TIMark5.Config verbose threshold convertList
-          TIMark6     -> TIMark6.runProg   $ TIMark6.Config verbose threshold convertList
+          TIMark6     -> TIMark6.runProg   $ TIMark6.Config verbose threshold convertList profile
           (Noco name) -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
@@ -98,6 +99,7 @@ data Options = Options
   , optShowVersion :: !Bool
   , optCompiler    :: !Compiler
   , optConvertList :: !Bool
+  , optProfile     :: !Bool
   }
 
 defaultOptions :: Options
@@ -107,6 +109,7 @@ defaultOptions = Options
   , optShowVersion = False
   , optCompiler    = TIMark6
   , optConvertList = False
+  , optProfile     = False
   }
 
 name2Compiler :: [(String, Compiler)]
@@ -131,6 +134,9 @@ options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optCompile
             -- NOTE: this option is only for the part of Template Instantiation Machines.
           , Option ['l']      ["convert-to-list-based"]   (NoArg (\opts -> opts {optConvertList = True}))
             "convert to list based program"
+            -- NOTE: this option is my original option. It's not in textbook.
+          , Option ['p']      ["profile"]   (NoArg (\opts -> opts {optProfile = True}))
+            "profile output"
           , Option ['V', '?'] ["version"]   (NoArg (\opts -> opts {optShowVersion = True}))
             "show version"
           ]
@@ -190,6 +196,10 @@ checkOption opts = compilerSupported ++ convToListSupported ++ gcThresholdSuppor
       | not (optConvertList opts) ||
         compiler `elem` [Mark5, Mark5Alt, Mark5GC, Mark5RevGC, Mark5Cp, TIMark5, TIMark6] = []
       | otherwise = ["The compiler does not support the option of converting to list based program."]
+    profileSupported
+      | not (optProfile opts) ||
+        compiler `elem` [TIMark6] = []
+      | otherwise = ["The compiler does not support the option of profiling a program."]
     gcThresholdSupported
       | optThreshold opts == optThreshold defaultOptions ||
         compiler `elem` [Mark5GC, Mark5RevGC, Mark5Cp, TIMark1Cp, TIMark2, TIMark3, TIMark4, TIMark5, TIMark6] = []

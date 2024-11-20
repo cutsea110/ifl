@@ -10,6 +10,8 @@ module TIM.Mark6
 
 import Control.Arrow (first, second)
 import Data.List (find, foldl', intersect, mapAccumL, nub, sort)
+import Data.Maybe (fromMaybe)
+import qualified Data.Map as Map
 
 import Heap
 import Iseq
@@ -19,6 +21,7 @@ import Utils
 data Config = Config { verbose           :: !Bool
                      , gcThreshold       :: !Int
                      , convertToListBase :: !Bool
+                     , profile           :: !Bool
                      }
 
 runProg :: Config -> String -> String
@@ -74,6 +77,7 @@ data TimAMode = Arg Int
               deriving (Eq, Show)
 
 data TimState = TimState { instructions :: [Instruction]
+                         , fun_name     :: Maybe Name
                          , frame        :: FramePtr
                          , data_frame   :: FramePtr
                          , stack        :: TimStack
@@ -90,6 +94,10 @@ getInstructions :: TimState -> [Instruction]
 getInstructions = instructions
 putInstructions :: [Instruction] -> TimState -> TimState
 putInstructions instrs state = state { instructions = instrs }
+getFunName :: TimState -> Maybe Name
+getFunName = fun_name
+putFunName :: Maybe Name -> TimState -> TimState
+putFunName nm state = state { fun_name = nm }
 getFrame :: TimState -> FramePtr
 getFrame = frame
 putFrame :: FramePtr -> TimState -> TimState
@@ -142,12 +150,13 @@ data FramePtr = FrameAddr Addr      -- The address of a frame
               deriving (Eq, Show)
 
 type TimStack = [Closure]
-type Closure = ([Instruction], FramePtr)
+type Closure = ([Instruction], FramePtr, Maybe Name)
 
 type TimValueStack = [Int]
-type TimDump = [(FramePtr, -- The frame to be updated
-                 Int,      -- Index of slot to be updated
-                 TimStack  -- Old stack
+type TimDump = [(FramePtr,  -- The frame to be updated
+                 Int,       -- Index of slot to be updated
+                 TimStack,  -- Old stack
+                 Maybe Name -- function name
                 )]
 type TimHeap = Heap Frame
 instance {-# Overlapping #-} Show (Heap Frame) where
@@ -230,6 +239,7 @@ data TimStats
              , getExecTime      :: Int  -- The execution time
              , getHeapAllocated :: Int  -- The amount of heap allocated
              , getMaxStackDepth :: Int  -- The maximum stack depth
+             , getCallInfo      :: Map.Map Name Int
              , getGCInfo        :: [GCInfo]
              }
   deriving (Eq, Show)
@@ -239,6 +249,7 @@ statInitial = TimStats { getSteps         = 0
                        , getExecTime      = 0
                        , getHeapAllocated = 0
                        , getMaxStackDepth = 0
+                       , getCallInfo      = Map.empty
                        , getGCInfo        = []
                        }
 
@@ -281,9 +292,15 @@ statGetGCCount s = length $ getGCInfo s
 statIncGCCount :: GCInfo -> TimStats -> TimStats
 statIncGCCount tpl sts = sts { getGCInfo = getGCInfo sts ++ [tpl] }
 
+statGetCallInfo :: TimStats -> Map.Map Name Int
+statGetCallInfo s = getCallInfo s
+statUpdateCallInfo :: Name -> TimStats -> TimStats
+statUpdateCallInfo name sts = sts { getCallInfo = Map.insertWith (+) name 1 (getCallInfo sts) }
+
 compile :: CoreProgram -> TimState
 compile program
   = TimState { instructions = [Enter $ Label "main"]
+             , fun_name     = Nothing
              , frame        = FrameNull
              , data_frame   = FrameNull
              , stack        = [top_cont_code]
@@ -307,7 +324,7 @@ compile program
         timAMode name
           | isCAFs il = Code (Compiled [] [Enter (Label name)])
           | otherwise = Label name
-          where (il, _) = codeLookup init_cs name init_heap
+          where (il, _, _) = codeLookup init_cs name init_heap
 
 allocateInitialHeap :: [(Name, CompiledCode)] -> (TimHeap, CodeStore)
 allocateInitialHeap compiled_code
@@ -316,9 +333,10 @@ allocateInitialHeap compiled_code
     -- NOTE: slots 1, 2 are reserved for topCont's Move from Data.
     indexed_code = zip [3..] compiled_code -- topCont, headCont use slots 1 and 2.
     offsets = [(name, offset) | (offset, (name, _)) <- indexed_code]
-    reserved_for_topCont = [([], FrameAddr global_frame_addr), ([], FrameAddr global_frame_addr)]
-    closures = reserved_for_topCont ++ [ (gen offset code, FrameAddr global_frame_addr)
-                                       | (offset, (_, Compiled _ code)) <- indexed_code
+    reserved_for_topCont = [reserved, reserved]
+      where reserved = ([], FrameAddr global_frame_addr, Nothing)
+    closures = reserved_for_topCont ++ [ (gen offset code, FrameAddr global_frame_addr, Just fname)
+                                       | (offset, (fname, Compiled _ code)) <- indexed_code
                                        ]
       where gen offset code | isNonCAFs code = code
                             | otherwise      = PushMarker offset:code
@@ -558,12 +576,16 @@ doAdmin conf state
   | needGC    = gc state'
   | otherwise = state'
   where
-    state' = applyToStats statIncSteps state
+    state' | profileOn = applyToStats (statUpdateCallInfo fname . statIncSteps) state
+           | otherwise = applyToStats statIncSteps state
+    profileOn = profile conf
+    fname = fromMaybe "(internal)" $ fun_name state
     needGC = orgSize >= gcThreshold conf
     orgSize = hSize $ getHeap state'
 
 gc :: TimState -> TimState
 gc state@TimState { instructions = instrs
+                  , fun_name     = fname
                   , frame        = fptr
                   , data_frame   = dfptr
                   , stack        = stk
@@ -574,8 +596,8 @@ gc state@TimState { instructions = instrs
                   }
   = case evacuateStack cstore from hInitial stk of
   ((from1, to1), stk1) -> case evacuateDump cstore from1 to1 dmp of
-    ((from2, to2), dmp1) -> case evacuateFramePtr True cstore from2 to2  (instrs, fptr) of
-      ((from3, to3), fptr1) -> case evacuateFramePtr False cstore from3 to3 (instrs, dfptr) of
+    ((from2, to2), dmp1) -> case evacuateFramePtr True cstore from2 to2  (instrs, fptr, fname) of
+      ((from3, to3), fptr1) -> case evacuateFramePtr False cstore from3 to3 (instrs, dfptr, fname) of
         ((from4, to4),  dfptr1) -> case scavenge from4 to4 of
           to5 -> let gcinfo = GCInfo { stepAt = statGetSteps sts
                                      , instr = instrs
@@ -809,8 +831,8 @@ FrameAddr 1
 >>> fp
 FrameAddr 1
 -}
-evacuateFramePtr :: Bool -> CodeStore -> TimHeap -> TimHeap -> ([Instruction], FramePtr) -> ((TimHeap, TimHeap), FramePtr)
-evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
+evacuateFramePtr :: Bool -> CodeStore -> TimHeap -> TimHeap -> Closure -> ((TimHeap, TimHeap), FramePtr)
+evacuateFramePtr liveCheck cstore from to (instrs, fptr, fname) = case fptr of
   FrameAddr a -> case hLookup from a of
     Frame clss rslots -> case hAlloc to (Frame [] []) of
       (to1, a') -> case hUpdate from a (Forward a') of
@@ -826,7 +848,7 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
         | not liveCheck ||
           holdInDataFrame instrs ||
           i `elem` go liveArgs = (hs, cls)
-        | otherwise            = ((f, t), ([], FrameNull))
+        | otherwise            = ((f, t), ([], FrameNull, Nothing))
         where
           (hs, _) = evacuateFramePtr False cstore f t cls
           -- NOTE: ここで2段階以上の間接参照があるとスロットが GC されてしまう可能性がある
@@ -875,19 +897,19 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr) = case fptr of
 -}
 evacuateStack :: CodeStore -> TimHeap -> TimHeap -> TimStack -> ((TimHeap, TimHeap), TimStack)
 evacuateStack cstore from to stk = case mapAccumL update (from, to) stk of
-  (hs, fps) -> (hs, zipWith (\(is, _) fp -> (is, fp)) stk fps)
+  (hs, fps) -> (hs, zipWith (\(is, _, fn) fp -> (is, fp, fn)) stk fps)
   where
     update :: (TimHeap, TimHeap) -> Closure -> ((TimHeap, TimHeap), FramePtr)
     update (f, t) = evacuateFramePtr False cstore f t
 
 evacuateDump :: CodeStore -> TimHeap -> TimHeap -> TimDump -> ((TimHeap, TimHeap), TimDump)
 evacuateDump cstore from to dmp = case mapAccumL update (from, to) dmp of
-  (hs, fpstks) -> (hs, zipWith (\(_, n', _) (fp, stk) -> (fp, n', stk)) dmp fpstks)
+  (hs, fpstks) -> (hs, zipWith (\(_, n', _, fn') (fp, stk) -> (fp, n', stk, fn')) dmp fpstks)
   where
-    update :: (TimHeap, TimHeap) -> (FramePtr, Int, TimStack) -> ((TimHeap, TimHeap), (FramePtr, TimStack))
-    update (f, t) (fp, n, stk) = ((f2, t2), (fp', stk'))
+    update :: (TimHeap, TimHeap) -> (FramePtr, Int, TimStack, Maybe Name) -> ((TimHeap, TimHeap), (FramePtr, TimStack))
+    update (f, t) (fp, n, stk, fn) = ((f2, t2), (fp', stk'))
       where ((f1, t1), stk') = evacuateStack cstore f t stk
-            ((f2, t2), fp') = evacuateFramePtr False cstore f1 t1 ([], fp)
+            ((f2, t2), fp') = evacuateFramePtr False cstore f1 t1 ([], fp, Nothing)
 
 -- | 新しいヒープ中の FramePtr を 古いヒープから探して、
 --   新しいヒープのどのアドレスに Forward されているか見て付け替えていく
@@ -905,9 +927,9 @@ scavenge from to@(_, _, _, hp) = foldl' phi to hp
       Frame cls rslots -> hUpdate t a' (Frame (map conv cls) rslots)
         where
           conv :: Closure -> Closure
-          conv cls@(is, fp) = case fp of
+          conv cls@(is, fp, fn) = case fp of
             FrameAddr a -> case hLookup from a of
-              Forward a' -> (is, FrameAddr a')
+              Forward a' -> (is, FrameAddr a', fn)
               _          -> error $ "scavenge: not Forward: " ++ show cls
             FrameInt _  -> cls
             FrameNull   -> cls
@@ -922,6 +944,7 @@ applyToStats stats_fun state
 
 step :: TimState -> TimState
 step state@TimState { instructions = instrs
+                    , fun_name     = fn
                     , frame        = fptr
                     , data_frame   = dfptr
                     , stack        = stk
@@ -944,7 +967,7 @@ step state@TimState { instructions = instrs
           $ state)
     | otherwise -> error "Too few args for Take instruction"
     where
-      (hp', fptr') = fAlloc hp (Frame (take n stk ++ replicate (t-n) ([], FrameNull)) [])
+      (hp', fptr') = fAlloc hp (Frame (take n stk ++ replicate (t-n) ([], FrameNull, Nothing)) [])
       stk' = drop n stk
   (Move n am:istr) -> applyToStats statIncExecTime
                       (putInstructions istr
@@ -960,12 +983,13 @@ step state@TimState { instructions = instrs
   [Enter am]
     -> applyToStats statIncExecTime
        (putInstructions instr'
+        . putFunName fname'
         . putFrame fptr'
         . putDataFrame FrameNull
         . clearOutputLast
         $ state)
     where
-      (instr', fptr') = amToClosure am fptr dfptr hp cstore
+      (instr', fptr', fname') = amToClosure am fptr dfptr hp cstore
   (Push am:istr)
     -> applyToStats statIncExecTime
        (putInstructions istr
@@ -989,7 +1013,7 @@ step state@TimState { instructions = instrs
     -> applyToStats statIncExecTime
        (putInstructions istr
         . putStack []
-        . putDump ((fptr, x, stk):dmp)
+        . putDump ((fptr, x, stk, fn):dmp)
         . clearOutputLast
         $ state)
   (UpdateMarkers n:istr)
@@ -1005,10 +1029,10 @@ step state@TimState { instructions = instrs
                            $ state)
     where
       m = length stk
-      ((fu, x, s), dmp') = case dmp of
+      ((fu, x, s, fn), dmp') = case dmp of
         d:ds -> (d, ds)
         _    -> error "UpdateMarkers applied to empty dump"
-      hp' = fUpdate h' fu x (i', f')
+      hp' = fUpdate h' fu x (i', f', fn)
       (h', f') = fAlloc hp (Frame stk [(x, used_slots)]) -- NOTE: x slot depends on used_slots
       i' = map (Push . Arg) (reverse used_slots) ++ UpdateMarkers n:istr
       used_slots = [1..m]
@@ -1020,20 +1044,21 @@ step state@TimState { instructions = instrs
            . clearOutputLast
            $ state)
       where
-        ((fu, x, stk'), dmp') = case dmp of
+        ((fu, x, stk', fn'), dmp') = case dmp of
           d:ds -> (d, ds)
           _    -> error "Return applied to empty dump"
         n = case vstk of
           n:_ -> n
           _   -> error "Return applied to empty vstk"
-        hp' = fUpdate hp fu x (intCode, FrameInt n)
-    (instr', fptr'):stk' -> applyToStats statIncExecTime
-                            (putInstructions instr'
-                             . putFrame fptr'
-                             . putDataFrame FrameNull
-                             . putStack stk'
-                             . clearOutputLast
-                             $ state)
+        hp' = fUpdate hp fu x (intCode, FrameInt n, fn')
+    (instr', fptr', fname'):stk' -> applyToStats statIncExecTime
+                                    (putInstructions instr'
+                                     . putFunName fname'
+                                     . putFrame fptr'
+                                     . putDataFrame FrameNull
+                                     . putStack stk'
+                                     . clearOutputLast
+                                     $ state)
   [ReturnConstr t] -> case stk of
     [] -> applyToStats statIncExecTime
           (putStack stk'
@@ -1042,13 +1067,14 @@ step state@TimState { instructions = instrs
            . clearOutputLast
            $ state)
       where
-        ((fu, x, stk'), dmp') = case dmp of
+        ((fu, x, stk', fn'), dmp') = case dmp of
           d:ds -> (d, ds)
           _    -> error "ReturnConstr applied to empty dump"
         f = getFrame state
-        hp' = fUpdate hp fu x ([ReturnConstr t], f)
+        hp' = fUpdate hp fu x ([ReturnConstr t], f, fn')
     _  -> applyToStats statIncExecTime
           (putInstructions i
+           . putFunName fn'
            . putFrame f'
            . putDataFrame f
            . putStack stk'
@@ -1056,7 +1082,7 @@ step state@TimState { instructions = instrs
            . clearOutputLast
            $ state)
       where
-        (i, f'):stk' = stk
+        (i, f', fn'):stk' = stk
         f = getFrame state
         vstk' = t:vstk
   (Op op:istr)
@@ -1116,9 +1142,9 @@ step state@TimState { instructions = instrs
 amToClosure :: TimAMode -> FramePtr -> FramePtr -> TimHeap -> CodeStore -> Closure
 amToClosure (Arg n)      fptr dfptr heap cstore = fGet heap fptr n
 amToClosure (Data n)     fptr dfptr heap cstore = fGet heap dfptr n
-amToClosure (Code cs)    fptr dfptr heap cstore = (instrsOf cs, fptr)
+amToClosure (Code cs)    fptr dfptr heap cstore = (instrsOf cs, fptr, Nothing)
 amToClosure (Label l)    fptr dfptr heap cstore = codeLookup cstore l heap
-amToClosure (IntConst n) fptr dfptr heap cstore = (intCode, FrameInt n)
+amToClosure (IntConst n) fptr dfptr heap cstore = (intCode, FrameInt n, Nothing)
 
 intCode :: [Instruction]
 intCode = [PushV FramePtr, Return]
@@ -1143,7 +1169,7 @@ showSCDefns :: TimState -> IseqRep
 showSCDefns TimState { codes = cs, heap = hp } = iInterleave iNewline (map showSC cs')
   where (addr, sc_assoc_list) = cs
         cs' = map (second f) sc_assoc_list
-          where f = Compiled [] . fst . fGet hp (FrameAddr addr)
+          where f = Compiled [] . fst3 . fGet hp (FrameAddr addr)
 
 showSC :: (Name, CompiledCode) -> IseqRep
 showSC (name, cs)
@@ -1157,6 +1183,7 @@ showSC (name, cs)
 
 showState :: TimState -> IseqRep
 showState TimState { instructions = is
+                   , fun_name     = fn
                    , frame        = fptr
                    , data_frame   = dfptr
                    , stack        = stk
@@ -1167,7 +1194,7 @@ showState TimState { instructions = is
                    , output       = out
                    , stats        = stat
                    }
-  = iConcat $ [ iStr "Code:  "
+  = iConcat $ [ maybe (iStr "Code:  ") (\name -> iStr ("Code("++name++"):  ")) fn
               , showInstructions Full is, iNewline
               , iStr "Frame: "
               , showFrame hp fptr, iNewline
@@ -1318,16 +1345,17 @@ showVStackTopValue vstk = error $ "value stack has more than 1 value: " ++ show 
 showDump :: TimDump -> IseqRep
 showDump dump
   = iConcat [ iStr "["
-            , iIndent (iInterleave iNewline (map showTriple dump))
+            , iIndent (iInterleave iNewline (map showQuad dump))
             , iStr "]"
             ]
-  where showTriple (fp, idx, stk)
+  where showQuad (fp, idx, stk, fn)
           = iConcat [ iStr "("
                     , showFramePtr fp
                     , iStr ", "
                     , iNum idx
                     -- , iStr ", "
                     -- , showStack stk
+                    , maybe (iStr ", (internal)") (\name -> iStr ", " `iAppend` iStr (show name)) fn
                     , iStr ")"
                     ]
 
@@ -1338,18 +1366,28 @@ showOutput (out, _) = iConcat [ iStr "["
                               ]
 
 showClosure :: Closure -> IseqRep
-showClosure (i, f)
+showClosure (i, f, fn)
   = iConcat [ iStr "("
             , showInstructions Terse i
             , iStr ", "
             , showFramePtr f
             , iStr ")"
+            , maybe iNil (\name -> iStr "\t; " `iAppend` iStr (show name)) fn
             ]
 
 showFramePtr :: FramePtr -> IseqRep
 showFramePtr FrameNull     = iStr "null"
 showFramePtr (FrameAddr a) = iStr "#" `iAppend` iNum a
 showFramePtr (FrameInt n)  = iStr "int " `iAppend` iNum n
+
+showCallInfo :: Map.Map Name Int -> IseqRep
+showCallInfo m
+  = iConcat [ iStr "CallInfo: ["
+            , iIndent (iInterleave iNewline (map showCallInfoItem (Map.toList m)))
+            , iStr "]"
+            ]
+  where showCallInfoItem (name, n)
+          = iConcat [ iStr name, iStr " : ", iNum n ]
 
 showGCInfoSimple :: [GCInfo] -> IseqRep
 showGCInfoSimple xs | null xs   = iConcat [ iNum 0, iNewline ]
@@ -1371,6 +1409,7 @@ showStats TimState { stats = st }
             , iStr "      Exec time = ", iNum (statGetExecTime st), iNewline
             , iStr " Heap allocated = ", iNum (statGetHeapAllocated st), iNewline
             , iStr "Max stack depth = ", iNum (statGetMaxStackDepth st), iNewline
+            , iStr "       Profiled = ", showCallInfo (statGetCallInfo st), iNewline
             , iStr "        GC call = ", showGCInfoSimple (statGetGCInfo st), iNewline
             ]
 
