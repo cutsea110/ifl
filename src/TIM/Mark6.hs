@@ -335,18 +335,21 @@ allocateInitialHeap compiled_code
     offsets = [(name, offset) | (offset, (name, _)) <- indexed_code]
     reserved_for_topCont = [reserved, reserved]
       where reserved = ([], FrameAddr global_frame_addr, Nothing)
-    closures = reserved_for_topCont ++ [ (gen offset code, FrameAddr global_frame_addr, Just fname)
+    closures = reserved_for_topCont ++ [ (g offset code, FrameAddr global_frame_addr, f fname code)
                                        | (offset, (fname, Compiled _ code)) <- indexed_code
                                        ]
-      where gen offset code | isNonCAFs code = code
-                            | otherwise      = PushMarker offset:code
+      where g offset code | isNonCAFs code = code
+                          | otherwise      = PushMarker offset:code
+            f fname code | isNonCAFs code = Just fname
+                         | otherwise      = Just $ fname ++ "::CAF"
     (heap, global_frame_addr) = case fAlloc hInitial (Frame closures []) of  -- NOTE: RelSlot is []
       (h, FrameAddr gaddr) -> (h, gaddr)
       (_, frm)             -> error $ "Unexpected FramePtr: " ++ show frm
 
 isNonCAFs :: [Instruction] -> Bool
-isNonCAFs (Take _ n:_) = n > 0
-isNonCAFs _            = False
+isNonCAFs []             = False
+isNonCAFs (Take _ n:xs) = n > 0
+isNonCAFs (_:xs)        = isNonCAFs xs
 isCAFs :: [Instruction] -> Bool
 isCAFs = not . isNonCAFs
 
