@@ -305,9 +305,9 @@ compile program
       where
         -- exercise 4.29
         timAMode name
-          | found > 0 && isCAFs il = Code (Compiled [] [Enter (Label name)]) -- CAF
-          | otherwise              = Label name
-          where found = aLookup sc_assoc_list name 0
+          | found && isCAFs il = Code (Compiled [] [Enter (Label name)])
+          | otherwise          = Label name
+          where found = aLookup sc_assoc_list name 0 > 0
                 (il, _) = codeLookup init_cs name init_heap
 
 allocateInitialHeap :: [(Name, CompiledCode)] -> (TimHeap, CodeStore)
