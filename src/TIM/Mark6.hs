@@ -10,6 +10,8 @@ module TIM.Mark6
 
 import Control.Arrow (first, second)
 import Data.List (find, foldl', intersect, mapAccumL, nub, sort)
+import Data.Maybe (fromMaybe)
+import qualified Data.Map as Map
 
 import Heap
 import Iseq
@@ -19,6 +21,7 @@ import Utils
 data Config = Config { verbose           :: !Bool
                      , gcThreshold       :: !Int
                      , convertToListBase :: !Bool
+                     , profile           :: !Bool
                      }
 
 runProg :: Config -> String -> String
@@ -236,6 +239,7 @@ data TimStats
              , getExecTime      :: Int  -- The execution time
              , getHeapAllocated :: Int  -- The amount of heap allocated
              , getMaxStackDepth :: Int  -- The maximum stack depth
+             , getCallInfo      :: Map.Map Name Int
              , getGCInfo        :: [GCInfo]
              }
   deriving (Eq, Show)
@@ -245,6 +249,7 @@ statInitial = TimStats { getSteps         = 0
                        , getExecTime      = 0
                        , getHeapAllocated = 0
                        , getMaxStackDepth = 0
+                       , getCallInfo      = Map.empty
                        , getGCInfo        = []
                        }
 
@@ -286,6 +291,11 @@ statGetGCCount s = length $ getGCInfo s
 
 statIncGCCount :: GCInfo -> TimStats -> TimStats
 statIncGCCount tpl sts = sts { getGCInfo = getGCInfo sts ++ [tpl] }
+
+statGetCallInfo :: TimStats -> Map.Map Name Int
+statGetCallInfo s = getCallInfo s
+statUpdateCallInfo :: Name -> TimStats -> TimStats
+statUpdateCallInfo name sts = sts { getCallInfo = Map.insertWith (+) name 1 (getCallInfo sts) }
 
 compile :: CoreProgram -> TimState
 compile program
@@ -566,7 +576,10 @@ doAdmin conf state
   | needGC    = gc state'
   | otherwise = state'
   where
-    state' = applyToStats statIncSteps state
+    state' | profileOn = applyToStats (statUpdateCallInfo fname . statIncSteps) state
+           | otherwise = applyToStats statIncSteps state
+    profileOn = profile conf
+    fname = fromMaybe "(internal)" $ fun_name state
     needGC = orgSize >= gcThreshold conf
     orgSize = hSize $ getHeap state'
 
@@ -1342,7 +1355,7 @@ showDump dump
                     , iNum idx
                     -- , iStr ", "
                     -- , showStack stk
-                    , maybe (iStr ", (none)") (\name -> iStr ", " `iAppend` iStr (show name)) fn
+                    , maybe (iStr ", (internal)") (\name -> iStr ", " `iAppend` iStr (show name)) fn
                     , iStr ")"
                     ]
 
@@ -1367,6 +1380,15 @@ showFramePtr FrameNull     = iStr "null"
 showFramePtr (FrameAddr a) = iStr "#" `iAppend` iNum a
 showFramePtr (FrameInt n)  = iStr "int " `iAppend` iNum n
 
+showCallInfo :: Map.Map Name Int -> IseqRep
+showCallInfo m
+  = iConcat [ iStr "CallInfo: ["
+            , iIndent (iInterleave iNewline (map showCallInfoItem (Map.toList m)))
+            , iStr "]"
+            ]
+  where showCallInfoItem (name, n)
+          = iConcat [ iStr name, iStr " : ", iNum n ]
+
 showGCInfoSimple :: [GCInfo] -> IseqRep
 showGCInfoSimple xs | null xs   = iConcat [ iNum 0, iNewline ]
                     | otherwise = iConcat [ iNum (length xs)
@@ -1387,6 +1409,7 @@ showStats TimState { stats = st }
             , iStr "      Exec time = ", iNum (statGetExecTime st), iNewline
             , iStr " Heap allocated = ", iNum (statGetHeapAllocated st), iNewline
             , iStr "Max stack depth = ", iNum (statGetMaxStackDepth st), iNewline
+            , iStr "       Profiled = ", showCallInfo (statGetCallInfo st), iNewline
             , iStr "        GC call = ", showGCInfoSimple (statGetGCInfo st), iNewline
             ]
 
