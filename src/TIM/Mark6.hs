@@ -297,6 +297,12 @@ statGetCallInfo s = getCallInfo s
 statUpdateCallInfo :: Name -> TimStats -> TimStats
 statUpdateCallInfo name sts = sts { getCallInfo = Map.insertWith (+) name 1 (getCallInfo sts) }
 
+
+startOfBootstraps :: Int
+startOfBootstraps = 3
+startOfScDefs :: Int
+startOfScDefs = startOfBootstraps + length bootstraps
+
 compile :: CoreProgram -> TimState
 compile program
   = TimState { instructions = [Enter $ Label "main"]
@@ -331,7 +337,7 @@ allocateInitialHeap compiled_code
   = (heap, (global_frame_addr, offsets))
   where
     -- NOTE: slots 1, 2 are reserved for topCont's Move from Data.
-    indexed_code = zip [3..] compiled_code -- topCont, headCont use slots 1 and 2.
+    indexed_code = zip [startOfBootstraps..] compiled_code -- topCont, headCont use slots 1 and 2.
     offsets = [(name, offset) | (offset, (name, _)) <- indexed_code]
     reserved_for_topCont = [reserved, reserved]
       where reserved = ([], FrameAddr global_frame_addr, Nothing)
