@@ -222,9 +222,11 @@ data GCInfo = GCInfo { stepAt                      :: Int
                      , heapEvacuatedByDump         :: (TimHeap, TimHeap)
                      , heapEvacuatedByFramePtr     :: (TimHeap, TimHeap)
                      , heapEvacuatedByDataFramePtr :: (TimHeap, TimHeap)
+                     , heapEvacuatedByCodeStore    :: (TimHeap, TimHeap)
                      , heapScavenged               :: TimHeap
                      , fptrDone                    :: FramePtr
                      , dfptrDone                   :: FramePtr
+                     , csDone                      :: FramePtr
                      } deriving (Eq, Show)
 
 data TimStats
@@ -607,28 +609,32 @@ gc state@TimState { instructions = instrs
   ((from1, to1), stk1) -> case evacuateDump cstore from1 to1 dmp of
     ((from2, to2), dmp1) -> case evacuateFramePtr True cstore from2 to2  (instrs, fptr, fname) of
       ((from3, to3), fptr1) -> case evacuateFramePtr False cstore from3 to3 (instrs, dfptr, fname) of
-        ((from4, to4),  dfptr1) -> case scavenge from4 to4 of
-          to5 -> let gcinfo = GCInfo { stepAt = statGetSteps sts
-                                     , instr = instrs
-                                     , stackInit = stk
-                                     , fptrInit = fptr
-                                     , dfptrInit = dfptr
-                                     , heapBefore = from
-                                     , heapEvacuatedByStack = (from1, to1)
-                                     , heapEvacuatedByDump = (from2, to2)
-                                     , heapEvacuatedByFramePtr = (from3, to3)
-                                     , heapEvacuatedByDataFramePtr = (from4, to4)
-                                     , heapScavenged = to5
-                                     , fptrDone = fptr1
-                                     , dfptrDone = dfptr1
-                                     }
-                 in applyToStats (statIncGCCount gcinfo)
-                                $ state { frame = fptr1
-                                        , data_frame = dfptr1
-                                        , stack = stk1
-                                        , dump = dmp1
-                                        , heap = to5
-                                        }
+        ((from4, to4), dfptr1) -> case evacuateFramePtr False cstore from4 to4 ([], FrameAddr cstore, Nothing) of
+          ((from5, to5), FrameAddr cstore1) -> case scavenge from5 to5 of
+            to6 -> let gcinfo = GCInfo { stepAt = statGetSteps sts
+                                       , instr = instrs
+                                       , stackInit = stk
+                                       , fptrInit = fptr
+                                       , dfptrInit = dfptr
+                                       , heapBefore = from
+                                       , heapEvacuatedByStack = (from1, to1)
+                                       , heapEvacuatedByDump = (from2, to2)
+                                       , heapEvacuatedByFramePtr = (from3, to3)
+                                       , heapEvacuatedByDataFramePtr = (from4, to4)
+                                       , heapEvacuatedByCodeStore = (from5, to5)
+                                       , heapScavenged = to6
+                                       , fptrDone = fptr1
+                                       , dfptrDone = dfptr1
+                                       , csDone = FrameAddr cstore1
+                                       }
+                   in applyToStats (statIncGCCount gcinfo)
+                                  $ state { frame = fptr1
+                                          , data_frame = dfptr1
+                                          , stack = stk1
+                                          , dump = dmp1
+                                          , heap = to6
+                                          , codes = cstore1
+                                          }
 
 showGCInfo :: GCInfo -> IseqRep
 showGCInfo gcinfo
@@ -652,12 +658,18 @@ showGCInfo gcinfo
             , iStr "   ", iIndent (showHeap f4), iNewline, iNewline
             , iStr ">>> EVACUATED data frameptr: to4", iNewline
             , iStr "   ", iIndent (showHeap t4), iNewline, iNewline
-            , iStr ">>> SCAVENGED: to5", iNewline
+            , iStr ">>> EVACUATED code store: from5", iNewline
+            , iStr "   ", iIndent (showHeap f5), iNewline, iNewline
+            , iStr ">>> EVACUATED code store: to5", iNewline
             , iStr "   ", iIndent (showHeap t5), iNewline, iNewline
+            , iStr ">>> SCAVENGED: to6", iNewline
+            , iStr "   ", iIndent (showHeap t6), iNewline, iNewline
             , iStr "new frame ptr: "
             , iIndent (showFramePtr fp'), iNewline
             , iStr "new data frame ptr: "
             , iIndent (showFramePtr dfp'), iNewline
+            , iStr "new code store: "
+            , iIndent (showFramePtr cs'), iNewline
             , iStr "^^^^^^^^^^^^^^^^^^^^^^^^", iNewline
             ]
   where f0 = heapBefore gcinfo
@@ -665,9 +677,11 @@ showGCInfo gcinfo
         (f2, t2) = heapEvacuatedByDump gcinfo
         (f3, t3) = heapEvacuatedByFramePtr gcinfo
         (f4, t4) = heapEvacuatedByDataFramePtr gcinfo
-        t5 = heapScavenged gcinfo
+        (f5, t5) = heapEvacuatedByCodeStore gcinfo
+        t6 = heapScavenged gcinfo
         fp' = fptrDone gcinfo
         dfp' = dfptrDone gcinfo
+        cs' = csDone gcinfo
 
 
 -- | NOTE: Closure = ([Instruction], FramePtr) なので
@@ -1215,6 +1229,8 @@ showState TimState { instructions = is
               , showValueStack vstk, iNewline
               , iStr "Dump: "
               , showDump dmp, iNewline
+              , iStr "Code store: "
+              , showCodeStore cs, iNewline
               , iStr "Output: "
               , showOutput out, iNewline
               ] ++ gcinfo
@@ -1365,6 +1381,9 @@ showDump dump
                     , maybe (iStr ", (internal)") (\name -> iStr ", " `iAppend` iStr (show name)) fn
                     , iStr ")"
                     ]
+
+showCodeStore :: CodeStore -> IseqRep
+showCodeStore addr = iStr "#" `iAppend` iNum addr
 
 showOutput :: TimOutput -> IseqRep
 showOutput (out, _) = iConcat [ iStr "["
