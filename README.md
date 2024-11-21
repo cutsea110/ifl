@@ -78,6 +78,13 @@ or try this.
 $ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.14 ifl -t 1000 -l -v -c timark6 /work/testProg134.ifl
 ```
 
+Further more, just only on the TMark6, You can use -p option which profile your code.
+
+```bash
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.14 ifl -t 1000 -l -v -c timark6 -p /work/testProg134.ifl
+```
+
+
 ### Share Dockerhub
 
 ```bash
