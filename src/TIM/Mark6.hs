@@ -291,8 +291,10 @@ statUpdateCallInfo :: Name -> TimStats -> TimStats
 statUpdateCallInfo name sts = sts { getCallInfo = Map.insertWith (+) name 1 (getCallInfo sts) }
 
 
+reservedSlots :: Int
+reservedSlots = 2
 startOfBootstraps :: Int
-startOfBootstraps = 3
+startOfBootstraps = reservedSlots + 1
 startOfScDefs :: Int
 startOfScDefs = startOfBootstraps + length bootstraps
 
@@ -338,8 +340,7 @@ allocateInitialHeap compiled_code = (heap, global_frame_addr)
   where
     -- NOTE: slots 1, 2 are reserved for topCont's Move from Data.
     indexed_code = zip [startOfBootstraps..] compiled_code -- topCont, headCont use slots 1 and 2.
-    reserved_for_topCont = [reserved, reserved]
-      where reserved = ([], FrameAddr global_frame_addr, Nothing)
+    reserved_for_topCont = replicate reservedSlots ([], FrameAddr global_frame_addr, Nothing)
     closures = reserved_for_topCont ++ [ (g offset code, FrameAddr global_frame_addr, f fname code)
                                        | (offset, (fname, Compiled _ code)) <- indexed_code
                                        ]
@@ -1176,7 +1177,7 @@ showResults states@(s:ss)
 showSCDefns :: TimState -> IseqRep
 showSCDefns TimState { codes = csaddr, heap = hp } = iInterleave iNewline (map showSC closures)
   where closures = case hLookup hp csaddr of
-          Frame cls _ -> cls
+          Frame cls _ -> drop (startOfBootstraps-1) cls
           Forward p   -> error $ "Unexpected Frame: " ++ show p
 
 showSC :: Closure -> IseqRep
