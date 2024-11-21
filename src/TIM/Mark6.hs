@@ -386,7 +386,7 @@ initialDump :: TimDump
 initialDump = []
 
 initCodeStore :: CodeStore
-initCodeStore = 0 -- FIXME: fail doctests and crash gc
+initCodeStore = 0
 
 extraPreludeDefs :: CoreProgram
 extraPreludeDefs = [ ("cons", [], EConstr 2 2)
@@ -684,173 +684,160 @@ showGCInfo gcinfo
         cs' = csDone gcinfo
 
 
--- | NOTE: Closure = ([Instruction], FramePtr) なので
--- [Instruction] の中で使われる FramePtr はコピーし、それ以外は ([], FrameNull) で潰す
+-- | NOTE: Closure = ([Instruction], FramePtr, Maybe Name) なので
+-- [Instruction] の中で使われる FramePtr はコピーし、それ以外は ([], FrameNull, Nothing) で潰す
 -- ただし [Instruction] で直接使われてなくても、Frame の relslots で間接的に参照している場合は保持し続ける
 {- |
 >>> let h = hInitial :: Heap Frame
 >>> let cs = initCodeStore
->>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull)][])
->>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 2)], FrameAddr 1)] [])
->>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull, Just "1")][])
+>>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 2)], FrameAddr 1, Just "2")] [])
+>>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2, Just "3")
 >>> from
 (2,2,[(1,Forward 2),(2,Forward 1)])
 >>> to
-(2,2,[(1,Frame [([Push (Arg 2)],FrameAddr 1)] []),(2,Frame [([Push (Arg 1)],FrameNull)] [])])
+(2,2,[(1,Frame [([Push (Arg 2)],FrameAddr 1,Just "2")] []),(2,Frame [([Push (Arg 1)],FrameNull,Just "1")] [])])
 >>> fp
 FrameAddr 1
 
->>> let (h3, a3) = hAlloc h (Frame [([Push (Arg 1)], FrameNull),([Push (Arg 2)], FrameInt 42),([Push (Arg 3)], FrameAddr 2)] [])
->>> let (h4, a4) = hAlloc h3 (Frame [([Push (Arg 1)], FrameAddr 1)] [])
->>> let ((from2, to2), fp2) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> let (h3, a3) = hAlloc h (Frame [([Push (Arg 1)], FrameNull, Just "1"),([Push (Arg 2)], FrameInt 42, Just "2"),([Push (Arg 3)], FrameAddr 2, Just "3")] [])
+>>> let (h4, a4) = hAlloc h3 (Frame [([Push (Arg 1)], FrameAddr 1, Just "4")] [])
+>>> let ((from2, to2), fp2) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 1)], FrameAddr 2, Just "5")
 >>> from2
 (2,2,[(1,Forward 2),(2,Forward 1)])
 >>> to2
-(2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 1)] []),(2,Frame [([Push (Arg 1)],FrameNull),([Push (Arg 2)],FrameInt 42),([Push (Arg 3)],FrameAddr 2)] [])])
+(2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 1,Just "4")] []),(2,Frame [([Push (Arg 1)],FrameNull,Just "1"),([Push (Arg 2)],FrameInt 42,Just "2"),([Push (Arg 3)],FrameAddr 2,Just "3")] [])])
 >>> fp2
 FrameAddr 1
 
->>> let ((from3, to3), fp3) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 2)], FrameAddr 2)
+>>> let ((from3, to3), fp3) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 2)], FrameAddr 2, Just "6")
 >>> from3
-(2,2,[(2,Forward 1),(1,Frame [([Push (Arg 1)],FrameNull),([Push (Arg 2)],FrameInt 42),([Push (Arg 3)],FrameAddr 2)] [])])
+(2,2,[(2,Forward 1),(1,Frame [([Push (Arg 1)],FrameNull,Just "1"),([Push (Arg 2)],FrameInt 42,Just "2"),([Push (Arg 3)],FrameAddr 2,Just "3")] [])])
 >>> to3
-(1,1,[(1,Frame [([],FrameNull)] [])])
+(1,1,[(1,Frame [([],FrameNull,Nothing)] [])])
 >>> fp3
 FrameAddr 1
 
->>> let ((from4, to4), fp4) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 1)], FrameAddr 1)
+>>> let ((from4, to4), fp4) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 1)], FrameAddr 1, Just "7")
 >>> from4
-(2,2,[(1,Forward 1),(2,Frame [([Push (Arg 1)],FrameAddr 1)] [])])
+(2,2,[(1,Forward 1),(2,Frame [([Push (Arg 1)],FrameAddr 1,Just "4")] [])])
 >>> to4
-(1,1,[(1,Frame [([Push (Arg 1)],FrameNull),([],FrameNull),([],FrameNull)] [])])
+(1,1,[(1,Frame [([Push (Arg 1)],FrameNull,Just "1"),([],FrameNull,Nothing),([],FrameNull,Nothing)] [])])
 >>> fp4
 FrameAddr 1
 
->>> let ((from5, to5), fp5) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 2)], FrameAddr 1)
+>>> let ((from5, to5), fp5) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 2)], FrameAddr 1, Just "8")
 >>> from5
-(2,2,[(1,Forward 1),(2,Frame [([Push (Arg 1)],FrameAddr 1)] [])])
+(2,2,[(1,Forward 1),(2,Frame [([Push (Arg 1)],FrameAddr 1,Just "4")] [])])
 >>> to5
-(1,1,[(1,Frame [([],FrameNull),([Push (Arg 2)],FrameInt 42),([],FrameNull)] [])])
+(1,1,[(1,Frame [([],FrameNull,Nothing),([Push (Arg 2)],FrameInt 42,Just "2"),([],FrameNull,Nothing)] [])])
 >>> fp5
 FrameAddr 1
 
->>> let ((from6, to6), fp6) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 3)], FrameAddr 1)
+>>> let ((from6, to6), fp6) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 3)], FrameAddr 1, Just "9")
 >>> from6
 (2,2,[(2,Forward 2),(1,Forward 1)])
 >>> to6
-(2,2,[(1,Frame [([],FrameNull),([],FrameNull),([Push (Arg 3)],FrameAddr 2)] []),(2,Frame [([Push (Arg 1)],FrameAddr 1)] [])])
+(2,2,[(1,Frame [([],FrameNull,Nothing),([],FrameNull,Nothing),([Push (Arg 3)],FrameAddr 2,Just "3")] []),(2,Frame [([Push (Arg 1)],FrameAddr 1,Just "4")] [])])
 >>> fp6
 FrameAddr 1
 
->>> let ((from7, to7), fp7) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 1), Enter (Arg 3)], FrameAddr 1)
+>>> let ((from7, to7), fp7) = evacuateFramePtr True cs h4 hInitial ([Push (Arg 1), Enter (Arg 3)], FrameAddr 1, Just "10")
 >>> from7
 (2,2,[(2,Forward 2),(1,Forward 1)])
 >>> to7
-(2,2,[(1,Frame [([Push (Arg 1)],FrameNull),([],FrameNull),([Push (Arg 3)],FrameAddr 2)] []),(2,Frame [([Push (Arg 1)],FrameAddr 1)] [])])
+(2,2,[(1,Frame [([Push (Arg 1)],FrameNull,Just "1"),([],FrameNull,Nothing),([Push (Arg 3)],FrameAddr 2,Just "3")] []),(2,Frame [([Push (Arg 1)],FrameAddr 1,Just "4")] [])])
 >>> fp7
 FrameAddr 1
 -}
 {- | refer to the related used slots
 >>> let h = hInitial
 >>> let cs = initCodeStore
->>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull),([Push (Arg 2)], FrameAddr 1),([Enter (Arg 1)], FrameAddr 1)] [(3,[1])])
->>> let ((from, to), fp) = evacuateFramePtr True cs h1 hInitial ([Push (Arg 3)], FrameAddr 1)
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull, Just "1"),([Push (Arg 2)], FrameAddr 1, Just "2"),([Enter (Arg 1)], FrameAddr 1, Just "3")] [(3,[1])])
+>>> let ((from, to), fp) = evacuateFramePtr True cs h1 hInitial ([Push (Arg 3)], FrameAddr 1, Just "4")
 >>> from
 (1,1,[(1,Forward 1)])
 >>> to
-(1,1,[(1,Frame [([Push (Arg 1)],FrameNull),([],FrameNull),([Enter (Arg 1)],FrameAddr 1)] [(3,[1])])])
+(1,1,[(1,Frame [([Push (Arg 1)],FrameNull,Just "1"),([],FrameNull,Nothing),([Enter (Arg 1)],FrameAddr 1,Just "3")] [(3,[1])])])
 -}
 {- | refer to the related used slots 2-steps
 >>> let h = hInitial
 >>> let cs = initCodeStore
->>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull),([Push (Arg 2)], FrameAddr 1),([Enter (Arg 1)], FrameAddr 1)] [(3,[1]),(1,[2])])
->>> let ((from, to), fp) = evacuateFramePtr True cs h1 hInitial ([Push (Arg 3)], FrameAddr 1)
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull, Just "1"),([Push (Arg 2)], FrameAddr 1, Just "2"),([Enter (Arg 1)], FrameAddr 1, Just "3")] [(3,[1]),(1,[2])])
+>>> let ((from, to), fp) = evacuateFramePtr True cs h1 hInitial ([Push (Arg 3)], FrameAddr 1, Just "4")
 >>> from
 (1,1,[(1,Forward 1)])
 >>> to
-(1,1,[(1,Frame [([Push (Arg 1)],FrameNull),([Push (Arg 2)],FrameAddr 1),([Enter (Arg 1)],FrameAddr 1)] [(3,[1]),(1,[2])])])
+(1,1,[(1,Frame [([Push (Arg 1)],FrameNull,Just "1"),([Push (Arg 2)],FrameAddr 1,Just "2"),([Enter (Arg 1)],FrameAddr 1,Just "3")] [(3,[1]),(1,[2])])])
 -}
 {- | refer to the related used slots muturally
 >>> let h = hInitial
 >>> let cs = initCodeStore
->>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull),([Push (Arg 2)], FrameAddr 1),([Enter (Arg 1)], FrameAddr 1)] [(3,[1]),(1,[2]),(2,[3])])
->>> let ((from, to), fp) = evacuateFramePtr True cs h1 hInitial ([Push (Arg 3)], FrameAddr 1)
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull, Just "1"),([Push (Arg 2)], FrameAddr 1, Just "2"),([Enter (Arg 1)], FrameAddr 1, Just "3")] [(3,[1]),(1,[2]),(2,[3])])
+>>> let ((from, to), fp) = evacuateFramePtr True cs h1 hInitial ([Push (Arg 3)], FrameAddr 1, Just "4")
 >>> from
 (1,1,[(1,Forward 1)])
 >>> to
-(1,1,[(1,Frame [([Push (Arg 1)],FrameNull),([Push (Arg 2)],FrameAddr 1),([Enter (Arg 1)],FrameAddr 1)] [(3,[1]),(1,[2]),(2,[3])])])
+(1,1,[(1,Frame [([Push (Arg 1)],FrameNull,Just "1"),([Push (Arg 2)],FrameAddr 1,Just "2"),([Enter (Arg 1)],FrameAddr 1,Just "3")] [(3,[1]),(1,[2]),(2,[3])])])
 -}
 {- | The case for Cyclic Reference
 >>> let h = hInitial :: Heap Frame
 >>> let cs = initCodeStore
->>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameAddr 2)] [])
->>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 1)], FrameAddr 1)] [])
->>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameAddr 2, Just "1")] [])
+>>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 1)], FrameAddr 1, Just "2")] [])
+>>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2, Just "3")
 >>> from
 (2,2,[(1,Forward 2),(2,Forward 1)])
 >>> to
-(2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 1)] []),(2,Frame [([Push (Arg 1)],FrameAddr 2)] [])])
+(2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 1,Just "2")] []),(2,Frame [([Push (Arg 1)],FrameAddr 2,Just "1")] [])])
 >>> fp
 FrameAddr 1
 
->>> let (h3, a3) = hAlloc h2 (Frame [([Push (Arg 1)], FrameAddr 2)] [])
+>>> let (h3, a3) = hAlloc h2 (Frame [([Push (Arg 1)], FrameAddr 2, Just "4")] [])
 >>> h3
-(3,3,[(3,Frame [([Push (Arg 1)],FrameAddr 2)] []),(2,Frame [([Push (Arg 1)],FrameAddr 1)] []),(1,Frame [([Push (Arg 1)],FrameAddr 2)] [])])
->>> let ((from', to'), fp') = evacuateFramePtr True cs h3 hInitial ([Push (Arg 1)], FrameAddr 3)
+(3,3,[(3,Frame [([Push (Arg 1)],FrameAddr 2,Just "4")] []),(2,Frame [([Push (Arg 1)],FrameAddr 1,Just "2")] []),(1,Frame [([Push (Arg 1)],FrameAddr 2,Just "1")] [])])
+>>> let ((from', to'), fp') = evacuateFramePtr True cs h3 hInitial ([Push (Arg 1)], FrameAddr 3, Just "5")
 >>> from'
 (3,3,[(1,Forward 3),(2,Forward 2),(3,Forward 1)])
 >>> to'
-(3,3,[(1,Frame [([Push (Arg 1)],FrameAddr 2)] []),(2,Frame [([Push (Arg 1)],FrameAddr 1)] []),(3,Frame [([Push (Arg 1)],FrameAddr 2)] [])])
+(3,3,[(1,Frame [([Push (Arg 1)],FrameAddr 2,Just "4")] []),(2,Frame [([Push (Arg 1)],FrameAddr 1,Just "2")] []),(3,Frame [([Push (Arg 1)],FrameAddr 2,Just "1")] [])])
 
->>> let ((from2, to2), fp2) = evacuateFramePtr True cs h3 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> let ((from2, to2), fp2) = evacuateFramePtr True cs h3 hInitial ([Push (Arg 1)], FrameAddr 2, Just "6")
 >>> from2
-(3,3,[(1,Forward 2),(2,Forward 1),(3,Frame [([Push (Arg 1)],FrameAddr 2)] [])])
+(3,3,[(1,Forward 2),(2,Forward 1),(3,Frame [([Push (Arg 1)],FrameAddr 2,Just "4")] [])])
 >>> to2
-(2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 1)] []),(2,Frame [([Push (Arg 1)],FrameAddr 2)] [])])
+(2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 1,Just "2")] []),(2,Frame [([Push (Arg 1)],FrameAddr 2,Just "1")] [])])
 -}
 {- | The case for Self-Cyclic Reference
 >>> let h = hInitial :: Heap Frame
 >>> let cs = initCodeStore
->>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameAddr 2)] [])
->>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 1)], FrameAddr 2)] []) -- self-cyclic reference
->>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 1)
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameAddr 2, Just "1")] [])
+>>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 1)], FrameAddr 2, Just "1")] []) -- self-cyclic reference
+>>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 1, Just "2")
 >>> from
 (2,2,[(2,Forward 2),(1,Forward 1)])
 >>> to
-(2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 2)] []),(2,Frame [([Push (Arg 1)],FrameAddr 2)] [])])
+(2,2,[(1,Frame [([Push (Arg 1)],FrameAddr 2,Just "1")] []),(2,Frame [([Push (Arg 1)],FrameAddr 2,Just "1")] [])])
 >>> fp
 FrameAddr 1
 
->>> let ((from', to'), fp') = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> let ((from', to'), fp') = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2, Just "1")
 >>> from'
-(2,2,[(2,Forward 1),(1,Frame [([Push (Arg 1)],FrameAddr 2)] [])])
+(2,2,[(2,Forward 1),(1,Frame [([Push (Arg 1)],FrameAddr 2,Just "1")] [])])
 >>> to'
-(1,1,[(1,Frame [([Push (Arg 1)],FrameAddr 2)] [])])
+(1,1,[(1,Frame [([Push (Arg 1)],FrameAddr 2,Just "1")] [])])
 >>> fp'
-FrameAddr 1
--}
-{- | check CodeStore
->>> let h = hInitial :: Heap Frame
->>> let cs = [("f", Compiled [1,3] [Push (Arg 1), Enter (Arg 3)])]
->>> let (h1, a1) = hAlloc h (Frame [([Take 1 1], FrameNull),([Take 2 2],FrameNull),([Take 3 3],FrameNull)] [])
->>> let (h2, a2) = hAlloc h1 (Frame [([Enter (Label "f")], FrameAddr 1)] [])
->>> let ((from, to), fp) = evacuateFramePtr True cs h2 hInitial ([Push (Arg 1)], FrameAddr 2)
->>> from
-(2,2,[(1,Forward 2),(2,Forward 1)])
->>> to
-(2,2,[(1,Frame [([Enter (Label "f")],FrameAddr 1)] []),(2,Frame [([Take 1 1],FrameNull),([Take 2 2],FrameNull),([Take 3 3],FrameNull)] [])])
->>> fp
 FrameAddr 1
 -}
 {- | check Code
 >>> let h = hInitial :: Heap Frame
->>> let (h1, a1) = hAlloc h (Frame [([Take 1 1], FrameNull),([Take 2 2],FrameNull),([Take 3 3],FrameNull)] [])
->>> let (h2, a2) = hAlloc h1 (Frame [([Enter (Code (Compiled [1,3] [Push (Arg 1), Enter (Arg 3)]))], FrameAddr 1)] [])
->>> let ((from, to), fp) = evacuateFramePtr True initCodeStore h2 hInitial ([Push (Arg 1)], FrameAddr 2)
+>>> let (h1, a1) = hAlloc h (Frame [([Take 1 1], FrameNull, Just "1"),([Take 2 2], FrameNull, Just "2"),([Take 3 3], FrameNull, Just "3")] [])
+>>> let (h2, a2) = hAlloc h1 (Frame [([Enter (Code (Compiled [1,3] [Push (Arg 1), Enter (Arg 3)]))], FrameAddr 1, Just "4")] [])
+>>> let ((from, to), fp) = evacuateFramePtr True initCodeStore h2 hInitial ([Push (Arg 1)], FrameAddr 2, Just "5")
 >>> from
 (2,2,[(1,Forward 2),(2,Forward 1)])
 >>> to
-(2,2,[(1,Frame [([Enter (Code (Compiled {slotsOf = [1,3], instrsOf = [Push (Arg 1),Enter (Arg 3)]}))],FrameAddr 1)] []),(2,Frame [([Take 1 1],FrameNull),([Take 2 2],FrameNull),([Take 3 3],FrameNull)] [])])
+(2,2,[(1,Frame [([Enter (Code (Compiled {slotsOf = [1,3], instrsOf = [Push (Arg 1),Enter (Arg 3)]}))],FrameAddr 1,Just "4")] []),(2,Frame [([Take 1 1],FrameNull,Just "1"),([Take 2 2],FrameNull,Just "2"),([Take 3 3],FrameNull,Just "3")] [])])
 >>> fp
 FrameAddr 1
 -}
@@ -908,15 +895,15 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr, fname) = case fptr of
 {- |
 >>> let h = hInitial :: Heap Frame
 >>> let cs = initCodeStore
->>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull)] [])
->>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 2)], FrameAddr 1)] [])
->>> let ((from, to), stk) = evacuateStack cs h2 hInitial [([Push (Arg 1)], FrameAddr 2), ([Push (Arg 2)], FrameAddr 1)]
+>>> let (h1, a1) = hAlloc h (Frame [([Push (Arg 1)], FrameNull, Just "1")] [])
+>>> let (h2, a2) = hAlloc h1 (Frame [([Push (Arg 2)], FrameAddr 1, Just "2")] [])
+>>> let ((from, to), stk) = evacuateStack cs h2 hInitial [([Push (Arg 1)], FrameAddr 2, Just "3"), ([Push (Arg 2)], FrameAddr 1, Just "4")]
 >>> from
 (2,2,[(1,Forward 2),(2,Forward 1)])
 >>> to
-(2,2,[(1,Frame [([Push (Arg 2)],FrameAddr 1)] []),(2,Frame [([Push (Arg 1)],FrameNull)] [])])
+(2,2,[(1,Frame [([Push (Arg 2)],FrameAddr 1,Just "2")] []),(2,Frame [([Push (Arg 1)],FrameNull,Just "1")] [])])
 >>> stk
-[([Push (Arg 1)],FrameAddr 1),([Push (Arg 2)],FrameAddr 2)]
+[([Push (Arg 1)],FrameAddr 1,Just "3"),([Push (Arg 2)],FrameAddr 2,Just "4")]
 -}
 evacuateStack :: CodeStore -> TimHeap -> TimHeap -> TimStack -> ((TimHeap, TimHeap), TimStack)
 evacuateStack cstore from to stk = case mapAccumL update (from, to) stk of
@@ -938,9 +925,9 @@ evacuateDump cstore from to dmp = case mapAccumL update (from, to) dmp of
 --   新しいヒープのどのアドレスに Forward されているか見て付け替えていく
 {- |
 >>> let from = (2,2,[3..],[(1,Forward 2),(2,Forward 1)])
->>> let to = (2,2,[3..],[(1,Frame [([Push (Arg 2)],FrameAddr 1)] []),(2,Frame [([Push (Arg 1)],FrameNull)] [])])
+>>> let to = (2,2,[3..],[(1,Frame [([Push (Arg 2)],FrameAddr 1,Just "1")] []),(2,Frame [([Push (Arg 1)], FrameNull, Just "2")] [])])
 >>> scavenge from to
-(2,2,[(2,Frame [([Push (Arg 1)],FrameNull)] []),(1,Frame [([Push (Arg 2)],FrameAddr 2)] [])])
+(2,2,[(2,Frame [([Push (Arg 1)],FrameNull,Just "2")] []),(1,Frame [([Push (Arg 2)],FrameAddr 2,Just "1")] [])])
 -}
 scavenge :: TimHeap -> TimHeap -> TimHeap
 scavenge from to@(_, _, _, hp) = foldl' phi to hp
