@@ -8,7 +8,7 @@ module TIM.Mark6
   , Config(..)
   ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 import Data.List (find, foldl', intersect, mapAccumL, nub, sort)
 import Data.Maybe (fromMaybe)
 import qualified Data.Map as Map
@@ -18,6 +18,7 @@ import Iseq
 import Language
 import Utils
 
+
 data Config = Config { verbose           :: !Bool
                      , gcThreshold       :: !Int
                      , convertToListBase :: !Bool
@@ -26,16 +27,10 @@ data Config = Config { verbose           :: !Bool
 
 runProg :: Config -> String -> String
 runProg conf
-  | convertToListBase conf = showR . eval conf . cnv . compile . parse
-  | otherwise              = showR . eval conf . compile . parse
+  | convertToListBase conf = showR . eval conf . compile "__main" . parse
+  | otherwise              = showR . eval conf . compile "main" . parse
   where showR | verbose conf = showResults
               | otherwise    = showSimpleResult
-
--- | convert to newer version
---   main := cons main nil
-cnv :: TimState -> TimState
-cnv state = state { instructions = [Enter (Label "__main")] }
-
 
 data Instruction = Take Int Int       -- take t n
                  | Move Int TimAMode
@@ -71,7 +66,7 @@ data ValueAMode = FramePtr
 
 data TimAMode = Arg Int
               | Data Int
-              | Label Name
+              | Label Name Int
               | Code CompiledCode
               | IntConst Int
               deriving (Eq, Show)
@@ -212,12 +207,10 @@ fList :: Frame -> Either Addr [Closure]
 fList (Frame f _) = Right f
 fList (Forward a) = Left a
 
-type CodeStore = (Addr, Assoc Name Int)
+type CodeStore = Addr
 
-codeLookup :: CodeStore -> Name -> TimHeap -> Closure
-codeLookup (fG, g) l h = fGet h (FrameAddr fG) idx
-  where
-    idx = aLookup g l (error $ "codeLookup: not found " ++ l)
+codeLookup :: CodeStore -> Int -> TimHeap -> Closure
+codeLookup addr idx h = fGet h (FrameAddr addr) idx
 
 data GCInfo = GCInfo { stepAt                      :: Int
                      , instr                       :: [Instruction]
@@ -297,9 +290,17 @@ statGetCallInfo s = getCallInfo s
 statUpdateCallInfo :: Name -> TimStats -> TimStats
 statUpdateCallInfo name sts = sts { getCallInfo = Map.insertWith (+) name 1 (getCallInfo sts) }
 
-compile :: CoreProgram -> TimState
-compile program
-  = TimState { instructions = [Enter $ Label "main"]
+
+startOfBootstraps :: Int
+startOfBootstraps = 3
+startOfScDefs :: Int
+startOfScDefs = startOfBootstraps + length bootstraps
+
+compile :: Name -- ^ The function name of the entry point
+        -> CoreProgram
+        -> TimState
+compile entry_point program
+  = TimState { instructions = [Enter $ Label entry_point entry_point_offset]
              , fun_name     = Nothing
              , frame        = FrameNull
              , data_frame   = FrameNull
@@ -313,26 +314,30 @@ compile program
              }
   where
     sc_defs = preludeDefs ++ extraPreludeDefs ++ program
-    compiled_sc_defs = map (compileSc initial_env) sc_defs
+    compiled_sc_defs = map (compileSc env) sc_defs
+      where env = map (\(n, _, t) -> (n, t)) initial_env
     compiled_code = bootstraps ++ compiled_sc_defs ++ compiledPrimitives
     (init_heap, init_cs) = allocateInitialHeap compiled_code
-    top_cont_code = codeLookup init_cs "__topCont" init_heap
-    initial_env = [(name, timAMode name) | (name, _, _) <- sc_defs] ++
-                  [(name, Label name) | (name, _) <- compiledPrimitives]
+    top_cont_code = codeLookup init_cs top_cont_offset init_heap
+    (entry_point_offset, top_cont_offset) = (f entry_point, f "__topCont")
+      where env = map (\(n, o, _) -> (n, o)) initial_env
+            f name = aLookup env name (error ("compile: " ++ name ++ " not found"))
+    initial_env = [(name, o, Label name o) | (o, (name, _)) <- zip [startOfBootstraps..] bootstraps] ++
+                  [(name, o, timAMode name o) | (o, (name, _, _)) <- zip [startOfScDefs..] sc_defs] ++
+                  [(name, o, Label name o) | (o, (name, _)) <-  zip [startOfPrims..] compiledPrimitives]
       where
+        startOfPrims = startOfScDefs + length sc_defs
         -- exercise 4.29
-        timAMode name
-          | isCAFs il = Code (Compiled [] [Enter (Label name)])
-          | otherwise = Label name
-          where (il, _, _) = codeLookup init_cs name init_heap
+        timAMode name offset
+          | isCAFs il = Code (Compiled [] [Enter (Label name offset)])
+          | otherwise = Label name offset
+          where (il, _, _) = codeLookup init_cs offset init_heap
 
 allocateInitialHeap :: [(Name, CompiledCode)] -> (TimHeap, CodeStore)
-allocateInitialHeap compiled_code
-  = (heap, (global_frame_addr, offsets))
+allocateInitialHeap compiled_code = (heap, global_frame_addr)
   where
     -- NOTE: slots 1, 2 are reserved for topCont's Move from Data.
-    indexed_code = zip [3..] compiled_code -- topCont, headCont use slots 1 and 2.
-    offsets = [(name, offset) | (offset, (name, _)) <- indexed_code]
+    indexed_code = zip [startOfBootstraps..] compiled_code -- topCont, headCont use slots 1 and 2.
     reserved_for_topCont = [reserved, reserved]
       where reserved = ([], FrameAddr global_frame_addr, Nothing)
     closures = reserved_for_topCont ++ [ (g offset code, FrameAddr global_frame_addr, f fname code)
@@ -361,14 +366,14 @@ topCont = ("__topCont"
           , Compiled [1,2] [ Switch [ (1, [])
                                     , (2, [ Move 1 (Data 1)  -- Head
                                           , Move 2 (Data 2)  -- Tail
-                                          , Push (Label "__headCont")
+                                          , Push (Label "__headCont" 4) -- _headCont place at slot-4
                                           , Enter (Arg 1)
                                           ])
                                     ]
                            ]
           )
 headCont :: (Name, CompiledCode)
-headCont = ("__headCont", Compiled [1,2] [Print, Push (Label "__topCont"), Enter (Arg 2)])
+headCont = ("__headCont", Compiled [1,2] [Print, Push (Label "__topCont" 3), Enter (Arg 2)]) -- _topCont place at slot-3
 
 
 initialValueStack :: TimValueStack
@@ -378,7 +383,7 @@ initialDump :: TimDump
 initialDump = []
 
 initCodeStore :: CodeStore
-initCodeStore = (0, []) -- FIXME: fail doctests and crash gc
+initCodeStore = 0 -- FIXME: fail doctests and crash gc
 
 extraPreludeDefs :: CoreProgram
 extraPreludeDefs = [ ("cons", [], EConstr 2 2)
@@ -875,11 +880,11 @@ evacuateFramePtr liveCheck cstore from to (instrs, fptr, fname) = case fptr of
           g ns (Switch brs) = nub $ foldl' g ns (concatMap snd brs)
           g ns _            = ns
 
-          h ns (Arg n)   = n:ns
-          h ns (Data n)  = n:ns
-          h ns (Code cs) = slotsOf cs ++ ns
-          h ns (Label l) = ns
-          h ns _         = ns
+          h ns (Arg n)     = n:ns
+          h ns (Data n)    = n:ns
+          h ns (Code cs)   = slotsOf cs ++ ns
+          h ns (Label l _) = ns
+          h ns _           = ns
 
   -- Heap には含まないので from と to で変わらない
   FrameInt _  -> ((from, to), fptr)
@@ -1146,7 +1151,7 @@ amToClosure :: TimAMode -> FramePtr -> FramePtr -> TimHeap -> CodeStore -> Closu
 amToClosure (Arg n)      fptr dfptr heap cstore = fGet heap fptr n
 amToClosure (Data n)     fptr dfptr heap cstore = fGet heap dfptr n
 amToClosure (Code cs)    fptr dfptr heap cstore = (instrsOf cs, fptr, Nothing)
-amToClosure (Label l)    fptr dfptr heap cstore = codeLookup cstore l heap
+amToClosure (Label _ o)  fptr dfptr heap cstore = codeLookup cstore o heap
 amToClosure (IntConst n) fptr dfptr heap cstore = (intCode, FrameInt n, Nothing)
 
 intCode :: [Instruction]
@@ -1169,20 +1174,18 @@ showResults states@(s:ss)
             )
 
 showSCDefns :: TimState -> IseqRep
-showSCDefns TimState { codes = cs, heap = hp } = iInterleave iNewline (map showSC cs')
-  where (addr, sc_assoc_list) = cs
-        cs' = map (second f) sc_assoc_list
-          where f = Compiled [] . fst3 . fGet hp (FrameAddr addr)
+showSCDefns TimState { codes = csaddr, heap = hp } = iInterleave iNewline (map showSC closures)
+  where closures = case hLookup hp csaddr of
+          Frame cls _ -> cls
+          Forward p   -> error $ "Unexpected Frame: " ++ show p
 
-showSC :: (Name, CompiledCode) -> IseqRep
-showSC (name, cs)
+showSC :: Closure -> IseqRep
+showSC (instrs, _, fname)
   = iConcat [ iStr "Code for ", iStr name, iStr ":", iNewline
             , iStr "   "
-            , iIndent (iConcat [ iStr "  used slots: ", showUsedSlots ns, iNewline
-                               , iStr "instructions: ", showInstructions Full instrs, iNewline
-                               ])
+            , iIndent (iConcat [iStr "instructions: ", showInstructions Full instrs, iNewline])
             ]
-    where Compiled ns instrs = cs
+    where name = maybe "no name" id fname
 
 showState :: TimState -> IseqRep
 showState TimState { instructions = is
@@ -1277,7 +1280,7 @@ showArg d (Code il) = iConcat [ iStr "Code "
                               , showInstructions d instrs
                               ]
   where Compiled ns instrs = il
-showArg _ (Label s) = iStr "Label " `iAppend` iStr s
+showArg _ (Label s o) = iConcat [iStr "Label ", iStr s, iStr " ", iNum o]
 showArg _ (IntConst n) = iStr "IntConst " `iAppend` iNum n
 
 nTerse :: Int
