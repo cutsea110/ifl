@@ -618,36 +618,40 @@ gc state@TimState { instructions = instrs
                   , codes        = cstore
                   , stats        = sts
                   }
-  = case evacuateStack cstore from hInitial stk of
-  ((from1, to1), stk1) -> case evacuateDump cstore from1 to1 dmp of
-    ((from2, to2), dmp1) -> case evacuateFramePtr True cstore from2 to2  (instrs, fptr, fname) of
-      ((from3, to3), fptr1) -> case evacuateFramePtr False cstore from3 to3 (instrs, dfptr, fname) of
-        ((from4, to4), dfptr1) -> case evacuateFramePtr False cstore from4 to4 ([], FrameAddr cstore, Nothing) of
-          ((from5, to5), FrameAddr cstore1) -> case scavenge from5 to5 of
-            to6 -> let gcinfo = GCInfo { stepAt = statGetSteps sts
-                                       , instr = instrs
-                                       , stackInit = stk
-                                       , fptrInit = fptr
-                                       , dfptrInit = dfptr
-                                       , heapBefore = from
-                                       , heapEvacuatedByStack = (from1, to1)
-                                       , heapEvacuatedByDump = (from2, to2)
-                                       , heapEvacuatedByFramePtr = (from3, to3)
-                                       , heapEvacuatedByDataFramePtr = (from4, to4)
-                                       , heapEvacuatedByCodeStore = (from5, to5)
-                                       , heapScavenged = to6
-                                       , fptrDone = fptr1
-                                       , dfptrDone = dfptr1
-                                       , csDone = FrameAddr cstore1
-                                       }
-                   in applyToStats (statIncGCCount gcinfo)
-                                  $ state { frame = fptr1
-                                          , data_frame = dfptr1
-                                          , stack = stk1
-                                          , dump = dmp1
-                                          , heap = to6
-                                          , codes = cstore1
-                                          }
+  = applyToStats (statIncGCCount gcinfo)
+    $ state { frame = fptr1
+            , data_frame = dfptr1
+            , stack = stk1
+            , dump = dmp1
+            , heap = to6
+            , codes = cstore1
+            }
+  where
+    ((from1, to1), stk1) = evacuateStack cstore from hInitial stk
+    ((from2, to2), dmp1) = evacuateDump cstore from1 to1 dmp
+    ((from3, to3), fptr1) = evacuateFramePtr True cstore from2 to2  (instrs, fptr, fname)
+    ((from4, to4), dfptr1) = evacuateFramePtr False cstore from3 to3 (instrs, dfptr, fname)
+    ((from5, to5), cstore1)
+      = case evacuateFramePtr False cstore from4 to4 ([], FrameAddr cstore, Nothing) of
+          (ft, FrameAddr addr) -> (ft, addr)
+          _                   -> error "gc: evacuateFramePtr"
+    to6 = scavenge from5 to5
+    gcinfo = GCInfo { stepAt = statGetSteps sts
+                    , instr = instrs
+                    , stackInit = stk
+                    , fptrInit = fptr
+                    , dfptrInit = dfptr
+                    , heapBefore = from
+                    , heapEvacuatedByStack = (from1, to1)
+                    , heapEvacuatedByDump = (from2, to2)
+                    , heapEvacuatedByFramePtr = (from3, to3)
+                    , heapEvacuatedByDataFramePtr = (from4, to4)
+                    , heapEvacuatedByCodeStore = (from5, to5)
+                    , heapScavenged = to6
+                    , fptrDone = fptr1
+                    , dfptrDone = dfptr1
+                    , csDone = FrameAddr cstore1
+                    }
 
 showGCInfo :: GCInfo -> IseqRep
 showGCInfo gcinfo
