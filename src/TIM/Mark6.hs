@@ -343,16 +343,23 @@ allocateInitialHeap compiled_code = (heap, global_frame_addr)
     -- NOTE: slots 1, 2 are reserved for topCont's Move from Data.
     indexed_code = zip [startOfBootstraps..] compiled_code -- topCont, headCont use slots 1 and 2.
     reserved_for_topCont = replicate reservedSlots ([], FrameAddr global_frame_addr, Nothing)
-    closures = reserved_for_topCont ++ [ (g offset code, FrameAddr global_frame_addr, f fname code)
+    closures = reserved_for_topCont ++ [ (g offset code fname, FrameAddr global_frame_addr, f fname code)
                                        | (offset, (fname, Compiled _ code)) <- indexed_code
                                        ]
-      where g offset code | isNonCAFs code = code
-                          | otherwise      = PushMarker offset:code
+      where g offset code fname
+              | isNonCAFs code || isBootstrap fname = code
+              | otherwise                           = PushMarker offset:code
+              where isBootstrap name = name `elem` map fst bootstraps
             f fname code | isNonCAFs code = Just fname
                          | otherwise      = Just $ fname ++ "::CAF"
-    (heap, global_frame_addr) = case fAlloc hInitial (Frame closures []) of  -- NOTE: RelSlot is []
+    (heap, global_frame_addr) = case fAlloc hInitial (Frame closures fullRels) of -- NOTE
       (h, FrameAddr gaddr) -> (h, gaddr)
       (_, frm)             -> error $ "Unexpected FramePtr: " ++ show frm
+      where
+        -- NOTE: global frame's slots are all reserved in anywhere, specially it's for safe through gc.
+        -- WANTFIX: more smart way is to calculate these relationships between supercombinators.
+        fullRels = zipWith (\i j -> (i, [j])) ss (tail $ cycle ss)
+          where ss = [1..length closures]
 
 isNonCAFs :: [Instruction] -> Bool
 isNonCAFs []             = False
