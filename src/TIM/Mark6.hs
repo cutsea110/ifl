@@ -9,7 +9,7 @@ module TIM.Mark6
   ) where
 
 import Control.Arrow (second)
-import Data.List (find, foldl', intersect, mapAccumL, nub, sort)
+import Data.List (find, foldl', unfoldr, intersect, mapAccumL, nub, sort)
 import Data.Maybe (fromMaybe)
 import qualified Data.Map as Map
 
@@ -1314,11 +1314,16 @@ showFrame heap (FrameInt n) = iConcat [ iStr "(int) ", iNum n ]
 showRelSlots :: TimHeap -> FramePtr -> IseqRep
 showRelSlots heap (FrameAddr addr)
   = iConcat [ iStr "["
-            , iInterleave (iStr ", ") (map showRelSlot (fRelSlots frm))
+            , iIndent (iInterleave iNewline
+                        $ map (iInterleave (iStr ", ") . map showRelSlot) (slice 10 (fRelSlots frm)))
             , iStr "]"
             ]
   where
     frm = hLookup heap addr
+    slice :: Int -> [a] -> [[a]]
+    slice n = unfoldr psi
+      where psi [] = Nothing
+            psi xs = Just (splitAt n xs)
     showRelSlot :: (UsedSlot, UsedSlots) -> IseqRep
     showRelSlot (n, ns) = iConcat [ iNum n, iStr " ~ ", showUsedSlots ns ]
 showRelSlots heap _ = iNil

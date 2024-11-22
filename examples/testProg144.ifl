@@ -1,0 +1,3 @@
+-- alter testProg135
+repeat x = letrec xs = cons x xs in xs;
+main = repeat 42
