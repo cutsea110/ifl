@@ -32,7 +32,7 @@ runProg conf
   where showR | verbose conf = showResults
               | otherwise    = showSimpleResult
 
-data Instruction = Take Int Int       -- take t n
+data Instruction = Take Int Int       -- ^ take t n
                  | Move Int TimAMode
                  | Enter TimAMode
                  | Push TimAMode
@@ -289,10 +289,14 @@ statIncGCCount tpl sts = sts { getGCInfo = getGCInfo sts ++ [tpl] }
 
 statGetFunStepInfo :: TimStats -> Map.Map Name Int
 statGetFunStepInfo s = getFunStepInfo s
+
 statUpdateFunStepInfo :: Name -> TimStats -> TimStats
 statUpdateFunStepInfo name sts = sts { getFunStepInfo = Map.insertWith (+) name 1 (getFunStepInfo sts) }
 
-
+-- | Protocol for the global frame
+--   1-2: reserved slots(used for List's head and tail)
+--   3-4: bootstraps(topCont and headCont)
+--   5- : supercombinators: n
 reservedSlots :: Int
 reservedSlots = 2
 startOfBootstraps :: Int
