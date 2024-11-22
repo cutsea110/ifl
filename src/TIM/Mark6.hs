@@ -335,7 +335,9 @@ compile entry_point program
         timAMode name offset
           | isCAFs il = Code (Compiled [] [Enter (Label name offset)])
           | otherwise = Label name offset
-          where (il, _, _) = codeLookup init_cs offset init_heap
+          where
+            -- NOTE: init_cs is accessible here by lazy evaluation trick.
+            (il, _, _) = codeLookup init_cs offset init_heap
 
 allocateInitialHeap :: [(Name, CompiledCode)] -> (TimHeap, CodeStore)
 allocateInitialHeap compiled_code = (heap, global_frame_addr)
