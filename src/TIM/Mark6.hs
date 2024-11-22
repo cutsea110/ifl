@@ -230,12 +230,12 @@ data GCInfo = GCInfo { stepAt                      :: Int
                      } deriving (Eq, Show)
 
 data TimStats
-  = TimStats { getSteps         :: Int  -- The number of steps
-             , getExecTime      :: Int  -- The execution time
-             , getHeapAllocated :: Int  -- The amount of heap allocated
-             , getMaxStackDepth :: Int  -- The maximum stack depth
-             , getCallInfo      :: Map.Map Name Int
-             , getGCInfo        :: [GCInfo]
+  = TimStats { getSteps         :: Int              -- ^ The number of steps
+             , getExecTime      :: Int              -- ^ The execution time
+             , getHeapAllocated :: Int              -- ^ The amount of heap allocated
+             , getMaxStackDepth :: Int              -- ^ The maximum stack depth
+             , getFunStepInfo   :: Map.Map Name Int -- ^ The number of steps for each function
+             , getGCInfo        :: [GCInfo]         -- ^ The garbage collection information
              }
   deriving (Eq, Show)
 
@@ -244,7 +244,7 @@ statInitial = TimStats { getSteps         = 0
                        , getExecTime      = 0
                        , getHeapAllocated = 0
                        , getMaxStackDepth = 0
-                       , getCallInfo      = Map.empty
+                       , getFunStepInfo   = Map.empty
                        , getGCInfo        = []
                        }
 
@@ -287,10 +287,10 @@ statGetGCCount s = length $ getGCInfo s
 statIncGCCount :: GCInfo -> TimStats -> TimStats
 statIncGCCount tpl sts = sts { getGCInfo = getGCInfo sts ++ [tpl] }
 
-statGetCallInfo :: TimStats -> Map.Map Name Int
-statGetCallInfo s = getCallInfo s
-statUpdateCallInfo :: Name -> TimStats -> TimStats
-statUpdateCallInfo name sts = sts { getCallInfo = Map.insertWith (+) name 1 (getCallInfo sts) }
+statGetFunStepInfo :: TimStats -> Map.Map Name Int
+statGetFunStepInfo s = getFunStepInfo s
+statUpdateFunStepInfo :: Name -> TimStats -> TimStats
+statUpdateFunStepInfo name sts = sts { getFunStepInfo = Map.insertWith (+) name 1 (getFunStepInfo sts) }
 
 
 reservedSlots :: Int
@@ -596,7 +596,7 @@ doAdmin conf state
   | needGC    = gc state'
   | otherwise = state'
   where
-    state' | profileOn = applyToStats (statUpdateCallInfo fname . statIncSteps) state
+    state' | profileOn = applyToStats (statUpdateFunStepInfo fname . statIncSteps) state
            | otherwise = applyToStats statIncSteps state
     profileOn = profile conf
     fname = fromMaybe "(internal)" $ fun_name state
@@ -1407,13 +1407,13 @@ showFramePtr FrameNull     = iStr "null"
 showFramePtr (FrameAddr a) = iStr "#" `iAppend` iNum a
 showFramePtr (FrameInt n)  = iStr "int " `iAppend` iNum n
 
-showCallInfo :: Map.Map Name Int -> IseqRep
-showCallInfo m
-  = iConcat [ iStr "CallInfo: ["
-            , iIndent (iInterleave iNewline (map showCallInfoItem (Map.toList m)))
+showFunStepInfo :: Map.Map Name Int -> IseqRep
+showFunStepInfo m
+  = iConcat [ iStr "FunStepInfo: ["
+            , iIndent (iInterleave iNewline (map showFunStepInfoItem (Map.toList m)))
             , iStr "]"
             ]
-  where showCallInfoItem (name, n)
+  where showFunStepInfoItem (name, n)
           = iConcat [ iStr name, iStr " : ", iNum n ]
 
 showGCInfoSimple :: [GCInfo] -> IseqRep
@@ -1436,7 +1436,7 @@ showStats TimState { stats = st }
             , iStr "      Exec time = ", iNum (statGetExecTime st), iNewline
             , iStr " Heap allocated = ", iNum (statGetHeapAllocated st), iNewline
             , iStr "Max stack depth = ", iNum (statGetMaxStackDepth st), iNewline
-            , iStr "       Profiled = ", showCallInfo (statGetCallInfo st), iNewline
+            , iStr "       Profiled = ", showFunStepInfo (statGetFunStepInfo st), iNewline
             , iStr "        GC call = ", showGCInfoSimple (statGetGCInfo st), iNewline
             ]
 
