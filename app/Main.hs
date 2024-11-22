@@ -105,7 +105,7 @@ data Options = Options
 defaultOptions :: Options
 defaultOptions = Options
   { optVerbose     = False
-  , optThreshold   = 1000
+  , optThreshold   = 300
   , optShowVersion = False
   , optCompiler    = TIMark6
   , optConvertList = False
