@@ -7,9 +7,6 @@ module Utils
   , aInsert
   , aDelete
   , aUpdate
-  , assocl, assocr
-  , swap
-  , fst3, snd3, thd3
   ) where
 
 {- |
@@ -60,17 +57,3 @@ aDelete m k = filter ((/= k) . fst) m
 
 aUpdate :: Eq k => Assoc k v -> k -> v -> Assoc k v
 aUpdate m k v = (k, v):aDelete m k
-
-assocl :: (a, (b, c)) -> ((a, b), c)
-assocl (x, (y, z)) = ((x, y), z)
-assocr :: ((a, b), c) -> (a, (b, c))
-assocr ((x, y), z) = (x, (y, z))
-swap :: (a, b) -> (b, a)
-swap (x, y) = (y, x)
-
-fst3 :: (a, b, c) -> a
-fst3 (x, _, _) = x
-snd3 :: (a, b, c) -> b
-snd3 (_, y, _) = y
-thd3 :: (a, b, c) -> c
-thd3 (_, _, z) = z
