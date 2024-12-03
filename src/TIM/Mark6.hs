@@ -1204,7 +1204,7 @@ showSC (instrs, _, fname)
             , iStr "   "
             , iIndent (iConcat [iStr "instructions: ", showInstructions Full instrs, iNewline])
             ]
-    where name = maybe "no name" id fname
+    where name = fromMaybe "no name" fname
 
 showState :: TimState -> IseqRep
 showState TimState { instructions = is
