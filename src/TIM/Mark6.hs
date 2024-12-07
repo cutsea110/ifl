@@ -398,6 +398,7 @@ initialValueStack = []
 initialDump :: TimDump
 initialDump = []
 
+-- MEMO: only for doctest
 initCodeStore :: CodeStore
 initCodeStore = 0
 
