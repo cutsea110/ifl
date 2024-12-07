@@ -370,7 +370,7 @@ allocateInitialHeap compiled_code = (heap, global_frame_addr)
 isNonCAFs :: [Instruction] -> Bool
 isNonCAFs []             = False
 isNonCAFs (Take _ n:xs) = n > 0
-isNonCAFs (_:xs)        = isNonCAFs xs
+isNonCAFs (_:xs)        = isNonCAFs xs -- NOTE: Textbookでは`begin with`なので False 固定すべきだが, step 数が増える場合がある
 isCAFs :: [Instruction] -> Bool
 isCAFs = not . isNonCAFs
 
