@@ -83,7 +83,7 @@ putOutput o (global, local) = (global { output = o }, local)
 type GmCode = [Instruction]
 
 getCode :: GmState -> GmCode
-getCode (_, lstate) = code lstate
+getCode (_, local) = code local
 
 putCode :: GmCode -> GmState -> GmState
 putCode i' (global, local) = (global, local { code = i' })
@@ -117,7 +117,7 @@ data Instruction
 type GmStack = S.Stack Addr
 
 getStack :: GmState -> GmStack
-getStack (_, lstate) = stack lstate
+getStack (_, local) = stack local
 
 putStack :: GmStack -> GmState -> GmState
 putStack stack' (global, local) = (global, local { stack = stack' })
@@ -125,7 +125,7 @@ putStack stack' (global, local) = (global, local { stack = stack' })
 type GmVStack = S.Stack Int
 
 getVStack :: GmState -> GmVStack
-getVStack (_, lstate) = vstack lstate
+getVStack (_, local) = vstack local
 
 putVStack :: GmVStack -> GmState -> GmState
 putVStack vstack' (global, local) = (global, local { vstack = vstack' })
@@ -134,7 +134,7 @@ type GmDump = S.Stack GmDumpItem
 type GmDumpItem = (GmCode, GmStack, GmVStack)
 
 getDump :: GmState -> GmDump
-getDump (_, lstate) = dump lstate
+getDump (_, local) = dump local
 
 putDump :: GmDump -> GmState -> GmState
 putDump dump' (global, local) = (global, local { dump = dump' })
@@ -167,6 +167,9 @@ getGlobals (global, _) = globals global
 putGlobals :: GmGlobals -> GmState -> GmState
 putGlobals globals' (global, local) = (global { globals = globals' }, local)
 
+getClock :: GmState -> GmClock
+getClock (_, local) = clock local
+
 type GmStats = [Int]
 
 statInitial :: GmStats
@@ -195,20 +198,20 @@ doAdmin (global, locals) = (global { stats = stats' }, locals')
       | otherwise         = (local:locals, stats)
 
 gmFinal :: PgmState -> Bool
-gmFinal s@(global, local) = null local && null (pgmGetSparks s)
+gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: PgmState -> PgmState
-steps state@(global, local) = mapAccumL step global' local'
+steps (global, local) = mapAccumL step global' local'
   where global' = global { sparks = [] }
         local'  = map tick (local ++ newtasks)
         newtasks = [makeTask a | a <- sparks global]
 
 makeTask :: Addr -> PgmLocalState
-makeTask addr = PgmLocalState { code = [Unwind]
-                              , stack = S.fromList [addr]
-                              , dump = S.emptyStack
+makeTask addr = PgmLocalState { code   = [Unwind]
+                              , stack  = S.fromList [addr]
+                              , dump   = S.emptyStack
                               , vstack = S.emptyStack
-                              , clock = 0
+                              , clock  = 0
                               }
 
 tick :: PgmLocalState -> PgmLocalState
@@ -1124,11 +1127,11 @@ showState s@(global, locals)
 showLocalState :: PgmGlobalState -> (Int, PgmLocalState) -> IseqRep
 showLocalState global (i, local)
   = iConcat [ iStr "Task #", iNum i, iStr ": "
-            , iIndent (iConcat [ showInstructions (code local), iNewline
+            , iIndent (iConcat [ showInstructions (getCode s), iNewline
                                , showStack s, iNewline
                                , showDump s, iNewline
                                , showVStack s, iNewline
-                               , showClock local, iNewline
+                               , showClock (getClock s), iNewline
                                ])
             ]
     where s = (global, local)
@@ -1169,10 +1172,10 @@ showVStack s
             , iStr "]"
             ]
 
-showClock :: PgmLocalState -> IseqRep
-showClock s
-  = iConcat [ iStr "Clock: "
-            , iNum (clock s)
+showClock :: GmClock -> IseqRep
+showClock clock
+  = iConcat [ iStr " Clock: "
+            , iNum clock
             ]
 
 shortShowInstructions :: Int -> GmCode -> IseqRep
