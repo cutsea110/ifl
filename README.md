@@ -59,29 +59,29 @@ ghci> compileSc [("fib", Label "fib")] . head . parse $ p
 
 ### How to build Docker image
 
-You should specify the version 0.3.16, because the latest version is 0.3.15.
+You should specify the version 0.3.17, because the latest version is 0.3.16.
 
 ```bash
-$ docker buildx build --load -t cutsea110/ifl:0.3.16 .
+$ docker buildx build --load -t cutsea110/ifl:0.3.17 .
 ```
 ### How to run on Docker image
 
 I suppose that you have some test programs for ifl in `${PWD}/examples` directory.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.16 ifl -v -c gmark7 /work/testProg80.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.17 ifl -v -c pgmark7 /work/testProg80.ifl
 ```
 
 or try this.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.16 ifl -t 1000 -l -v -c timark6 /work/testProg134.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.17 ifl -t 1000 -l -v -c timark6 /work/testProg134.ifl
 ```
 
 Further more, just only on the TMark6, You can use -p option which profile your code.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.16 ifl -t 1000 -l -v -c timark6 -p /work/testProg134.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.17 ifl -t 1000 -l -v -c timark6 -p /work/testProg134.ifl
 ```
 
 
@@ -89,7 +89,7 @@ $ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.16 ifl -t 1000 
 
 ```bash
 $ docker login
-$ docker push cutsea110/ifl:0.3.16
+$ docker push cutsea110/ifl:0.3.17
 ```
 
 ### Update This README
