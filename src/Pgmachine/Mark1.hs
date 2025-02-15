@@ -25,6 +25,18 @@ runProg conf = showR . eval . compile . parse
   where showR | verbose conf = showResults
               | otherwise    = showSimpleResult
 
+type PgmState = (PgmGlobalState, [PgmLocalState])
+pgmGetOutput :: PgmState -> GmOutput
+pgmGetOutput (gstate, _) = output gstate
+pgmGetHeap :: PgmState -> GmHeap
+pgmGetHeap (gstate, _) = heap gstate
+pgmGetGlobals :: PgmState -> GmGlobals
+pgmGetGlobals (gstate, _) = globals gstate
+pgmGetSparks :: PgmState -> GmSparks
+pgmGetSparks (gstate, _) = sparks gstate
+pgmGetStats :: PgmState -> GmStats
+pgmGetStats (gstate, _) = stats gstate
+
 data PgmGlobalState
   = PgmGlobalState { output  :: GmOutput
                    , heap    :: GmHeap
@@ -107,9 +119,7 @@ getStack :: GmState -> GmStack
 getStack (_, lstate) = stack lstate
 
 putStack :: GmStack -> GmState -> GmState
-putStack stack' state@(gstate, lstate) = (gstate { stats = stats' } , lstate { stack = stack' })
-  where dwh = S.getHighWaterMark stack'
-        stats' = statUpdateMaxStackDepth dwh (getStats state)
+putStack stack' (gstate, lstate) = (gstate, lstate { stack = stack' })
 
 type GmVStack = S.Stack Int
 
@@ -156,30 +166,10 @@ getGlobals (gstate, _) = globals gstate
 putGlobals :: GmGlobals -> GmState -> GmState
 putGlobals globals' (gstate, lstate) = (gstate { globals = globals' }, lstate)
 
-data GmStats
-  = GmStats { getSteps         :: Int
-            , getMaxStackDepth :: Int
-            }
+type GmStats = [Int]
 
 statInitial :: GmStats
-statInitial = GmStats { getSteps         = 0
-                      , getMaxStackDepth = 0
-                      }
-
-statIncSteps :: GmStats -> GmStats
-statIncSteps s = s { getSteps = getSteps s + 1 }
-
-statGetSteps :: GmStats -> Int
-statGetSteps s = getSteps s
-
-statGetMaxStackDepth :: GmStats -> Int
-statGetMaxStackDepth s = getMaxStackDepth s
-
-statUpdateMaxStackDepth :: Int -> GmStats -> GmStats
-statUpdateMaxStackDepth depth s
-  | depth > depth' = s { getMaxStackDepth = depth }
-  | otherwise      = s
-  where depth' = statGetMaxStackDepth s
+statInitial = []
 
 getStats :: GmState -> GmStats
 getStats (gstate, _) = stats gstate
@@ -188,29 +178,46 @@ putStats :: GmStats -> GmState -> GmState
 putStats stats' (gstate, lstate) = (gstate { stats = stats' }, lstate)
 
 
-eval :: GmState -> [GmState]
+eval :: PgmState -> [PgmState]
 eval state = state : restStates
   where
     restStates | gmFinal state = []
                | otherwise     = eval nextState
-    nextState  = doAdmin (step state)
+    nextState  = doAdmin (steps state)
 
+doAdmin :: PgmState -> PgmState
+doAdmin (global, locals) = (global { stats = stats' }, locals')
+  where
+    (locals', stats') = foldr filter ([], stats global) locals
+    filter lstate (locals, stats)
+      | null (code lstate) = (locals, clock lstate:stats)
+      | otherwise          = (lstate:locals, stats)
 
-doAdmin :: GmState -> GmState
-doAdmin s = putStats (statIncSteps (getStats s)) s
+gmFinal :: PgmState -> Bool
+gmFinal s@(global, local) = null local && null (pgmGetSparks s)
 
-gmFinal :: GmState -> Bool
-gmFinal s = null $ getCode s
+steps :: PgmState -> PgmState
+steps state@(global, local) = mapAccumL step global' local'
+  where global' = global { sparks = [] }
+        local'  = map tick (local ++ newtasks)
+        newtasks = [makeTask a | a <- sparks global]
 
-step :: GmState -> GmState
-step state = case code of
-  [] -> error "no code"
-  (i:is) -> dispatch i
-            . putOutput (clearOutputLast o)
-            . putCode is
-            $ state
-  where code = getCode state
-        o = getOutput state
+makeTask :: Addr -> PgmLocalState
+makeTask addr = PgmLocalState { code = [Unwind]
+                              , stack = S.fromList [addr]
+                              , dump = S.emptyStack
+                              , vstack = S.emptyStack
+                              , clock = 0
+                              }
+
+tick :: PgmLocalState -> PgmLocalState
+tick state = state { clock = clock state + 1 }
+
+step :: PgmGlobalState -> PgmLocalState -> GmState
+step global local = dispatch i (putCode is state)
+  where
+    (i:is) = getCode state
+    state = (global, local)
 
 dispatch :: Instruction -> GmState -> GmState
 dispatch (Pushglobal f) = pushglobal f
@@ -562,8 +569,8 @@ unwind state = newState (hLookup heap a)
         ((i', s', v'), d) = S.pop dump
 
 
-compile :: CoreProgram -> GmState
-compile program = (pgmGlobalState, pgmLocalState)
+compile :: CoreProgram -> PgmState
+compile program = (pgmGlobalState, [pgmLocalState])
   where (heap, globals) = buildInitialHeap program
         pgmGlobalState
           = PgmGlobalState { output  = initialOutput
@@ -1024,15 +1031,15 @@ compileLetB comp defs expr env
   = compileLet' defs env ++ comp expr env' ++ [Pop (length defs)]
   where env' = compileArgs defs env
 
-showSimpleResult :: [GmState] -> String
-showSimpleResult states = concatMap (iDisplay . outputLast . getOutput) states
+showSimpleResult :: [PgmState] -> String
+showSimpleResult states = concatMap (iDisplay . outputLast . pgmGetOutput) states
 
-showResults :: [GmState] -> String
+showResults :: [PgmState] -> String
 showResults [] = error "no GmState"
 showResults states@(s:ss)
   = unlines (map iDisplay
               ([ iStr "Supercombinator definitions", iNewline
-               , iInterleave iNewline (map (showSC s) (getGlobals s))
+               , iInterleave iNewline (map (showSC s) (pgmGetGlobals s))
                , iStr "State transitions"
                ] ++
                iLayn' (map showState states) ++
@@ -1040,10 +1047,11 @@ showResults states@(s:ss)
                ])
             )
 
+
 -- | show dump list
-showSC :: GmState -> (Name, Addr) -> IseqRep 
+showSC :: PgmState -> (Name, Addr) -> IseqRep
 showSC s (name, addr)
-  = case hLookup (getHeap s) addr of
+  = case hLookup (pgmGetHeap s) addr of
       NGlobal arity code
         -> iConcat [ iStr "Code for ", iStr name, iNewline
                    , showInstructions code, iNewline, iNewline
@@ -1106,18 +1114,25 @@ showAlts bs = iConcat [ iStr "{"
   where showLabels (t, c)
           = iConcat [iNum t, iStr ":", shortShowInstructions 2 c]
 
-showState :: GmState -> IseqRep
-showState s
+showState :: PgmState -> IseqRep
+showState s@(gstate, locals)
   = iConcat [ showOutput s, iNewline
-            , showStack s, iNewline
-            , showDump s, iNewline
-            , showVStack s, iNewline
-            , showInstructions (getCode s), iNewline 
+            , iIndent (iInterleave iNewline (map (showLocalState gstate) locals))
             ]
 
-showOutput :: GmState -> IseqRep
+showLocalState :: PgmGlobalState -> PgmLocalState -> IseqRep
+showLocalState global local
+  = iConcat [ showInstructions (code local), iNewline
+            , showStack (global, local), iNewline
+            , showDump (global, local), iNewline
+            , showVStack (global, local), iNewline
+            , showClock local, iNewline
+            ]
+
+
+showOutput :: PgmState -> IseqRep
 showOutput s
-  = iConcat [iStr "Output: \"", iStr (outputAll (getOutput s)), iStr "\""]
+  = iConcat [iStr "Output: \"", iStr (outputAll (pgmGetOutput s)), iStr "\""]
 
 showDump :: GmState -> IseqRep
 showDump s
@@ -1148,6 +1163,12 @@ showVStack s
   = iConcat [ iStr "VStack: ["
             , iInterleave (iStr ", ") (map iNum (S.getStack (getVStack s)))
             , iStr "]"
+            ]
+
+showClock :: PgmLocalState -> IseqRep
+showClock s
+  = iConcat [ iStr "Clock: "
+            , iNum (clock s)
             ]
 
 shortShowInstructions :: Int -> GmCode -> IseqRep
@@ -1197,15 +1218,13 @@ showNode s a (NConstr t as)
             , iStr "]"
             ]
 
-showStats :: GmState -> IseqRep
+showStats :: PgmState -> IseqRep
 showStats s = iConcat [ iStr "---------------"
                       , iNewline
-                      , iNewline, iStr "Total number of steps = "
-                      , iNum (statGetSteps (getStats s))
+                      , iNewline, iStr "Total number of clocks = "
+                      , iNum (sum (pgmGetStats s))
                       , iNewline, iStr "            Heap size = "
-                      , iNum (hSize (getHeap s))
-                      , iNewline, iStr "           Stack size = "
-                      , iNum (statGetMaxStackDepth (getStats s))
+                      , iNum (hSize (pgmGetHeap s))
                       ]
 
 {- |
