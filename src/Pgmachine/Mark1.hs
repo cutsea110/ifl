@@ -1225,7 +1225,7 @@ showStats s = iConcat [ iStr "---------------"
                       , iNewline
                       , iNewline, iStr "Total number of clocks = "
                       , iNum (sum (pgmGetStats s))
-                      , iNewline, iStr "            Heap size = "
+                      , iNewline, iStr "             Heap size = "
                       , iNum (hSize (pgmGetHeap s))
                       ]
 
