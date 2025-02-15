@@ -26,6 +26,7 @@ runProg conf = showR . eval . compile . parse
               | otherwise    = showSimpleResult
 
 type PgmState = (PgmGlobalState, [PgmLocalState])
+
 pgmGetOutput :: PgmState -> GmOutput
 pgmGetOutput (global, _) = output global
 pgmGetHeap :: PgmState -> GmHeap
@@ -189,9 +190,9 @@ doAdmin :: PgmState -> PgmState
 doAdmin (global, locals) = (global { stats = stats' }, locals')
   where
     (locals', stats') = foldr filter ([], stats global) locals
-    filter lstate (locals, stats)
-      | null (code lstate) = (locals, clock lstate:stats)
-      | otherwise          = (lstate:locals, stats)
+    filter local (locals, stats)
+      | null (code local) = (locals, clock local:stats)
+      | otherwise         = (local:locals, stats)
 
 gmFinal :: PgmState -> Bool
 gmFinal s@(global, local) = null local && null (pgmGetSparks s)
