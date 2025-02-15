@@ -1124,12 +1124,13 @@ showLocalState :: PgmGlobalState -> (Int, PgmLocalState) -> IseqRep
 showLocalState global (i, local)
   = iConcat [ iStr "Task #", iNum i, iStr ": "
             , iIndent (iConcat [ showInstructions (code local), iNewline
-                               , showStack (global, local), iNewline
-                               , showDump (global, local), iNewline
-                               , showVStack (global, local), iNewline
+                               , showStack s, iNewline
+                               , showDump s, iNewline
+                               , showVStack s, iNewline
                                , showClock local, iNewline
                                ])
             ]
+    where s = (global, local)
 
 
 showOutput :: PgmState -> IseqRep
