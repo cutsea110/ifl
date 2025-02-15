@@ -1117,16 +1117,18 @@ showAlts bs = iConcat [ iStr "{"
 showState :: PgmState -> IseqRep
 showState s@(gstate, locals)
   = iConcat [ showOutput s, iNewline
-            , iIndent (iInterleave iNewline (map (showLocalState gstate) locals))
+            , iIndent (iInterleave iNewline (map (showLocalState gstate) (zip [1..] locals))) -- FIXME: numbering Task
             ]
 
-showLocalState :: PgmGlobalState -> PgmLocalState -> IseqRep
-showLocalState global local
-  = iConcat [ showInstructions (code local), iNewline
-            , showStack (global, local), iNewline
-            , showDump (global, local), iNewline
-            , showVStack (global, local), iNewline
-            , showClock local, iNewline
+showLocalState :: PgmGlobalState -> (Int, PgmLocalState) -> IseqRep
+showLocalState global (i, local)
+  = iConcat [ iStr "Task #", iNum i, iStr ": "
+            , iIndent (iConcat [ showInstructions (code local), iNewline
+                               , showStack (global, local), iNewline
+                               , showDump (global, local), iNewline
+                               , showVStack (global, local), iNewline
+                               , showClock local, iNewline
+                               ])
             ]
 
 
