@@ -47,6 +47,7 @@ library
                        TIM.Mark4
                        TIM.Mark5
                        TIM.Mark6
+                       Pgmachine.Mark1
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.13, containers
