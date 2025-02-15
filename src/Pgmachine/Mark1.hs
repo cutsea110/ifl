@@ -27,15 +27,15 @@ runProg conf = showR . eval . compile . parse
 
 type PgmState = (PgmGlobalState, [PgmLocalState])
 pgmGetOutput :: PgmState -> GmOutput
-pgmGetOutput (gstate, _) = output gstate
+pgmGetOutput (global, _) = output global
 pgmGetHeap :: PgmState -> GmHeap
-pgmGetHeap (gstate, _) = heap gstate
+pgmGetHeap (global, _) = heap global
 pgmGetGlobals :: PgmState -> GmGlobals
-pgmGetGlobals (gstate, _) = globals gstate
+pgmGetGlobals (global, _) = globals global
 pgmGetSparks :: PgmState -> GmSparks
-pgmGetSparks (gstate, _) = sparks gstate
+pgmGetSparks (global, _) = sparks global
 pgmGetStats :: PgmState -> GmStats
-pgmGetStats (gstate, _) = stats gstate
+pgmGetStats (global, _) = stats global
 
 data PgmGlobalState
   = PgmGlobalState { output  :: GmOutput
@@ -73,10 +73,10 @@ clearOutputLast :: GmOutput -> GmOutput
 clearOutputLast (o, _) = (o, iNil)
 
 getOutput :: GmState -> GmOutput
-getOutput (gstate, _) = output gstate
+getOutput (global, _) = output global
 
 putOutput :: GmOutput -> GmState -> GmState
-putOutput o (gstate, lstate) = (gstate { output = o }, lstate)
+putOutput o (global, local) = (global { output = o }, local)
 
 
 type GmCode = [Instruction]
@@ -85,7 +85,7 @@ getCode :: GmState -> GmCode
 getCode (_, lstate) = code lstate
 
 putCode :: GmCode -> GmState -> GmState
-putCode i' (gstate, lstate) = (gstate, lstate { code = i' })
+putCode i' (global, local) = (global, local { code = i' })
 
 data Instruction
   = Unwind
@@ -119,7 +119,7 @@ getStack :: GmState -> GmStack
 getStack (_, lstate) = stack lstate
 
 putStack :: GmStack -> GmState -> GmState
-putStack stack' (gstate, lstate) = (gstate, lstate { stack = stack' })
+putStack stack' (global, local) = (global, local { stack = stack' })
 
 type GmVStack = S.Stack Int
 
@@ -127,7 +127,7 @@ getVStack :: GmState -> GmVStack
 getVStack (_, lstate) = vstack lstate
 
 putVStack :: GmVStack -> GmState -> GmState
-putVStack vstack' (gstate, lstate) = (gstate, lstate { vstack = vstack' })
+putVStack vstack' (global, local) = (global, local { vstack = vstack' })
 
 type GmDump = S.Stack GmDumpItem
 type GmDumpItem = (GmCode, GmStack, GmVStack)
@@ -136,15 +136,15 @@ getDump :: GmState -> GmDump
 getDump (_, lstate) = dump lstate
 
 putDump :: GmDump -> GmState -> GmState
-putDump dump' (gstate, lstate) = (gstate, lstate { dump = dump' })
+putDump dump' (global, local) = (global, local { dump = dump' })
 
 type GmHeap = Heap Node
 
 getHeap :: GmState -> GmHeap
-getHeap (gstate, _) = heap gstate
+getHeap (global, _) = heap global
 
 putHeap :: GmHeap -> GmState -> GmState
-putHeap heap' (gstate, lstate) = (gstate { heap = heap' }, lstate)
+putHeap heap' (global, local) = (global { heap = heap' }, local)
 
 data Node
   = NNum Int           -- Numbers
@@ -161,10 +161,10 @@ instance Eq Node where
 type GmGlobals = Assoc Name Addr
 
 getGlobals :: GmState -> GmGlobals
-getGlobals (gstate, _) = globals gstate
+getGlobals (global, _) = globals global
 
 putGlobals :: GmGlobals -> GmState -> GmState
-putGlobals globals' (gstate, lstate) = (gstate { globals = globals' }, lstate)
+putGlobals globals' (global, local) = (global { globals = globals' }, local)
 
 type GmStats = [Int]
 
@@ -172,10 +172,10 @@ statInitial :: GmStats
 statInitial = []
 
 getStats :: GmState -> GmStats
-getStats (gstate, _) = stats gstate
+getStats (global, _) = stats global
 
 putStats :: GmStats -> GmState -> GmState
-putStats stats' (gstate, lstate) = (gstate { stats = stats' }, lstate)
+putStats stats' (global, local) = (global { stats = stats' }, local)
 
 
 eval :: PgmState -> [PgmState]
@@ -1115,9 +1115,9 @@ showAlts bs = iConcat [ iStr "{"
           = iConcat [iNum t, iStr ":", shortShowInstructions 2 c]
 
 showState :: PgmState -> IseqRep
-showState s@(gstate, locals)
+showState s@(global, locals)
   = iConcat [ showOutput s, iNewline
-            , iIndent (iInterleave iNewline (map (showLocalState gstate) (zip [1..] locals))) -- FIXME: numbering Task
+            , iIndent (iInterleave iNewline (map (showLocalState global) (zip [1..] locals))) -- FIXME: numbering Task
             ]
 
 showLocalState :: PgmGlobalState -> (Int, PgmLocalState) -> IseqRep
