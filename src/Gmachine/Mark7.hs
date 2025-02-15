@@ -1185,7 +1185,7 @@ showStats s = iConcat [ iStr "---------------"
                       , iNewline, iStr "Total number of steps = "
                       , iNum (statGetSteps (getStats s))
                       , iNewline, iStr "            Heap size = "
-                      , iNum (hSize (heap s))
+                      , iNum (hSize (getHeap s))
                       , iNewline, iStr "           Stack size = "
                       , iNum (statGetMaxStackDepth (getStats s))
                       ]
