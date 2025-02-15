@@ -25,15 +25,27 @@ runProg conf = showR . eval . compile . parse
   where showR | verbose conf = showResults
               | otherwise    = showSimpleResult
 
-data GmState = GmState { output  :: GmOutput
-                       , code    :: GmCode
-                       , stack   :: GmStack
-                       , vstack  :: GmVStack
-                       , dump    :: GmDump
-                       , heap    :: GmHeap
-                       , globals :: GmGlobals
-                       , stats   :: GmStats
-                       }
+data PgmGlobalState
+  = PgmGlobalState { output  :: GmOutput
+                   , heap    :: GmHeap
+                   , globals :: GmGlobals
+                   , sparks  :: GmSparks
+                   , stats   :: GmStats
+                   }
+
+type GmSparks = [Addr]
+
+data PgmLocalState
+  = PgmLocalState { code    :: GmCode
+                  , stack   :: GmStack
+                  , dump    :: GmDump
+                  , vstack  :: GmVStack
+                  , clock   :: GmClock
+                  }
+
+type GmClock = Int
+
+type GmState = (PgmGlobalState, PgmLocalState)
 
 type GmOutput = ([String], IseqRep)
 initialOutput :: GmOutput
@@ -49,19 +61,19 @@ clearOutputLast :: GmOutput -> GmOutput
 clearOutputLast (o, _) = (o, iNil)
 
 getOutput :: GmState -> GmOutput
-getOutput state = output state
+getOutput (gstate, _) = output gstate
 
 putOutput :: GmOutput -> GmState -> GmState
-putOutput o state = state { output = o }
+putOutput o (gstate, lstate) = (gstate { output = o }, lstate)
 
 
 type GmCode = [Instruction]
 
 getCode :: GmState -> GmCode
-getCode state = code state
+getCode (_, lstate) = code lstate
 
 putCode :: GmCode -> GmState -> GmState
-putCode i' state = state { code = i' }
+putCode i' (gstate, lstate) = (gstate, lstate { code = i' })
 
 data Instruction
   = Unwind
@@ -92,37 +104,37 @@ data Instruction
 type GmStack = S.Stack Addr
 
 getStack :: GmState -> GmStack
-getStack state = stack state
+getStack (_, lstate) = stack lstate
 
 putStack :: GmStack -> GmState -> GmState
-putStack stack' state = state { stack = stack', stats = stats' }
+putStack stack' state@(gstate, lstate) = (gstate { stats = stats' } , lstate { stack = stack' })
   where dwh = S.getHighWaterMark stack'
         stats' = statUpdateMaxStackDepth dwh (getStats state)
 
 type GmVStack = S.Stack Int
 
 getVStack :: GmState -> GmVStack
-getVStack state = vstack state
+getVStack (_, lstate) = vstack lstate
 
 putVStack :: GmVStack -> GmState -> GmState
-putVStack vstack' state = state { vstack = vstack' }
+putVStack vstack' (gstate, lstate) = (gstate, lstate { vstack = vstack' })
 
 type GmDump = S.Stack GmDumpItem
 type GmDumpItem = (GmCode, GmStack, GmVStack)
 
 getDump :: GmState -> GmDump
-getDump state = dump state
+getDump (_, lstate) = dump lstate
 
 putDump :: GmDump -> GmState -> GmState
-putDump dump' state = state { dump = dump' }
+putDump dump' (gstate, lstate) = (gstate, lstate { dump = dump' })
 
 type GmHeap = Heap Node
 
 getHeap :: GmState -> GmHeap
-getHeap state = heap state
+getHeap (gstate, _) = heap gstate
 
 putHeap :: GmHeap -> GmState -> GmState
-putHeap heap' state = state { heap = heap' }
+putHeap heap' (gstate, lstate) = (gstate { heap = heap' }, lstate)
 
 data Node
   = NNum Int           -- Numbers
@@ -139,10 +151,10 @@ instance Eq Node where
 type GmGlobals = Assoc Name Addr
 
 getGlobals :: GmState -> GmGlobals
-getGlobals state = globals state
+getGlobals (gstate, _) = globals gstate
 
 putGlobals :: GmGlobals -> GmState -> GmState
-putGlobals globals' state = state { globals = globals' }
+putGlobals globals' (gstate, lstate) = (gstate { globals = globals' }, lstate)
 
 data GmStats
   = GmStats { getSteps         :: Int
@@ -170,10 +182,10 @@ statUpdateMaxStackDepth depth s
   where depth' = statGetMaxStackDepth s
 
 getStats :: GmState -> GmStats
-getStats state = stats state
+getStats (gstate, _) = stats gstate
 
 putStats :: GmStats -> GmState -> GmState
-putStats stats' state = state { stats = stats' }
+putStats stats' (gstate, lstate) = (gstate { stats = stats' }, lstate)
 
 
 eval :: GmState -> [GmState]
@@ -551,16 +563,22 @@ unwind state = newState (hLookup heap a)
 
 
 compile :: CoreProgram -> GmState
-compile program = GmState { output  = initialOutput
-                          , code    = initialCode
-                          , stack   = S.emptyStack
-                          , vstack  = S.emptyStack
-                          , dump    = S.emptyStack
-                          , heap    = heap
-                          , globals = globals
-                          , stats   = statInitial
-                          }
+compile program = (pgmGlobalState, pgmLocalState)
   where (heap, globals) = buildInitialHeap program
+        pgmGlobalState
+          = PgmGlobalState { output  = initialOutput
+                           , heap    = heap
+                           , globals = globals
+                           , sparks  = []
+                           , stats   = statInitial
+                           }
+        pgmLocalState
+          = PgmLocalState { code   = initialCode
+                          , stack  = S.emptyStack
+                          , dump   = S.emptyStack
+                          , vstack = S.emptyStack
+                          , clock  = 0
+                          }
 
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
@@ -1185,7 +1203,7 @@ showStats s = iConcat [ iStr "---------------"
                       , iNewline, iStr "Total number of steps = "
                       , iNum (statGetSteps (getStats s))
                       , iNewline, iStr "            Heap size = "
-                      , iNum (hSize (heap s))
+                      , iNum (hSize (getHeap s))
                       , iNewline, iStr "           Stack size = "
                       , iNum (statGetMaxStackDepth (getStats s))
                       ]
