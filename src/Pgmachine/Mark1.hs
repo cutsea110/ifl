@@ -110,6 +110,7 @@ data Instruction
   | UpdateInt Int
   | Get
   | Return
+  | Par
   | Print
   | PutChar
   deriving (Eq, Show)
@@ -254,6 +255,7 @@ dispatch (UpdateBool n) = updatebool n
 dispatch (UpdateInt n)  = updateint n
 dispatch Get            = gmget
 dispatch Return         = gmreturn
+dispatch Par            = par
 dispatch Print          = gmprint
 dispatch PutChar        = putchar
 
@@ -410,6 +412,12 @@ gmreturn state = putCode i
         (ak, _) = S.pop (S.discard (k-1) stack)
         stack' = S.push ak s
 
+par :: GmState -> GmState
+par s@(global, local) = (global', local')
+  where
+    (a, stack') = S.pop (getStack s)
+    global' = global { sparks = a : sparks global }
+    local'  = local { stack = stack' }
 
 gmprint :: GmState -> GmState
 gmprint state = case hLookup h a of
@@ -1103,6 +1111,7 @@ showInstruction i = case i of
   UpdateBool n   -> iStr "UpdateBool " `iAppend` iNum n
   Get            -> iStr "Get"
   Return         -> iStr "Return"
+  Par            -> iStr "Par"
   Print          -> iStr "Print"
   PutChar        -> iStr "PutChar"
 
