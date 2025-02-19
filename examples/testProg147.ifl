@@ -1,0 +1,1 @@
+main = par I (I 3)
