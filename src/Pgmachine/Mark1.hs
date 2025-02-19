@@ -1140,6 +1140,7 @@ showAlts bs = iConcat [ iStr "{"
 showState :: PgmState -> IseqRep
 showState s@(global, locals)
   = iConcat [ showOutput s, iNewline
+            , showSparks s, iNewline
             , iIndent (iInterleave iNewline (map (showLocalState global) (zip [1..] locals))) -- FIXME: numbering Task
             ]
 
@@ -1160,6 +1161,12 @@ showOutput :: PgmState -> IseqRep
 showOutput s
   = iConcat [iStr "Output: \"", iStr (outputAll (pgmGetOutput s)), iStr "\""]
 
+showSparks :: PgmState -> IseqRep
+showSparks s
+  = iConcat [ iStr "Sparks: ["
+            , iInterleave (iStr ", ") (map iNum (pgmGetSparks s))
+            , iStr "]"
+            ]
 showDump :: GmState -> IseqRep
 showDump s
   = iConcat [ iStr "  Dump: ["
