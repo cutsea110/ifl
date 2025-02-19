@@ -1,0 +1,2 @@
+-- cross reference for testProg146
+main = par (S K K) (S K K 3)

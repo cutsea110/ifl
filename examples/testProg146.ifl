@@ -1,0 +1,2 @@
+-- cross reference for testProg145
+main = S K K (S K K 3)
