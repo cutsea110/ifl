@@ -47,6 +47,8 @@ data PgmGlobalState
                    }
 
 type GmSparks = [Addr]
+sparksInitial :: GmSparks
+sparksInitial = []
 
 data PgmLocalState
   = PgmLocalState { code    :: GmCode
@@ -582,27 +584,28 @@ unwind state = newState (hLookup heap a)
 
 
 compile :: CoreProgram -> PgmState
-compile program = (pgmGlobalState, [pgmLocalState])
+compile program = (pgmGlobalState, [initialTask addr])
   where (heap, globals) = buildInitialHeap program
-        pgmGlobalState
-          = PgmGlobalState { output  = initialOutput
-                           , heap    = heap
-                           , globals = globals
-                           , sparks  = []
-                           , stats   = statInitial
-                           }
-        pgmLocalState
-          = PgmLocalState { code   = initialCode
-                          , stack  = S.emptyStack
-                          , dump   = S.emptyStack
-                          , vstack = S.emptyStack
-                          , clock  = 0
-                          }
+        addr = aLookup globals "main" (error "main undefined")
+        pgmGlobalState = PgmGlobalState { output  = initialOutput
+                                        , heap    = heap
+                                        , globals = globals
+                                        , sparks  = sparksInitial
+                                        , stats   = statInitial
+                                        }
 
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
   where
     compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program ++ primitives) ++ compiledPrimitives
+
+initialTask :: Addr -> PgmLocalState
+initialTask addr = PgmLocalState { code   = initialCode
+                                 , stack  = S.fromList [addr]
+                                 , dump   = S.emptyStack
+                                 , vstack = S.emptyStack
+                                 , clock  = 0
+                                 }
 
 extraPreludeDefs :: CoreProgram
 extraPreludeDefs = parse extraPreludeCode
@@ -684,7 +687,8 @@ extraPrelude
 
 primitives :: [CoreScDefn]
 primitives
-  = [ ("+", ["x", "y"], EAp (EAp (EVar "+") (EVar "x")) (EVar "y"))
+  = [ ("par", ["x", "y"], EAp (EAp (EVar "par") (EVar "x")) (EVar "y"))
+    , ("+", ["x", "y"], EAp (EAp (EVar "+") (EVar "x")) (EVar "y"))
     , ("-", ["x", "y"], EAp (EAp (EVar "-") (EVar "x")) (EVar "y"))
     , ("*", ["x", "y"], EAp (EAp (EVar "*") (EVar "x")) (EVar "y"))
     , ("/", ["x", "y"], EAp (EAp (EVar "/") (EVar "x")) (EVar "y"))
@@ -717,7 +721,7 @@ allocateSc heap (name, nargs, instns) = (heap', (name, addr))
   where (heap', addr) = hAlloc heap (NGlobal nargs instns)
 
 initialCode :: GmCode
-initialCode = [Pushglobal "main", Eval, Print]
+initialCode = [Eval, Print]
 
 {- |
 >>> compileSc ("K", ["x", "y"], EVar "x")
@@ -774,6 +778,9 @@ compileR e env = case e of
       -> compileE e env ++ [Return]
   EAp (EAp (EAp (EVar "if") e0) e1) e2
     -> compileB e0 env ++ [Cond (compileR e1 env) (compileR e2 env)]
+  EAp (EAp (EVar "par") e1) e2
+    -> compileC e2 env ++ [Push 0, Par] ++
+       compileC e1 (argOffset 1 env) ++ [Mkap, Update n, Pop n, Unwind]
   ECase expr alts
     -> compileE expr env ++ [Casejump (compileD compileAR alts env)]
   _ -> compileE e env ++ [Update n, Pop n, Unwind]
@@ -809,6 +816,9 @@ compileE e env = case e of
     | otherwise -> compileLet    compileE defs e env
   EAp (EVar "negate") _ -> compileB e env ++ [UpdateInt n]
   EAp (EVar "not") _ -> compileB e env ++ [UpdateBool n]
+  EAp (EAp (EVar "par") e1) e2
+    -> compileC e2 env ++ [Push 0, Par] ++
+       compileC e1 (argOffset 1 env) ++ [Mkap, Eval]
   EAp (EAp (EVar op) _) _
     | op `elem` aDomain builtInDyadic
       -> compileB e env ++ [dyadic]
