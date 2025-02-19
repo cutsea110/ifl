@@ -35,20 +35,26 @@ pgmGetGlobals :: PgmState -> GmGlobals
 pgmGetGlobals (global, _) = globals global
 pgmGetSparks :: PgmState -> GmSparks
 pgmGetSparks (global, _) = sparks global
+pgmGetMaxTaskId :: PgmState -> TaskId
+pgmGetMaxTaskId (global, _) = maxTaskId global
 pgmGetStats :: PgmState -> GmStats
 pgmGetStats (global, _) = stats global
 
 data PgmGlobalState
-  = PgmGlobalState { output  :: GmOutput
-                   , heap    :: GmHeap
-                   , globals :: GmGlobals
-                   , sparks  :: GmSparks
-                   , stats   :: GmStats
+  = PgmGlobalState { output    :: GmOutput
+                   , heap      :: GmHeap
+                   , globals   :: GmGlobals
+                   , sparks    :: GmSparks
+                   , stats     :: GmStats
+                   , maxTaskId :: TaskId
                    }
 
 type GmSparks = [Addr]
 sparksInitial :: GmSparks
 sparksInitial = []
+
+type TaskId = Int
+taskIdInitial = 0
 
 data PgmLocalState
   = PgmLocalState { code    :: GmCode
@@ -56,6 +62,7 @@ data PgmLocalState
                   , dump    :: GmDump
                   , vstack  :: GmVStack
                   , clock   :: GmClock
+                  , taskId  :: TaskId
                   }
 
 type GmClock = Int
@@ -205,17 +212,20 @@ gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: PgmState -> PgmState
 steps (global, local) = mapAccumL step global' local'
-  where global' = global { sparks = [] }
-        local'  = map tick (local ++ newtasks)
-        newtasks = [makeTask a | a <- sparks global]
+  where local'  = map tick (local ++ newtasks)
+        (global', newtasks) = mapAccumL f (global { sparks = [] }) $ sparks global
+          where f g a = let tid = maxTaskId g + 1
+                        in (g { maxTaskId = tid }, makeTask tid a)
 
-makeTask :: Addr -> PgmLocalState
-makeTask addr = PgmLocalState { code   = [Unwind]
-                              , stack  = S.fromList [addr]
-                              , dump   = S.emptyStack
-                              , vstack = S.emptyStack
-                              , clock  = 0
-                              }
+
+makeTask :: TaskId -> Addr -> PgmLocalState
+makeTask tid addr = PgmLocalState { code   = [Unwind]
+                                  , stack  = S.fromList [addr]
+                                  , dump   = S.emptyStack
+                                  , vstack = S.emptyStack
+                                  , clock  = 0
+                                  , taskId = tid
+                                  }
 
 tick :: PgmLocalState -> PgmLocalState
 tick state = state { clock = clock state + 1 }
@@ -584,28 +594,31 @@ unwind state = newState (hLookup heap a)
 
 
 compile :: CoreProgram -> PgmState
-compile program = (pgmGlobalState, [initialTask addr])
+compile program = (pgmGlobalState, [initialTask mainTaskId addr])
   where (heap, globals) = buildInitialHeap program
         addr = aLookup globals "main" (error "main undefined")
-        pgmGlobalState = PgmGlobalState { output  = initialOutput
-                                        , heap    = heap
-                                        , globals = globals
-                                        , sparks  = sparksInitial
-                                        , stats   = statInitial
+        pgmGlobalState = PgmGlobalState { output    = initialOutput
+                                        , heap      = heap
+                                        , globals   = globals
+                                        , sparks    = sparksInitial
+                                        , stats     = statInitial
+                                        , maxTaskId = mainTaskId
                                         }
+        mainTaskId = taskIdInitial + 1
 
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
   where
     compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program ++ primitives) ++ compiledPrimitives
 
-initialTask :: Addr -> PgmLocalState
-initialTask addr = PgmLocalState { code   = initialCode
-                                 , stack  = S.fromList [addr]
-                                 , dump   = S.emptyStack
-                                 , vstack = S.emptyStack
-                                 , clock  = 0
-                                 }
+initialTask :: TaskId -> Addr -> PgmLocalState
+initialTask tid addr = PgmLocalState { code   = initialCode
+                                     , stack  = S.fromList [addr]
+                                     , dump   = S.emptyStack
+                                     , vstack = S.emptyStack
+                                     , clock  = 0
+                                     , taskId = tid
+                                     }
 
 extraPreludeDefs :: CoreProgram
 extraPreludeDefs = parse extraPreludeCode
@@ -1141,12 +1154,13 @@ showState :: PgmState -> IseqRep
 showState s@(global, locals)
   = iConcat [ showOutput s, iNewline
             , showSparks s, iNewline
-            , iIndent (iInterleave iNewline (map (showLocalState global) (zip [1..] locals))) -- FIXME: numbering Task
+            , showMaxTaskId s, iNewline
+            , iIndent (iInterleave iNewline (map (showLocalState global) locals))
             ]
 
-showLocalState :: PgmGlobalState -> (Int, PgmLocalState) -> IseqRep
-showLocalState global (i, local)
-  = iConcat [ iStr "Task #", iNum i, iStr ": "
+showLocalState :: PgmGlobalState -> PgmLocalState -> IseqRep
+showLocalState global local
+  = iConcat [ iStr "Task #", iNum tid, iStr ": "
             , iIndent (iConcat [ showInstructions (getCode s), iNewline
                                , showStack s, iNewline
                                , showDump s, iNewline
@@ -1155,6 +1169,7 @@ showLocalState global (i, local)
                                ])
             ]
     where s = (global, local)
+          tid = taskId local
 
 
 showOutput :: PgmState -> IseqRep
@@ -1167,6 +1182,13 @@ showSparks s
             , iInterleave (iStr ", ") (map iNum (pgmGetSparks s))
             , iStr "]"
             ]
+
+showMaxTaskId :: PgmState -> IseqRep
+showMaxTaskId s
+  = iConcat [ iStr "Max Task Id: "
+            , iNum (pgmGetMaxTaskId s)
+            ]
+
 showDump :: GmState -> IseqRep
 showDump s
   = iConcat [ iStr "  Dump: ["
@@ -1256,6 +1278,8 @@ showStats s = iConcat [ iStr "---------------"
                       , iNewline
                       , iNewline, iStr "Total number of clocks = "
                       , iNum (sum (pgmGetStats s))
+                      , iNewline, iStr "         spawned tasks = "
+                      , iNum (pgmGetMaxTaskId s)
                       , iNewline, iStr "             Heap size = "
                       , iNum (hSize (pgmGetHeap s))
                       ]
