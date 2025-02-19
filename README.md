@@ -69,7 +69,7 @@ $ docker buildx build --load -t cutsea110/ifl:0.3.17 .
 I suppose that you have some test programs for ifl in `${PWD}/examples` directory.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.17 ifl -v -c pgmark7 /work/testProg80.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.17 ifl -v -c pgmark1 /work/testProg80.ifl
 ```
 
 or try this.
