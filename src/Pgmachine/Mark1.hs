@@ -1155,7 +1155,7 @@ showState s@(global, locals)
   = iConcat [ showOutput s, iNewline
             , showSparks s, iNewline
             , showMaxTaskId s, iNewline
-            , iIndent $ iInterleave iNewline $ map (showLocalState global) locals
+            , iIndent $ iInterleave iNewline $ showLocalState global <$> locals
             ]
 
 showLocalState :: PgmGlobalState -> PgmLocalState -> IseqRep
