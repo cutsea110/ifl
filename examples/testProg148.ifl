@@ -1,0 +1,2 @@
+-- Buggy! CallStack Error occurred
+main = par (K 3) (4+3+2+1)
