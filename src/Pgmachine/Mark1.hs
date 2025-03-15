@@ -62,7 +62,7 @@ data PgmLocalState
                   , dump    :: GmDump
                   , vstack  :: GmVStack
                   , clock   :: GmClock
-                  , taskId  :: TaskId
+                  , taskId  :: TaskId -- ^ my original feature
                   }
 
 type GmClock = Int
