@@ -180,7 +180,7 @@ putGlobals globals' (global, local) = (global { globals = globals' }, local)
 getClock :: GmState -> GmClock
 getClock (_, local) = clock local
 
-type GmStats = [Int]
+type GmStats = [(TaskId, GmClock)]
 
 statInitial :: GmStats
 statInitial = []
@@ -204,7 +204,7 @@ doAdmin (global, locals) = (global { stats = stats' }, locals')
   where
     (locals', stats') = foldr filter ([], stats global) locals
     filter local (locals, stats)
-      | null (code local) = (locals, clock local:stats)
+      | null (code local) = (locals, (taskId local, clock local):stats)
       | otherwise         = (local:locals, stats)
 
 gmFinal :: PgmState -> Bool
@@ -1277,12 +1277,14 @@ showStats :: PgmState -> IseqRep
 showStats s = iConcat [ iStr "---------------"
                       , iNewline
                       , iNewline, iStr "Total number of clocks = "
-                      , iNum (sum (pgmGetStats s))
+                      , iNum (sum $ map snd $ pgmGetStats s)
+                      , iStr "[", iInterleave (iStr ", ") $ showClk <$> pgmGetStats s, iStr "]"
                       , iNewline, iStr "         spawned tasks = "
                       , iNum (pgmGetMaxTaskId s)
                       , iNewline, iStr "             Heap size = "
                       , iNum (hSize (pgmGetHeap s))
                       ]
+  where showClk (tid, c) = iConcat [ iStr "#", iNum tid, iStr ": ", iNum c ]
 
 {- |
 >>> let runTest = outputAll . pgmGetOutput . last . eval . compile . parse
