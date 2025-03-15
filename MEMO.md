@@ -13,6 +13,8 @@
 
 ----
 G-machine
+
+```
                    ,----------------
                   |     `,     `,    `,
                   v      |      |     |
@@ -22,6 +24,7 @@ G-machine
                   |`---> D ---> A     |
                   |                   |
                    `----------------> B
+```
 
 * Supercombinator (as compileSC)
 SC[d] : compileSC is the G-Machine code for the supercombinator definition d.
