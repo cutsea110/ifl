@@ -12,6 +12,12 @@ import Language
 import qualified Stack as S
 import Utils
 import Data.List (mapAccumL)
+import Data.Maybe (listToMaybe, maybe)
+import Prelude hiding (head)
+
+-- for legacy functions
+head :: [a] -> a
+head = maybe (error "head: empty list") id . listToMaybe
 
 runProg :: String -> String
 runProg = showResults . eval . compile . parse

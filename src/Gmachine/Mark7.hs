@@ -16,6 +16,12 @@ import qualified Stack as S
 import Utils
 import Data.Char (chr, ord)
 import Data.List (mapAccumL, (\\))
+import Data.Maybe (listToMaybe, maybe)
+import Prelude hiding (head)
+
+-- for legacy functions
+head :: [a] -> a
+head = maybe (error "head: empty list") id . listToMaybe
 
 newtype Config = Config { verbose :: Bool
                         }

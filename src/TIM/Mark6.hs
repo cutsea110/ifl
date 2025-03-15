@@ -9,14 +9,21 @@ module TIM.Mark6
   ) where
 
 import Control.Arrow (second)
-import Data.List (find, foldl', unfoldr, intersect, mapAccumL, nub, sort)
-import Data.Maybe (fromMaybe)
+import Data.List (find, foldl', unfoldr, intersect, mapAccumL, nub, sort, uncons)
+import Data.Maybe (fromMaybe, listToMaybe, maybe)
 import qualified Data.Map as Map
+import Prelude hiding (head, tail)
 
 import Heap
 import Iseq
 import Language
 import Utils
+
+-- for legacy functions
+head :: [a] -> a
+head = maybe (error "head: empty list") id . listToMaybe
+tail :: [a] -> [a]
+tail = maybe (error "tail: empty list") snd . uncons
 
 
 data Config = Config { verbose           :: !Bool
