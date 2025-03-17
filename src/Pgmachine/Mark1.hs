@@ -1185,9 +1185,10 @@ showOutput s
 showSparks :: PgmState -> IseqRep
 showSparks s
   = iConcat [ iStr "Sparks: ["
-            , iInterleave (iStr ", ") (map iNum (pgmGetSparks s))
+            , iInterleave (iStr ", ") $ showSpark <$> pgmGetSparks s
             , iStr "]"
             ]
+    where showSpark addr = iStr "#" `iAppend` iNum addr
 
 showMaxTaskId :: PgmState -> IseqRep
 showMaxTaskId s
