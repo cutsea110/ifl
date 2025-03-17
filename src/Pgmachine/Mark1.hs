@@ -225,7 +225,7 @@ steps (global, local) = mapAccumL step global' local'
 
 
 makeTask :: TaskId -> Addr -> PgmLocalState
-makeTask tid addr = PgmLocalState { code   = [Unwind]
+makeTask tid addr = PgmLocalState { code   = [Eval]
                                   , stack  = S.fromList [addr]
                                   , dump   = S.emptyStack
                                   , vstack = S.emptyStack
