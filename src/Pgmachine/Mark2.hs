@@ -547,11 +547,14 @@ pop n state = putStack (S.discard n s) state
   where s = getStack state
 
 update :: Int -> GmState -> GmState
-update n state = putHeap heap' (putStack s' state)
+update n state = putHeap heap'
+                 . putStack s'
+                 $ unlocked
   where s = getStack state
         (a, s') = S.pop s
         a' = S.getStack s' !! n
-        heap' = hUpdate (getHeap state) a' (NInd a)
+        unlocked = unlock a' state
+        heap' = hUpdate (getHeap unlocked) a' (NInd a)
 
 slide :: Int -> GmState -> GmState
 slide n state = putStack (S.push a $ S.discard n s) state
@@ -574,8 +577,9 @@ allocNodes (n+1) heap = (heap2, a:as)
 allocNodes _ _        = error "allocNodes: negative"
 
 getArg :: Node -> Addr
-getArg (NAp _ a2) = a2
-getArg _          = error "not application Node"
+getArg (NAp  _ a2) = a2
+getArg (NLAp _ a2) = a2
+getArg _           = error "not application Node"
 
 rearrange :: Int -> GmHeap -> GmStack -> GmStack
 rearrange n heap as = foldr S.push (S.discard n as) $ take n as'
@@ -600,6 +604,8 @@ unwind state = newState (hLookup heap a)
         newState (NAp a1 a2) = putCode [Unwind]
                                . putStack (S.push a1 s)
                                $ locked
+        newState (NLAp a1 a2) = putCode [Unwind]
+                                $ state -- suspend
         newState (NGlobal n c)
           | k < n     = putCode i'
                         . putStack (S.push ak s')
@@ -611,6 +617,8 @@ unwind state = newState (hLookup heap a)
                         $ state
           where k             = S.getDepth s1
                 (ak, _)       = S.pop (S.discard k s)
+        newState (NLGlobal n c) = putCode [Unwind]
+                                  $ state -- suspend
         newState (NInd a1) = putCode [Unwind]
                              . putStack (S.push a1 s1)
                              $ state
@@ -1298,17 +1306,17 @@ showNode s a (NAp a1 a2)
   = iConcat [ iStr "Ap ", iStr (showaddr a1)
             , iStr " ", iStr (showaddr a2)
             ]
-showNode s a (NInd a1) = iConcat [ iStr "NInd ", iStr (showaddr a1) ]
+showNode s a (NInd a1) = iConcat [ iStr "Ind ", iStr (showaddr a1) ]
 showNode s a (NConstr t as)
   = iConcat [ iStr "Constr ", iNum t, iStr " ["
             , iInterleave (iStr ", ") (map (iStr . showaddr) as)
             , iStr "]"
             ]
 showNode s a (NLAp a1 a2)
-  = iConcat [ iStr "NLAp ", iStr (showaddr a1)
+  = iConcat [ iStr "*Ap ", iStr (showaddr a1)
             , iStr " ", iStr (showaddr a2)
             ]
-showNode s a (NLGlobal n g) = iConcat [iStr "NLGlobal ", iStr v]
+showNode s a (NLGlobal n g) = iConcat [iStr "*Global ", iStr v]
   where v = head [n | (n, b) <- getGlobals s, a == b]
 
 
