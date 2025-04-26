@@ -549,7 +549,7 @@ pop n state = putStack (S.discard n s) state
 update :: Int -> GmState -> GmState
 update n state = putHeap heap'
                  . putStack s'
-                 $ unlocked
+                 $ state
   where s = getStack state
         (a, s') = S.pop s
         a' = S.getStack s' !! n
