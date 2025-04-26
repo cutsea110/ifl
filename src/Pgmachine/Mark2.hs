@@ -594,6 +594,7 @@ unwind state = newState (hLookup heap a)
         heap   = getHeap state
         dump   = getDump state
         locked = lock a state
+        ((i', s', v'), d) = S.pop dump
         newState (NNum n)
           | S.isEmpty dump = putCode [] state
           | otherwise      = putCode i'
@@ -629,7 +630,6 @@ unwind state = newState (hLookup heap a)
                                 $ state -- suspend
         newState (NLGlobal n c) = putCode [Unwind]
                                   $ state -- suspend
-        ((i', s', v'), d) = S.pop dump
 
 
 compile :: CoreProgram -> PgmState

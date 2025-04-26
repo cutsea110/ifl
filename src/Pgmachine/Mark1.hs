@@ -565,6 +565,7 @@ unwind state = newState (hLookup heap a)
         (a, s1) = S.pop s
         heap   = getHeap state
         dump   = getDump state
+        ((i', s', v'), d) = S.pop dump
         newState (NNum n)
           | S.isEmpty dump = putCode [] state
           | otherwise      = putCode i'
@@ -584,8 +585,8 @@ unwind state = newState (hLookup heap a)
           | otherwise = putCode c
                         . putStack (rearrange n heap s)
                         $ state
-          where k             = S.getDepth s1
-                (ak, _)       = S.pop (S.discard k s)
+          where k       = S.getDepth s1
+                (ak, _) = S.pop (S.discard k s)
         newState (NInd a1) = putCode [Unwind]
                              . putStack (S.push a1 s1)
                              $ state
@@ -596,7 +597,6 @@ unwind state = newState (hLookup heap a)
                              . putVStack v'
                              . putDump d
                              $ state
-        ((i', s', v'), d) = S.pop dump
 
 
 compile :: CoreProgram -> PgmState
