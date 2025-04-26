@@ -579,7 +579,7 @@ allocNodes _ _        = error "allocNodes: negative"
 getArg :: Node -> Addr
 getArg (NAp  _ a2) = a2
 getArg (NLAp _ a2) = a2
-getArg _           = error "not application Node"
+getArg n           = error $ "not application Node: " ++ show n
 
 rearrange :: Int -> GmHeap -> GmStack -> GmStack
 rearrange n heap as = foldr S.push (S.discard n as) $ take n as'
