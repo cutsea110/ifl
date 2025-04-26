@@ -164,11 +164,13 @@ putHeap :: GmHeap -> GmState -> GmState
 putHeap heap' (global, local) = (global { heap = heap' }, local)
 
 data Node
-  = NNum Int           -- Numbers
-  | NAp Addr Addr      -- Applications
-  | NGlobal Int GmCode -- Globals
-  | NInd Addr          -- Indirections
+  = NNum Int            -- Numbers
+  | NAp Addr Addr       -- Applications
+  | NGlobal Int GmCode  -- Globals
+  | NInd Addr           -- Indirections
   | NConstr Int [Addr]
+  | NLAp Addr Addr      -- Locked Applications
+  | NLGlobal Int GmCode -- Locked globals
   deriving Show
 
 instance Eq Node where
@@ -1279,6 +1281,13 @@ showNode s a (NConstr t as)
             , iInterleave (iStr ", ") (map (iStr . showaddr) as)
             , iStr "]"
             ]
+showNode s a (NLAp a1 a2)
+  = iConcat [ iStr "NLAp ", iStr (showaddr a1)
+            , iStr " ", iStr (showaddr a2)
+            ]
+showNode s a (NLGlobal n g) = iConcat [iStr "NLGlobal ", iStr v]
+  where v = head [n | (n, b) <- getGlobals s, a == b]
+
 
 showStats :: PgmState -> IseqRep
 showStats s = iConcat [ iStr "---------------"
