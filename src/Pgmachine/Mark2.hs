@@ -589,6 +589,7 @@ unwind state = newState (hLookup heap a)
         (a, s1) = S.pop s
         heap   = getHeap state
         dump   = getDump state
+        locked = lock a state
         newState (NNum n)
           | S.isEmpty dump = putCode [] state
           | otherwise      = putCode i'
@@ -598,13 +599,13 @@ unwind state = newState (hLookup heap a)
                              $ state
         newState (NAp a1 a2) = putCode [Unwind]
                                . putStack (S.push a1 s)
-                               $ state
+                               $ locked
         newState (NGlobal n c)
           | k < n     = putCode i'
                         . putStack (S.push ak s')
                         . putVStack v'
                         . putDump d
-                        $ state
+                        $ locked
           | otherwise = putCode c
                         . putStack (rearrange n heap s)
                         $ state
