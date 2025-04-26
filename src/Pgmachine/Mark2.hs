@@ -1333,12 +1333,13 @@ showNodeSimple _ _ (NAp a1 a2)
   = iConcat [ iStr "Ap ", iStr (showaddr a1)
             , iStr " ", iStr (showaddr a2)
             ]
-showNodeSimple s a (NGlobal _ _) = iConcat [iStr "Global ", iStr v]
+showNodeSimple s a (NGlobal n _) = iConcat [iStr "Global ", iStr v, iStr " (", iNum n, iStr ")"]
   where v = head [n | (n, b) <- globals s, a == b]
 showNodeSimple _ _ (NInd a1) = iConcat [iStr "Ind ", iStr (showaddr a1)]
 showNodeSimple _ _ (NConstr t as)
   = iConcat [ iStr "Constr ", iNum t, iStr " .."]
-showNodeSimple _ _ (NLGlobal _ _) = iStr "*Global"
+showNodeSimple s a (NLGlobal n _) = iConcat [iStr "*Global ", iStr v, iStr " (", iNum n, iStr ")"]
+  where v = head [n | (n, b) <- globals s, a == b]
 showNodeSimple _ _ (NLAp a1 a2)
   = iConcat [ iStr "*Ap ", iStr (showaddr a1)
             , iStr " ", iStr (showaddr a2)
