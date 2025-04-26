@@ -604,8 +604,6 @@ unwind state = newState (hLookup heap a)
         newState (NAp a1 a2) = putCode [Unwind]
                                . putStack (S.push a1 s)
                                $ locked
-        newState (NLAp a1 a2) = putCode [Unwind]
-                                $ state -- suspend
         newState (NGlobal n c)
           | k < n     = putCode i'
                         . putStack (S.push ak s')
@@ -614,11 +612,9 @@ unwind state = newState (hLookup heap a)
                         $ locked
           | otherwise = putCode c
                         . putStack (rearrange n heap s)
-                        $ state
-          where k             = S.getDepth s1
-                (ak, _)       = S.pop (S.discard k s)
-        newState (NLGlobal n c) = putCode [Unwind]
-                                  $ state -- suspend
+                        $ if n == 0 then locked else state
+          where k       = S.getDepth s1
+                (ak, _) = S.pop (S.discard k s)
         newState (NInd a1) = putCode [Unwind]
                              . putStack (S.push a1 s1)
                              $ state
@@ -629,6 +625,10 @@ unwind state = newState (hLookup heap a)
                              . putVStack v'
                              . putDump d
                              $ state
+        newState (NLAp a1 a2) = putCode [Unwind]
+                                $ state -- suspend
+        newState (NLGlobal n c) = putCode [Unwind]
+                                  $ state -- suspend
         ((i', s', v'), d) = S.pop dump
 
 
@@ -1195,6 +1195,7 @@ showState s@(global, locals)
             , showSparks s, iNewline
             , showMaxTaskId s, iNewline
             , iIndent $ iInterleave iNewline $ showLocalState global <$> locals
+            , showHeap global (pgmGetHeap s)
             ]
 
 showLocalState :: PgmGlobalState -> PgmLocalState -> IseqRep
@@ -1210,6 +1211,13 @@ showLocalState global local
     where s = (global, local)
           tid = taskId local
 
+showHeap :: PgmGlobalState -> GmHeap -> IseqRep
+showHeap g (_, _, _, m)
+  = iConcat [ iStr "Heap: ["
+            , iIndent $ iInterleave iNewline (f <$> m)
+            , iStr "]"
+            ]
+  where f (addr, n) = iConcat [iStr "#", iNum addr, iStr ": ", showNodeSimple g addr n]
 
 showOutput :: PgmState -> IseqRep
 showOutput s
@@ -1318,6 +1326,23 @@ showNode s a (NLAp a1 a2)
             ]
 showNode s a (NLGlobal n g) = iConcat [iStr "*Global ", iStr v]
   where v = head [n | (n, b) <- getGlobals s, a == b]
+
+showNodeSimple :: PgmGlobalState -> Addr -> Node -> IseqRep
+showNodeSimple _ _ (NNum n) = iNum n
+showNodeSimple _ _ (NAp a1 a2)
+  = iConcat [ iStr "Ap ", iStr (showaddr a1)
+            , iStr " ", iStr (showaddr a2)
+            ]
+showNodeSimple s a (NGlobal _ _) = iConcat [iStr "Global ", iStr v]
+  where v = head [n | (n, b) <- globals s, a == b]
+showNodeSimple _ _ (NInd a1) = iConcat [iStr "Ind ", iStr (showaddr a1)]
+showNodeSimple _ _ (NConstr t as)
+  = iConcat [ iStr "Constr ", iNum t, iStr " .."]
+showNodeSimple _ _ (NLGlobal _ _) = iStr "*Global"
+showNodeSimple _ _ (NLAp a1 a2)
+  = iConcat [ iStr "*Ap ", iStr (showaddr a1)
+            , iStr " ", iStr (showaddr a2)
+            ]
 
 
 showStats :: PgmState -> IseqRep
