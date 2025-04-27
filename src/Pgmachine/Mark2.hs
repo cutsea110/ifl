@@ -442,24 +442,22 @@ par s@(global, local) = (global', local')
 lock :: Addr -> GmState -> GmState
 lock addr state
   = putHeap (newHeap (hLookup heap addr)) state
-  where
-    heap = getHeap state
-    newHeap (NAp a1 a2) = hUpdate heap addr (NLAp a1 a2)
-    newHeap (NGlobal n c)
-      | n == 0    = hUpdate heap addr (NLGlobal n c)
-      | otherwise = heap
-    newHeap n = error $ "Unexpected Node: " ++ show n
+  where heap = getHeap state
+        newHeap (NAp a1 a2) = hUpdate heap addr (NLAp a1 a2)
+        newHeap (NGlobal n c)
+          | n == 0    = hUpdate heap addr (NLGlobal n c)
+          | otherwise = heap
+        newHeap n = error $ "Unexpected Node: " ++ show n
 
 unlock :: Addr -> GmState -> GmState
 unlock addr state
   = newState (hLookup heap addr)
-  where
-    heap = getHeap state
-    newState (NLAp a1 a2)
-      = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) state)
-    newState (NLGlobal n c)
-      = putHeap (hUpdate heap addr (NGlobal n c)) state
-    newState n = state
+  where heap = getHeap state
+        newState (NLAp a1 a2)
+          = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) state)
+        newState (NLGlobal n c)
+          = putHeap (hUpdate heap addr (NGlobal n c)) state
+        newState n = state
 
 gmprint :: GmState -> GmState
 gmprint state = case hLookup h a of
