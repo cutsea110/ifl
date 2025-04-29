@@ -541,8 +541,8 @@ unwind state = newState (hLookup heap a)
           | otherwise = putCode c
                         . putStack (rearrange n heap s)
                         $ state
-          where k             = S.getDepth s1
-                (ak, _)       = S.pop (S.discard k s)
+          where k       = S.getDepth s1
+                (ak, _) = S.pop (S.discard k s)
         newState (NInd a1) = putCode [Unwind]
                              . putStack (S.push a1 s1)
                              $ state
