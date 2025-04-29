@@ -60,7 +60,6 @@ sparksInitial :: GmSparks
 sparksInitial = []
 
 type TaskId = Int
-taskIdInitial = 0
 
 data PgmLocalState
   = PgmLocalState { code    :: GmCode
@@ -633,6 +632,7 @@ unwind state = newState (hLookup heap a)
 compile :: CoreProgram -> PgmState
 compile program = (pgmGlobalState, [initialTask mainTaskId addr])
   where (heap, globals) = buildInitialHeap program
+        mainTaskId = 1
         addr = aLookup globals "main" (error "main undefined")
         pgmGlobalState = PgmGlobalState { output    = initialOutput
                                         , heap      = heap
@@ -641,7 +641,6 @@ compile program = (pgmGlobalState, [initialTask mainTaskId addr])
                                         , stats     = statInitial
                                         , maxTaskId = mainTaskId
                                         }
-        mainTaskId = taskIdInitial + 1
 
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program = mapAccumL allocateSc hInitial compiled
