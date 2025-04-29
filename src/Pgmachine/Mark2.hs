@@ -589,8 +589,8 @@ unwind :: GmState -> GmState
 unwind state = newState (hLookup heap a)
   where s = getStack state
         (a, s1) = S.pop s
-        heap   = getHeap state
-        dump   = getDump state
+        heap = getHeap state
+        dump = getDump state
         locked = lock a state
         ((i', s', v'), d) = S.pop dump
         newState (NNum n)
