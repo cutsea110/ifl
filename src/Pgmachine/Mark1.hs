@@ -1161,6 +1161,7 @@ showState s@(global, locals)
             , showSparks s, iNewline
             , showMaxTaskId s, iNewline
             , iIndent $ iInterleave iNewline $ showLocalState global <$> locals
+            , showHeap global (pgmGetHeap s)
             ]
 
 showLocalState :: PgmGlobalState -> PgmLocalState -> IseqRep
@@ -1176,6 +1177,13 @@ showLocalState global local
     where s = (global, local)
           tid = taskId local
 
+showHeap :: PgmGlobalState -> GmHeap -> IseqRep
+showHeap g (_, _, _, m)
+  = iConcat [ iStr "Heap: ["
+            , iIndent $ iInterleave iNewline (f <$> m)
+            , iStr "]"
+            ]
+  where f (addr, n) = iConcat [iStr "#", iNum addr, iStr ": ", showNodeSimple g addr n]
 
 showOutput :: PgmState -> IseqRep
 showOutput s
@@ -1278,6 +1286,18 @@ showNode s a (NConstr t as)
             , iInterleave (iStr ", ") (map (iStr . showaddr) as)
             , iStr "]"
             ]
+
+showNodeSimple :: PgmGlobalState -> Addr -> Node -> IseqRep
+showNodeSimple _ _ (NNum n) = iNum n
+showNodeSimple _ _ (NAp a1 a2)
+  = iConcat [ iStr "Ap ", iStr (showaddr a1)
+            , iStr " ", iStr (showaddr a2)
+            ]
+showNodeSimple s a (NGlobal n _) = iConcat [iStr "Global ", iStr v, iStr " (", iNum n, iStr ")"]
+  where v = head [n | (n, b) <- globals s, a == b]
+showNodeSimple _ _ (NInd a1) = iConcat [iStr "Ind ", iStr (showaddr a1)]
+showNodeSimple _ _ (NConstr t as)
+  = iConcat [ iStr "Constr ", iNum t, iStr " .."]
 
 showStats :: PgmState -> IseqRep
 showStats s = iConcat [ iStr "---------------"
