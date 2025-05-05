@@ -168,8 +168,8 @@ data Node
   | NGlobal Int GmCode  -- Globals
   | NInd Addr           -- Indirections
   | NConstr Int [Addr]
-  | NLAp Addr Addr      -- Locked Applications
-  | NLGlobal Int GmCode -- Locked globals
+  | NLAp Addr Addr TaskId      -- Locked Applications
+  | NLGlobal Int GmCode TaskId -- Locked globals
   deriving Show
 
 instance Eq Node where
@@ -439,12 +439,13 @@ par s@(global, local) = (global', local')
     local'  = local { stack = stack' }
 
 lock :: Addr -> GmState -> GmState
-lock addr state
+lock addr state@(_, local)
   = putHeap (newHeap (hLookup heap addr)) state
   where heap = getHeap state
-        newHeap (NAp a1 a2) = hUpdate heap addr (NLAp a1 a2)
+        tid = taskId local
+        newHeap (NAp a1 a2) = hUpdate heap addr (NLAp a1 a2 tid)
         newHeap (NGlobal n c)
-          | n == 0    = hUpdate heap addr (NLGlobal n c)
+          | n == 0    = hUpdate heap addr (NLGlobal n c tid)
           | otherwise = heap
         newHeap n = error $ "Unexpected Node: " ++ show n
 
@@ -452,9 +453,9 @@ unlock :: Addr -> GmState -> GmState
 unlock addr state
   = newState (hLookup heap addr)
   where heap = getHeap state
-        newState (NLAp a1 a2)
+        newState (NLAp a1 a2 _)
           = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) state)
-        newState (NLGlobal n c)
+        newState (NLGlobal n c _)
           = putHeap (hUpdate heap addr (NGlobal n c)) state
         newState n = state
 
@@ -574,10 +575,10 @@ allocNodes (n+1) heap = (heap2, a:as)
 allocNodes _ _        = error "allocNodes: negative"
 
 getArg :: Node -> Addr
-getArg (NAp  _ a2) = a2
-getArg (NLAp _ a2) = a2
-getArg (NInd a)    = a
-getArg n           = error $ "not application Node: " ++ show n
+getArg (NAp  _ a2)   = a2
+getArg (NLAp _ a2 _) = a2
+getArg (NInd a)      = a
+getArg n             = error $ "not application Node: " ++ show n
 
 rearrange :: Int -> GmHeap -> GmStack -> GmStack
 rearrange n heap as = foldr S.push (S.discard n as) $ take n as'
@@ -624,10 +625,10 @@ unwind state = newState (hLookup heap a)
                              . putVStack v'
                              . putDump d
                              $ state
-        newState (NLAp a1 a2) = putCode [Unwind]
-                                $ state -- suspend
-        newState (NLGlobal n c) = putCode [Unwind]
+        newState (NLAp a1 a2 _) = putCode [Unwind]
                                   $ state -- suspend
+        newState (NLGlobal n c _) = putCode [Unwind]
+                                    $ state -- suspend
 
 
 compile :: CoreProgram -> PgmState
@@ -1318,11 +1319,12 @@ showNode s a (NConstr t as)
             , iInterleave (iStr ", ") (map (iStr . showaddr) as)
             , iStr "]"
             ]
-showNode s a (NLAp a1 a2)
+showNode s a (NLAp a1 a2 tid)
   = iConcat [ iStr "*Ap ", iStr (showaddr a1)
             , iStr " ", iStr (showaddr a2)
+            , iStr " {🔒#", iNum tid, iStr "}"
             ]
-showNode s a (NLGlobal n g) = iConcat [iStr "*Global ", iStr v]
+showNode s a (NLGlobal n g tid) = iConcat [iStr "*Global ", iStr v, iStr " {🔒#", iNum tid, iStr "}"]
   where v = head [n | (n, b) <- getGlobals s, a == b]
 
 showNodeSimple :: PgmGlobalState -> Addr -> Node -> IseqRep
@@ -1336,11 +1338,13 @@ showNodeSimple s a (NGlobal n _) = iConcat [iStr "Global ", iStr v, iStr " (", i
 showNodeSimple _ _ (NInd a1) = iConcat [iStr "Ind ", iStr (showaddr a1)]
 showNodeSimple _ _ (NConstr t as)
   = iConcat [ iStr "Constr ", iNum t, iStr " .."]
-showNodeSimple s a (NLGlobal n _) = iConcat [iStr "*Global ", iStr v, iStr " (", iNum n, iStr ")"]
+showNodeSimple s a (NLGlobal n _ tid) = iConcat [ iStr "*Global ", iStr v, iStr " (", iNum n, iStr ")"
+                                                , iStr " {🔒#", iNum tid, iStr "}"]
   where v = head [n | (n, b) <- globals s, a == b]
-showNodeSimple _ _ (NLAp a1 a2)
+showNodeSimple _ _ (NLAp a1 a2 tid)
   = iConcat [ iStr "*Ap ", iStr (showaddr a1)
             , iStr " ", iStr (showaddr a2)
+            , iStr " {🔒#", iNum tid, iStr "}"
             ]
 
 
