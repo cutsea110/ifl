@@ -113,7 +113,7 @@ defaultOptions = Options
   { optVerbose     = False
   , optThreshold   = 300
   , optShowVersion = False
-  , optCompiler    = PgMark1
+  , optCompiler    = PgMark2
   , optConvertList = False
   , optProfile     = False
   }
