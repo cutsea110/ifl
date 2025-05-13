@@ -1,4 +1,4 @@
--- kluge
+-- kludge
 G a b c d = let e = c d in a (b e) e;
 
 -- def of Maybe
