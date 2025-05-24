@@ -1,5 +1,5 @@
-add x y = x + y;
-mul x y = x * y;
+add3 x = x + 3;
+mul2 x = x * 2;
 
 -- This is point-free!
 -- This occurred self-consistent dead-locking!
@@ -9,4 +9,4 @@ h f g = compose f g;
 -- This works good.
 -- h f g x = compose f g x;
 
-main = h (add 3) (mul 2) 3
+main = h add3 mul2 3
