@@ -1353,7 +1353,7 @@ showStats s = iConcat [ iStr "---------------"
                       , iNewline
                       , iNewline, iStr "Total number of clocks = "
                       , iNum (sum $ map snd $ pgmGetStats s)
-                      , iStr "[", iInterleave (iStr ", ") $ showClk <$> pgmGetStats s, iStr "]"
+                      , iStr " [", iInterleave (iStr ", ") $ showClk <$> pgmGetStats s, iStr "]"
                       , iNewline, iStr "         spawned tasks = "
                       , iNum (pgmGetMaxTaskId s)
                       , iNewline, iStr "             Heap size = "
