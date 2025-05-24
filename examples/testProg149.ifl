@@ -1,7 +1,7 @@
 twicep f x = par f (f x);
-main = twicep (twicep (S K K)) 3
+main = twicep (twicep (twicep (S K K))) 3
+-- main = twicep (twicep (S K K)) 3
 -- main = twicep (S K K) 3
--- main = twicep (twicep (twicep (S K K))) 3
 -- main = twicep (twicep (twicep (twicep (I I)))) 3
 -- main = twicep (twicep (twicep (I I))) 3
 -- main = twicep (twicep (I I)) 3
