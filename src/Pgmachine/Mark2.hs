@@ -612,9 +612,13 @@ unwind state = newState (hLookup heap a)
                         $ locked
           | otherwise = putCode c
                         . putStack (rearrange n heap s)
-                        $ if n == 0 then locked else state
+                        $ if n == 0 then locked else unlocked
           where k       = S.getDepth s1
                 (ak, _) = S.pop (S.discard k s)
+                a'      = S.getStack s1 !! (n-1)
+                unlocked = unlock a' state
+                -- TODO: まだ足りない. a' が NInd の時はその手間があるならそいつを渡して unlock する必要がある
+                --       これをやれれば update 側でやっている unlock が無くせそう
         newState (NInd a1) = putCode [Unwind]
                              . putStack (S.push a1 s1)
                              $ state
