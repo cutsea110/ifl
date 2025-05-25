@@ -2,7 +2,7 @@ add3 x = x + 3;
 mul2 x = x * 2;
 
 -- This is point-free!
--- This occurred self-consistent dead-locking!
+-- This occurred self-consistent dead-locking! => fixed!
 h f g = compose f g;
 
 -- This is pointwise!

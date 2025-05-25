@@ -1,0 +1,8 @@
+composep f g x = par f (g x); -- par!
+
+add3 x = x + 3;
+mul2 x = x * 2;
+
+h f g = composep f g;
+
+main = h add3 mul2 3
