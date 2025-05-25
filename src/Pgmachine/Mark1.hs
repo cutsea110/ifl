@@ -23,12 +23,14 @@ import Prelude hiding (head)
 head :: [a] -> a
 head = maybe (error "head: empty list") id . listToMaybe
 
-newtype Config = Config { verbose :: Bool
-                        }
+data Config = Config { verbose :: Bool
+                     , werbose :: Bool
+                     }
 
 runProg :: Config -> String -> String
 runProg conf = showR . eval . compile . parse
-  where showR | verbose conf = showResults
+  where showR | werbose conf = showResults True
+              | verbose conf = showResults False
               | otherwise    = showSimpleResult
 
 type PgmState = (PgmGlobalState, [PgmLocalState])
@@ -1075,15 +1077,16 @@ compileLetB comp defs expr env
 showSimpleResult :: [PgmState] -> String
 showSimpleResult states = concatMap (iDisplay . outputLast . pgmGetOutput) states
 
-showResults :: [PgmState] -> String
-showResults [] = error "no GmState"
-showResults states@(s:ss)
+showResults :: Bool -- ^ werbose
+            -> [PgmState] -> String
+showResults w [] = error "no GmState"
+showResults w states@(s:ss)
   = unlines (map iDisplay
               ([ iStr "Supercombinator definitions", iNewline
                , iInterleave iNewline (map (showSC s) (pgmGetGlobals s))
                , iStr "State transitions"
                ] ++
-               iLayn' (map showState states) ++
+               iLayn' (map (showState w) states) ++
                [ showStats (last states)
                ])
             )
@@ -1156,14 +1159,15 @@ showAlts bs = iConcat [ iStr "{"
   where showLabels (t, c)
           = iConcat [iNum t, iStr ":", shortShowInstructions 2 c]
 
-showState :: PgmState -> IseqRep
-showState s@(global, locals)
-  = iConcat [ showOutput s, iNewline
-            , showSparks s, iNewline
-            , showMaxTaskId s, iNewline
-            , iIndent $ iInterleave iNewline $ showLocalState global <$> locals
-            , showHeap global (pgmGetHeap s)
-            ]
+showState :: Bool -- werbose
+          -> PgmState -> IseqRep
+showState w s@(global, locals)
+  = iConcat ([ showOutput s, iNewline
+             , showSparks s, iNewline
+             , showMaxTaskId s, iNewline
+             , iIndent $ iInterleave iNewline $ showLocalState global <$> locals
+             ] ++ if w then [showHeap global (pgmGetHeap s)] else []
+            )
 
 showLocalState :: PgmGlobalState -> PgmLocalState -> IseqRep
 showLocalState global local

@@ -49,7 +49,8 @@ type Executer = String -> IO ()
 
 executer :: Options -> Executer
 executer opts = putStr . run
-  where verbose = optVerbose opts
+  where verbose = optVerbose opts || werbose
+        werbose = optWerbose opts
         compiler = optCompiler opts
         threshold = optThreshold opts
         convertList = optConvertList opts
@@ -78,8 +79,8 @@ executer opts = putStr . run
           TIMark4     -> TIMark4.runProg   $ TIMark4.Config verbose threshold
           TIMark5     -> TIMark5.runProg   $ TIMark5.Config verbose threshold convertList
           TIMark6     -> TIMark6.runProg   $ TIMark6.Config verbose threshold convertList profile
-          PgMark1     -> PgMark1.runProg   $ PgMark1.Config verbose
-          PgMark2     -> PgMark2.runProg   $ PgMark2.Config verbose
+          PgMark1     -> PgMark1.runProg   $ PgMark1.Config verbose werbose
+          PgMark2     -> PgMark2.runProg   $ PgMark2.Config verbose werbose
           (Noco name) -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
@@ -101,6 +102,7 @@ validCompiler _        = True
 
 data Options = Options
   { optVerbose     :: !Bool
+  , optWerbose     :: !Bool -- more verbose output, showHeap!
   , optThreshold   :: !Int
   , optShowVersion :: !Bool
   , optCompiler    :: !Compiler
@@ -111,6 +113,7 @@ data Options = Options
 defaultOptions :: Options
 defaultOptions = Options
   { optVerbose     = False
+  , optWerbose     = False
   , optThreshold   = 300
   , optShowVersion = False
   , optCompiler    = PgMark2
@@ -136,6 +139,8 @@ options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optCompile
             ("compiler name (" ++ intercalate " | " compilerNames ++ ")")
           , Option ['v']      ["verbose"]   (NoArg (\opts -> opts {optVerbose = True}))
             "step output on stderr"
+          , Option ['w']      ["pretty verbose"]   (NoArg (\opts -> opts {optWerbose = True}))
+            "step output with showing heap on stderr"
           , Option ['t']      ["threshold"] (ReqArg (\n opts -> opts {optThreshold = read n}) "Threshold")
             "threshold for Garbage Collection"
             -- NOTE: this option is only for the part of Template Instantiation Machines.
@@ -207,6 +212,10 @@ checkOption opts = compilerSupported ++ convToListSupported ++ gcThresholdSuppor
       | not (optProfile opts) ||
         compiler `elem` [TIMark6] = []
       | otherwise = ["The compiler does not support the option of profiling a program."]
+    worvoseSupported
+      | not (optWerbose opts) ||
+        compiler `elem` [PgMark1, PgMark2] = []
+      | otherwise = ["The compiler does not support the option of pretty verbose output."]
     gcThresholdSupported
       | optThreshold opts == optThreshold defaultOptions ||
         compiler `elem` [Mark5GC, Mark5RevGC, Mark5Cp, TIMark1Cp, TIMark2, TIMark3, TIMark4, TIMark5, TIMark6] = []
