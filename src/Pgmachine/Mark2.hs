@@ -238,45 +238,46 @@ tick :: PgmLocalState -> PgmLocalState
 tick state = state { clock = clock state + 1 }
 
 step :: PgmGlobalState -> PgmLocalState -> GmState
-step global local = dispatch i (putCode is state)
+step global local = dispatch tid i (putCode is state)
   where
     (i:is) = getCode state
     state = (global, local)
+    tid = taskId local
 
-dispatch :: Instruction -> GmState -> GmState
-dispatch (Pushglobal f) = pushglobal f
-dispatch (Pushint n)    = pushint n
-dispatch Mkap           = mkap
-dispatch (Push n)       = push n
-dispatch (Pop n)        = pop n
-dispatch (Update n)     = update n
-dispatch Unwind         = unwind
-dispatch (Slide n)      = slide n
-dispatch (Alloc n)      = alloc n
-dispatch Eval           = evalop
-dispatch Add            = arithmetic2 (+)
-dispatch Sub            = arithmetic2 (-)
-dispatch Mul            = arithmetic2 (*)
-dispatch Div            = arithmetic2 div
-dispatch Neg            = arithmetic1 negate
-dispatch Eq             = comparison (==)
-dispatch Ne             = comparison (/=)
-dispatch Lt             = comparison (<)
-dispatch Le             = comparison (<=)
-dispatch Gt             = comparison (>)
-dispatch Ge             = comparison (>=)
-dispatch (Cond t f)     = cond t f
-dispatch (Pack t n)     = pack t n
-dispatch (Casejump bs)  = casejump bs
-dispatch (Split n)      = split n
-dispatch (Pushbasic n)  = pushbasic n
-dispatch (UpdateBool n) = updatebool n
-dispatch (UpdateInt n)  = updateint n
-dispatch Get            = gmget
-dispatch Return         = gmreturn
-dispatch Par            = par
-dispatch Print          = gmprint
-dispatch PutChar        = putchar
+dispatch :: TaskId -> Instruction -> GmState -> GmState
+dispatch tid (Pushglobal f) = pushglobal f
+dispatch tid (Pushint n)    = pushint n
+dispatch tid Mkap           = mkap
+dispatch tid (Push n)       = push n
+dispatch tid (Pop n)        = pop n
+dispatch tid (Update n)     = update n
+dispatch tid Unwind         = unwind tid
+dispatch tid (Slide n)      = slide n
+dispatch tid (Alloc n)      = alloc n
+dispatch tid Eval           = evalop
+dispatch tid Add            = arithmetic2 (+)
+dispatch tid Sub            = arithmetic2 (-)
+dispatch tid Mul            = arithmetic2 (*)
+dispatch tid Div            = arithmetic2 div
+dispatch tid Neg            = arithmetic1 negate
+dispatch tid Eq             = comparison (==)
+dispatch tid Ne             = comparison (/=)
+dispatch tid Lt             = comparison (<)
+dispatch tid Le             = comparison (<=)
+dispatch tid Gt             = comparison (>)
+dispatch tid Ge             = comparison (>=)
+dispatch tid (Cond t f)     = cond t f
+dispatch tid (Pack t n)     = pack t n
+dispatch tid (Casejump bs)  = casejump bs
+dispatch tid (Split n)      = split n
+dispatch tid (Pushbasic n)  = pushbasic n
+dispatch tid (UpdateBool n) = updatebool n
+dispatch tid (UpdateInt n)  = updateint n
+dispatch tid Get            = gmget
+dispatch tid Return         = gmreturn
+dispatch tid Par            = par
+dispatch tid Print          = gmprint
+dispatch tid PutChar        = putchar
 
 evalop :: GmState -> GmState
 evalop state = newState (hLookup h a)
@@ -444,6 +445,10 @@ lock addr state@(_, local)
   where heap = getHeap state
         tid = taskId local
         newHeap (NAp a1 a2) = hUpdate heap addr (NLAp a1 a2 tid)
+        newHeap (NLAp a1 a2 tid')
+          | tid == tid' = heap -- Already locked by own task.
+          -- NOTE: It can't happen the other task trying to lock.
+          | otherwise   = error $ "lock: already locked by another task: " ++ show tid'
         newHeap (NGlobal n c)
           | n == 0    = hUpdate heap addr (NLGlobal n c tid)
           | otherwise = heap
@@ -583,8 +588,9 @@ rearrange n heap as = foldr S.push (S.discard n as) $ take n as'
     (_, s) = S.pop as
     as' = map (getArg . hLookup heap) (S.getStack s)
 
-unwind :: GmState -> GmState
-unwind state = newState (hLookup heap a)
+unwind :: TaskId -- ^ own task id
+       -> GmState -> GmState
+unwind tid state = newState (hLookup heap a)
   where s = getStack state
         (a, s1) = S.pop s
         heap = getHeap state
@@ -627,10 +633,14 @@ unwind state = newState (hLookup heap a)
                              . putVStack v'
                              . putDump d
                              $ state
-        newState (NLAp a1 a2 _) = putCode [Unwind]
-                                  $ state -- suspend
-        newState (NLGlobal n c _) = putCode [Unwind]
-                                    $ state -- suspend
+        newState (NLAp a1 a2 tid')
+          | tid == tid' = putCode [Unwind]
+                          . putStack (S.push a1 s)
+                          $ locked
+          | otherwise  = putCode [Unwind] state -- spin lock
+        newState (NLGlobal n c tid')
+          | tid == tid' = error $ "TODO: The case occurred!"
+          | otherwise   = putCode [Unwind] state -- spin lock
 
 
 compile :: CoreProgram -> PgmState
