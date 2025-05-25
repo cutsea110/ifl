@@ -135,19 +135,19 @@ compilerNames :: [String]
 compilerNames = map fst name2Compiler
 
 options :: [OptDescr (Options -> Options)]
-options = [ Option ['c']      ["compiler"]  (ReqArg (\e opts -> opts {optCompiler = decide e}) "Compiler")
+options = [ Option ['c'] ["compiler"] (ReqArg (\e opts -> opts {optCompiler = decide e}) "Compiler")
             ("compiler name (" ++ intercalate " | " compilerNames ++ ")")
-          , Option ['v']      ["verbose"]   (NoArg (\opts -> opts {optVerbose = True}))
+          , Option ['v'] ["verbose"] (NoArg (\opts -> opts {optVerbose = True}))
             "step output on stderr"
-          , Option ['w']      ["pretty verbose"]   (NoArg (\opts -> opts {optWerbose = True}))
+          , Option ['w'] ["pretty verbose"] (NoArg (\opts -> opts {optWerbose = True}))
             "step output with showing heap on stderr"
-          , Option ['t']      ["threshold"] (ReqArg (\n opts -> opts {optThreshold = read n}) "Threshold")
+          , Option ['t'] ["threshold"] (ReqArg (\n opts -> opts {optThreshold = read n}) "Threshold")
             "threshold for Garbage Collection"
             -- NOTE: this option is only for the part of Template Instantiation Machines.
-          , Option ['l']      ["convert-to-list-based"]   (NoArg (\opts -> opts {optConvertList = True}))
+          , Option ['l'] ["convert-to-list-based"] (NoArg (\opts -> opts {optConvertList = True}))
             "convert to list based program"
             -- NOTE: this option is my original option. It's not in textbook.
-          , Option ['p']      ["profile"]   (NoArg (\opts -> opts {optProfile = True}))
+          , Option ['p'] ["profile"] (NoArg (\opts -> opts {optProfile = True}))
             "profile output"
           , Option ['V', '?'] ["version"]   (NoArg (\opts -> opts {optShowVersion = True}))
             "show version"
@@ -191,6 +191,7 @@ settingInfos opts fp =
   unlines [ "       Program Source: " ++ fp
           , "     Choosed Compiler: " ++ show (optCompiler opts)
           , "              Verbose: " ++ show (optVerbose opts)
+          , "       Pretty verbose: " ++ show (optWerbose opts)
           , "         GC Threshold: " ++ show (optThreshold opts)
           , "Convert to List Based: " ++ show (optConvertList opts)
           , "The compilers that can be specified are as follows: " ++
