@@ -64,12 +64,13 @@ sparksInitial = []
 type TaskId = Int
 
 data PgmLocalState
-  = PgmLocalState { code    :: GmCode
-                  , stack   :: GmStack
-                  , dump    :: GmDump
-                  , vstack  :: GmVStack
-                  , clock   :: GmClock
-                  , taskId  :: TaskId -- ^ my original feature
+  = PgmLocalState { code     :: GmCode
+                  , stack    :: GmStack
+                  , dump     :: GmDump
+                  , vstack   :: GmVStack
+                  , clock    :: GmClock
+                  , taskId   :: TaskId -- ^ my original feature
+                  , spinLock :: Maybe (TaskId, Int) -- ^ (TaskId, wait count)
                   }
 
 type GmClock = Int
@@ -228,12 +229,13 @@ steps (global, local) = mapAccumL step global' local'
 
 
 makeTask :: TaskId -> Addr -> PgmLocalState
-makeTask tid addr = PgmLocalState { code   = [Eval]
-                                  , stack  = S.fromList [addr]
-                                  , dump   = S.emptyStack
-                                  , vstack = S.emptyStack
-                                  , clock  = 0
-                                  , taskId = tid
+makeTask tid addr = PgmLocalState { code     = [Eval]
+                                  , stack    = S.fromList [addr]
+                                  , dump     = S.emptyStack
+                                  , vstack   = S.emptyStack
+                                  , clock    = 0
+                                  , taskId   = tid
+                                  , spinLock = Nothing
                                   }
 
 tick :: PgmLocalState -> PgmLocalState
@@ -441,8 +443,8 @@ par s@(global, local) = (global', local')
     local'  = local { stack = stack' }
 
 lock :: Addr -> GmState -> GmState
-lock addr state@(_, local)
-  = putHeap (newHeap (hLookup heap addr)) state
+lock addr state@(glb, local)
+  = putHeap (newHeap (hLookup heap addr)) (glb, local { spinLock = Nothing })
   where heap = getHeap state
         tid = taskId local
         newHeap (NAp a1 a2) = hUpdate heap addr (NLAp a1 a2 tid)
@@ -589,13 +591,14 @@ rearrange n heap as = foldr S.push (S.discard n as) $ take n as'
     as' = map (getArg . hLookup heap) (S.getStack s)
 
 unwind :: GmState -> GmState
-unwind state = newState (hLookup heap a)
+unwind state@(gstate, lstate) = newState (hLookup heap a)
   where s = getStack state
         (a, s1) = S.pop s
         heap = getHeap state
         dump = getDump state
         locked = lock a state
         ((i', s', v'), d) = S.pop dump
+        tid = taskId lstate
         newState (NNum n)
           | S.isEmpty dump = putCode [] state
           | otherwise      = putCode i'
@@ -627,10 +630,16 @@ unwind state = newState (hLookup heap a)
                              . putVStack v'
                              . putDump d
                              $ state
-        newState (NLAp a1 a2 _) = putCode [Unwind]
-                                  $ state -- suspend
-        newState (NLGlobal n c _) = putCode [Unwind]
-                                    $ state -- suspend
+        newState (NLAp a1 a2 tid') = putCode [Unwind] (gstate, lstate { spinLock = spinLock' }) -- suspend
+          where spinLock' = case spinLock lstate of
+                  Nothing -> Just (tid', 1)
+                  Just (t, c) | tid' == t -> Just (tid', c + 1)
+                              | otherwise -> Just (tid', 1)
+        newState (NLGlobal n c tid') = putCode [Unwind] (gstate, lstate { spinLock = spinLock' }) -- suspend
+          where spinLock' = case spinLock lstate of
+                  Nothing -> Just (tid', 1)
+                  Just (t, c) | tid' == t -> Just (tid', c + 1)
+                              | otherwise -> Just (tid', 1)
 
 
 compile :: CoreProgram -> PgmState
@@ -658,6 +667,7 @@ initialTask tid addr = PgmLocalState { code   = initialCode
                                      , vstack = S.emptyStack
                                      , clock  = 0
                                      , taskId = tid
+                                     , spinLock = Nothing
                                      }
 
 extraPreludeDefs :: CoreProgram
@@ -1210,10 +1220,16 @@ showLocalState global local
                                , showDump s, iNewline
                                , showVStack s, iNewline
                                , showClock (getClock s), iNewline
+                               , showSpinLock (spinLock local), iNewline
                                ])
             ]
     where s = (global, local)
           tid = taskId local
+
+showSpinLock :: Maybe (TaskId, Int) -> IseqRep
+showSpinLock = maybe iNil showSpinLock'
+  where
+    showSpinLock' (tid, c) = iConcat [iStr "SpinLock: {🔒#", iNum tid, iStr ", ", iNum c, iStr "}"]
 
 showHeap :: PgmGlobalState -> GmHeap -> IseqRep
 showHeap g (_, _, _, m)
