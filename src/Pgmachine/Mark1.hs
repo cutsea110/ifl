@@ -550,16 +550,16 @@ allocNodes (n+1) heap = (heap2, a:as)
         (heap2, a ) = hAlloc heap1 (NInd hNull)
 allocNodes _ _        = error "allocNodes: negative"
 
-getArg :: Node -> Addr
-getArg (NAp _ a2) = a2
-getArg (NInd a)   = a
-getArg n          = error $ "not application Node: " ++ show n
+getArg :: Addr -> Node -> Addr
+getArg _ (NAp _ a2) = a2
+getArg _ (NInd a)   = a
+getArg a n             = a -- FIXME: keep original. but is it correct?
 
 rearrange :: Int -> GmHeap -> GmStack -> GmStack
 rearrange n heap as = foldr S.push (S.discard n as) $ take n as'
   where
     (_, s) = S.pop as
-    as' = map (getArg . hLookup heap) (S.getStack s)
+    as' = map (getArg <*> hLookup heap) (S.getStack s)
 
 unwind :: GmState -> GmState
 unwind state = newState (hLookup heap a)
