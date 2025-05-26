@@ -547,11 +547,14 @@ pop n state = putStack (S.discard n s) state
   where s = getStack state
 
 update :: Int -> GmState -> GmState
-update n state = putHeap heap' (putStack s' state)
+update n state = putHeap heap'
+                 . putStack s'
+                 $ state
   where s = getStack state
         (a, s') = S.pop s
         a' = S.getStack s' !! n
-        heap' = hUpdate (getHeap state) a' (NInd a)
+        unlocked = unlock a' state
+        heap' = hUpdate (getHeap unlocked) a' (NInd a)
 
 slide :: Int -> GmState -> GmState
 slide n state = putStack (S.push a $ S.discard n s) state
@@ -614,11 +617,10 @@ unwind state = newState (hLookup heap a)
                         $ if n == 0 then locked else unlocked
           where k       = S.getDepth s1
                 (ak, _) = S.pop (S.discard k s)
-                a1      = S.getStack s1 !! (n-1)
-                a2     = case hLookup heap a1 of
-                           NInd _ -> if n > 1 then S.getStack s1 !! (n-2) else a1
-                           _      -> a1
-                unlocked = unlock a2 state
+                a'      = S.getStack s1 !! (n-1)
+                unlocked = unlock a' state
+                -- TODO: まだ足りない. a' が NInd の時はその手間があるならそいつを渡して unlock する必要がある
+                --       これをやれれば update 側でやっている unlock が無くせそう
         newState (NInd a1) = putCode [Unwind]
                              . putStack (S.push a1 s1)
                              $ state
