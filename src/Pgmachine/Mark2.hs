@@ -15,6 +15,8 @@ import qualified Parser as P (runParser)
 import qualified Stack as S
 import Utils
 import Data.Char (chr, ord)
+import qualified Data.IntMap.Strict as IM
+import qualified Data.Set as Set
 import Data.List (mapAccumL, (\\))
 import Data.Maybe (listToMaybe, maybe)
 import Prelude hiding (head)
@@ -57,7 +59,7 @@ data PgmGlobalState
                    , maxTaskId :: TaskId
                    }
 
-type GmSparks = [Addr]
+type GmSparks = [(Addr, TaskId)] -- ^ (node addr, parent task id)
 sparksInitial :: GmSparks
 sparksInitial = []
 
@@ -70,6 +72,7 @@ data PgmLocalState
                   , vstack   :: GmVStack
                   , clock    :: GmClock
                   , taskId   :: TaskId -- ^ my original feature
+                  , parentId :: TaskId -- ^ parent task id
                   , spinLock :: Maybe (TaskId, Int) -- ^ (TaskId, wait count)
                   }
 
@@ -222,21 +225,38 @@ gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: PgmState -> PgmState
 steps (global, local) = mapAccumL step global' local'
-  where local'  = map tick (local ++ newtasks)
+  where local'  = map tick ls
+          where ls | null newtasks = local
+                   | otherwise     = buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ local ++ newtasks
         (global', newtasks) = mapAccumL f (global { sparks = [] }) $ sparks global
-          where f g a = let tid = maxTaskId g + 1
-                        in (g { maxTaskId = tid }, makeTask tid a)
+          where f g (a, pid) = let tid = maxTaskId g + 1
+                        in (g { maxTaskId = tid }, makeTask tid pid a)
 
+dfs :: (a -> Int) -> IM.IntMap [a] -> a -> Set.Set Int -> [a]
+dfs getId m node visited
+  | Set.member (getId node) visited = []
+  | otherwise =
+      let children = IM.findWithDefault [] (getId node) m
+          visited' = Set.insert (getId node) visited
+          recResults = concatMap (\child -> dfs getId m child visited') children
+      in recResults ++ [node]
 
-makeTask :: TaskId -> Addr -> PgmLocalState
-makeTask tid addr = PgmLocalState { code     = [Eval]
-                                  , stack    = S.fromList [addr]
-                                  , dump     = S.emptyStack
-                                  , vstack   = S.emptyStack
-                                  , clock    = 0
-                                  , taskId   = tid
-                                  , spinLock = Nothing
-                                  }
+buildTreeDfs :: (a -> Int) -> [(Int, a)] -> [a]
+buildTreeDfs getId pairs =
+  let m = IM.fromListWith (flip (++)) [(k, [v]) | (k, v) <- pairs]
+      roots = IM.findWithDefault [] 0 m
+  in concatMap (\root -> dfs getId m root Set.empty) roots
+
+makeTask :: TaskId -> TaskId -> Addr -> PgmLocalState
+makeTask tid pid addr = PgmLocalState { code     = [Eval]
+                                      , stack    = S.fromList [addr]
+                                      , dump     = S.emptyStack
+                                      , vstack   = S.emptyStack
+                                      , clock    = 0
+                                      , taskId   = tid
+                                      , parentId = pid
+                                      , spinLock = Nothing
+                                      }
 
 tick :: PgmLocalState -> PgmLocalState
 tick state = state { clock = clock state + 1 }
@@ -439,7 +459,8 @@ par :: GmState -> GmState
 par s@(global, local) = (global', local')
   where
     (a, stack') = S.pop (getStack s)
-    global' = global { sparks = a : sparks global }
+    parentId = taskId local
+    global' = global { sparks = (a, parentId) : sparks global }
     local'  = local { stack = stack' }
 
 lock :: Addr -> GmState -> GmState
@@ -661,12 +682,13 @@ buildInitialHeap program = mapAccumL allocateSc hInitial compiled
     compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program ++ primitives) ++ compiledPrimitives
 
 initialTask :: TaskId -> Addr -> PgmLocalState
-initialTask tid addr = PgmLocalState { code   = initialCode
-                                     , stack  = S.fromList [addr]
-                                     , dump   = S.emptyStack
-                                     , vstack = S.emptyStack
-                                     , clock  = 0
-                                     , taskId = tid
+initialTask tid addr = PgmLocalState { code     = initialCode
+                                     , stack    = S.fromList [addr]
+                                     , dump     = S.emptyStack
+                                     , vstack   = S.emptyStack
+                                     , clock    = 0
+                                     , taskId   = tid
+                                     , parentId = 0 -- main task's parent is none
                                      , spinLock = Nothing
                                      }
 
@@ -1146,7 +1168,7 @@ showSC s (name, addr)
 
 showInstructions :: GmCode -> IseqRep
 showInstructions is
-  = iConcat [ iStr "  Code: "
+  = iConcat [ iStr "    Code: "
             , iIndent (iInterleave iNewline (map showInstruction is))
             ]
 
@@ -1214,7 +1236,7 @@ showState w s@(global, locals)
 
 showLocalState :: PgmGlobalState -> PgmLocalState -> IseqRep
 showLocalState global local
-  = iConcat [ iStr "Task #", iNum tid, iStr ": "
+  = iConcat [ iStr "Task #", iNum tid, iStr "(#", iNum pid, iStr ")", iStr ": "
             , iIndent (iConcat [ showInstructions (getCode s), iNewline
                                , showStack s, iNewline
                                , showDump s, iNewline
@@ -1225,6 +1247,7 @@ showLocalState global local
             ]
     where s = (global, local)
           tid = taskId local
+          pid = parentId local
 
 showSpinLock :: Maybe (TaskId, Int) -> IseqRep
 showSpinLock = maybe iNil showSpinLock'
@@ -1249,7 +1272,10 @@ showSparks s
             , iInterleave (iStr ", ") $ showSpark <$> pgmGetSparks s
             , iStr "]"
             ]
-    where showSpark addr = iStr "#" `iAppend` iNum addr
+    where showSpark (addr, tid) = iConcat [ iStr "{#", iNum addr, iStr ","
+                                          , iStr " TaskId ", iNum tid
+                                          , iStr "}"
+                                          ]
 
 showMaxTaskId :: PgmState -> IseqRep
 showMaxTaskId s
@@ -1259,7 +1285,7 @@ showMaxTaskId s
 
 showDump :: GmState -> IseqRep
 showDump s
-  = iConcat [ iStr "  Dump: ["
+  = iConcat [ iStr "    Dump: ["
             , iIndent (iInterleave iNewline
                       (map showDumpItem (reverse (S.getStack $ getDump s))))
             , iStr "]"
@@ -1283,14 +1309,14 @@ shortShowVStack s
 
 showVStack :: GmState -> IseqRep
 showVStack s
-  = iConcat [ iStr "VStack: ["
+  = iConcat [ iStr "  VStack: ["
             , iInterleave (iStr ", ") (map iNum (S.getStack (getVStack s)))
             , iStr "]"
             ]
 
 showClock :: GmClock -> IseqRep
 showClock clock
-  = iConcat [ iStr " Clock: "
+  = iConcat [ iStr "   Clock: "
             , iNum clock
             ]
 
@@ -1313,7 +1339,7 @@ shortShowStack stack
 
 showStack :: GmState -> IseqRep
 showStack s
-  = iConcat [ iStr " Stack: ["
+  = iConcat [ iStr "   Stack: ["
             , iIndent $ iInterleave iNewline items
             , iStr "]"
             ]
