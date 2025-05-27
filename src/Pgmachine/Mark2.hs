@@ -637,6 +637,7 @@ unwind state = newState (hLookup heap a)
                              . putStack (S.push a s')
                              . putVStack v'
                              . putDump d
+                             . putSpinLock Nothing
                              $ state
         newState (NAp a1 a2) = putCode [Unwind]
                                . putStack (S.push a1 s)
@@ -654,6 +655,7 @@ unwind state = newState (hLookup heap a)
                 (ak, _) = S.pop (S.discard k s)
         newState (NInd a1) = putCode [Unwind]
                              . putStack (S.push a1 s1)
+                             . putSpinLock Nothing
                              $ state
         newState (NConstr _ _)
           | S.isEmpty dump = putCode [] state
@@ -661,10 +663,12 @@ unwind state = newState (hLookup heap a)
                              . putStack (S.push a s')
                              . putVStack v'
                              . putDump d
+                             . putSpinLock Nothing
                              $ state
         newState (NLAp a1 a2 tid')
           | tid' == tid = putCode [Unwind]
                           . putStack (S.push a1 s)
+                          . putSpinLock Nothing
                           $ locked
           | otherwise   = putCode [Unwind]
                           . putSpinLock spinLock'
