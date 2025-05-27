@@ -469,6 +469,7 @@ lock addr state@(glb, local)
   where heap = getHeap state
         tid = taskId local
         newHeap (NAp a1 a2) = hUpdate heap addr (NLAp a1 a2 tid)
+        newHeap (NLAp _ _ _) = heap -- already locked
         newHeap (NGlobal n c)
           | n == 0    = hUpdate heap addr (NLGlobal n c tid)
           | otherwise = heap
@@ -651,12 +652,18 @@ unwind state@(gstate, lstate) = newState (hLookup heap a)
                              . putVStack v'
                              . putDump d
                              $ state
-        newState (NLAp a1 a2 tid') = putCode [Unwind] (gstate, lstate { spinLock = spinLock' }) -- suspend
+        newState (NLAp a1 a2 tid')
+          | tid' == tid = putCode [Unwind]
+                          . putStack (S.push a1 s)
+                          $ locked
+          | otherwise   = putCode [Unwind] (gstate, lstate { spinLock = spinLock' }) -- spin lock
           where spinLock' = case spinLock lstate of
                   Nothing -> Just (tid', 1)
                   Just (t, c) | tid' == t -> Just (tid', c + 1)
                               | otherwise -> Just (tid', 1)
-        newState (NLGlobal n c tid') = putCode [Unwind] (gstate, lstate { spinLock = spinLock' }) -- suspend
+        newState (NLGlobal n c tid')
+          | tid' == tid = error "TODO: The case occurred"
+          | otherwise = putCode [Unwind] (gstate, lstate { spinLock = spinLock' }) -- spin lock
           where spinLock' = case spinLock lstate of
                   Nothing -> Just (tid', 1)
                   Just (t, c) | tid' == t -> Just (tid', c + 1)
