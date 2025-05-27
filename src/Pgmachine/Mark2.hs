@@ -168,6 +168,14 @@ getHeap (global, _) = heap global
 putHeap :: GmHeap -> GmState -> GmState
 putHeap heap' (global, local) = (global { heap = heap' }, local)
 
+getTaskId :: GmState -> TaskId
+getTaskId (_, local) = taskId local
+
+getSpinLock :: GmState -> Maybe (TaskId, Int)
+getSpinLock (_, local) = spinLock local
+putSpinLock :: Maybe (TaskId, Int) -> GmState -> GmState
+putSpinLock spinLock' (global, local) = (global, local { spinLock = spinLock' })
+
 data Node
   = NNum Int            -- Numbers
   | NAp Addr Addr       -- Applications
@@ -465,7 +473,9 @@ par s@(global, local) = (global', local')
 
 lock :: Addr -> GmState -> GmState
 lock addr state@(glb, local)
-  = putHeap (newHeap (hLookup heap addr)) (glb, local { spinLock = Nothing })
+  = putHeap (newHeap (hLookup heap addr))
+    . putSpinLock Nothing
+    $ state
   where heap = getHeap state
         tid = taskId local
         newHeap (NAp a1 a2) = hUpdate heap addr (NLAp a1 a2 tid)
@@ -613,14 +623,14 @@ rearrange n heap as = foldr S.push (S.discard n as) $ take n as'
     as' = map (getArg . hLookup heap) (S.getStack s)
 
 unwind :: GmState -> GmState
-unwind state@(gstate, lstate) = newState (hLookup heap a)
+unwind state = newState (hLookup heap a)
   where s = getStack state
         (a, s1) = S.pop s
         heap = getHeap state
         dump = getDump state
         locked = lock a state
         ((i', s', v'), d) = S.pop dump
-        tid = taskId lstate
+        tid = getTaskId state
         newState (NNum n)
           | S.isEmpty dump = putCode [] state
           | otherwise      = putCode i'
@@ -656,15 +666,19 @@ unwind state@(gstate, lstate) = newState (hLookup heap a)
           | tid' == tid = putCode [Unwind]
                           . putStack (S.push a1 s)
                           $ locked
-          | otherwise   = putCode [Unwind] (gstate, lstate { spinLock = spinLock' }) -- spin lock
-          where spinLock' = case spinLock lstate of
+          | otherwise   = putCode [Unwind]
+                          . putSpinLock spinLock'
+                          $ state -- spin lock
+          where spinLock' = case getSpinLock state of
                   Nothing -> Just (tid', 1)
                   Just (t, c) | tid' == t -> Just (tid', c + 1)
                               | otherwise -> Just (tid', 1)
         newState (NLGlobal n c tid')
           | tid' == tid = error "TODO: The case occurred"
-          | otherwise = putCode [Unwind] (gstate, lstate { spinLock = spinLock' }) -- spin lock
-          where spinLock' = case spinLock lstate of
+          | otherwise = putCode [Unwind]
+                        . putSpinLock spinLock'
+                        $ state -- spin lock
+          where spinLock' = case getSpinLock state of
                   Nothing -> Just (tid', 1)
                   Just (t, c) | tid' == t -> Just (tid', c + 1)
                               | otherwise -> Just (tid', 1)
