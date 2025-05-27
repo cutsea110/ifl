@@ -1255,7 +1255,7 @@ showState w s@(global, locals)
              , showSparks s, iNewline
              , showMaxTaskId s, iNewline
              , iIndent $ iInterleave iNewline $ showLocalState global <$> locals
-             ] ++ if w then [showHeap global (pgmGetHeap s)] else []
+             ] ++ if w then [iNewline, showHeap global (pgmGetHeap s)] else []
             )
 
 
