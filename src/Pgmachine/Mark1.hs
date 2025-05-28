@@ -550,17 +550,16 @@ allocNodes (n+1) heap = (heap2, a:as)
         (heap2, a ) = hAlloc heap1 (NInd hNull)
 allocNodes _ _        = error "allocNodes: negative"
 
-getArg :: Addr -> Node -> Addr
-getArg _ (NAp _ a2) = a2
-getArg _ (NInd a)   = a
-getArg a (NNum _)   = a
-getArg _ n          = error $ "not application Node: " ++ show n
+getArg :: Node -> Addr
+getArg (NAp _ a2) = a2
+getArg (NInd a)   = a
+getArg n          = error $ "not application Node: " ++ show n
 
 rearrange :: Int -> GmHeap -> GmStack -> GmStack
 rearrange n heap as = foldr S.push (S.discard n as) $ take n as'
   where
     (_, s) = S.pop as
-    as' = map (getArg <*> hLookup heap) (S.getStack s)
+    as' = map (getArg . hLookup heap) (S.getStack s)
 
 unwind :: GmState -> GmState
 unwind state = newState (hLookup heap a)
