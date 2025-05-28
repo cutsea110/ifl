@@ -555,6 +555,8 @@ getArg (NAp _ a2) = a2
 -- NOTE: Bad Struggles but somewhat better.
 --       This is not enough, and NNum, NConstr care is also needed, but it is not easy
 --       and what to be modified can be not here but somewhere else.
+--       Basically, it is possible that the remote cause is the optimization that evalop
+--       made in G-Machine Mark7 to give special treatment to NNum and NConstr.
 getArg (NInd a)   = a
 getArg n          = error $ "not application Node: " ++ show n
 
