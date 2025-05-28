@@ -240,20 +240,35 @@ steps (global, local) = mapAccumL step global' local'
           where f g (a, pid) = let tid = maxTaskId g + 1
                         in (g { maxTaskId = tid }, makeTask tid pid a)
 
-dfs :: (a -> Int) -> IM.IntMap [a] -> a -> Set.Set Int -> [a]
-dfs getId m node visited
-  | Set.member (getId node) visited = []
-  | otherwise =
-      let children = IM.findWithDefault [] (getId node) m
-          visited' = Set.insert (getId node) visited
-          recResults = concatMap (\child -> dfs getId m child visited') children
-      in recResults ++ [node]
+{- |
+>>> data Obj = Obj Int deriving (Show, Eq)
+>>> objId (Obj i) = i
 
-buildTreeDfs :: (a -> Int) -> [(Int, a)] -> [a]
-buildTreeDfs getId pairs =
-  let m = IM.fromListWith (flip (++)) [(k, [v]) | (k, v) <- pairs]
-      roots = IM.findWithDefault [] 0 m
-  in concatMap (\root -> dfs getId m root Set.empty) roots
+>>> buildTreeDfs objId [(0, Obj 1), (1, Obj 2), (2, Obj 3), (1, Obj 4)]
+[Obj 3,Obj 2,Obj 4,Obj 1]
+
+>>> buildTreeDfs objId [(0, Obj 1), (1, Obj 2), (2, Obj 3), (1, Obj 4), (3, Obj 5), (2, Obj 6), (4, Obj 7)]
+[Obj 5,Obj 3,Obj 6,Obj 2,Obj 7,Obj 4,Obj 1]
+-}
+buildTreeDfs :: (a -> IM.Key) -- ^ getter function to get the key from the value
+             -> [(IM.Key, a)] -- ^ parent-child pairs
+             -> [a]
+buildTreeDfs getter kvs = concatMap (\v -> dfs getter m v Set.empty) vs
+  where m  = IM.fromListWith (flip (++)) [(k, [v]) | (k, v) <- kvs]
+        vs = IM.findWithDefault [] 0 m -- NOTE: 0 is virtual task id which generate only the main task
+
+dfs :: (a -> IM.Key)    -- ^ getter function to get the key from the value
+    -> IM.IntMap [a]    -- ^ map of parent-child relationships
+    -> a                -- ^ current node
+    -> Set.Set (IM.Key) -- ^ visited nodes
+    -> [a]
+dfs getter m node visited
+  | Set.member (getter node) visited = []
+  | otherwise                        = recResults ++ [node]
+  where children   = IM.findWithDefault [] (getter node) m
+        visited'   = Set.insert (getter node) visited
+        recResults = concatMap (\child -> dfs getter m child visited') children
+
 
 makeTask :: TaskId -> TaskId -> Addr -> PgmLocalState
 makeTask tid pid addr = PgmLocalState { code     = [Eval]
