@@ -628,7 +628,6 @@ allocNodes _ _        = error "allocNodes: negative"
 getArg :: Node -> Addr
 getArg (NAp  _ a2)   = a2
 getArg (NLAp _ a2 _) = a2
-getArg (NInd a)      = a
 getArg n             = error $ "not application Node: " ++ show n
 
 rearrange :: Int -> GmHeap -> GmStack -> GmStack

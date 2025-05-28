@@ -552,6 +552,9 @@ allocNodes _ _        = error "allocNodes: negative"
 
 getArg :: Node -> Addr
 getArg (NAp _ a2) = a2
+-- NOTE: Bad Struggles but somewhat better.
+--       This is not enough, and NNum, NConstr care is also needed, but it is not easy
+--       and what to be modified can be not here but somewhere else.
 getArg (NInd a)   = a
 getArg n          = error $ "not application Node: " ++ show n
 
