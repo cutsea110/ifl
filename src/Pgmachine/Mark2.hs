@@ -238,7 +238,7 @@ steps (global, local) = mapAccumL step global' local'
                    | otherwise     = buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ local ++ newtasks
         (global', newtasks) = mapAccumL f (global { sparks = [] }) $ sparks global
           where f g (a, pid) = let tid = maxTaskId g + 1
-                        in (g { maxTaskId = tid }, makeTask tid pid a)
+                               in (g { maxTaskId = tid }, makeTask tid pid a)
 
 {- |
 >>> data Obj = Obj Int deriving (Show, Eq)
@@ -287,7 +287,7 @@ tick state = state { clock = clock state + 1 }
 step :: PgmGlobalState -> PgmLocalState -> GmState
 step global local = dispatch i (putCode is state)
   where
-    (i:is) = getCode state
+    i:is  = getCode state
     state = (global, local)
 
 dispatch :: Instruction -> GmState -> GmState
@@ -582,7 +582,7 @@ pushint n state = case aLookup (getGlobals state) name (-1) of
 
 mkap :: GmState -> GmState
 mkap state = putHeap heap' (putStack (S.push a s2) state)
-  where (heap', a)  = hAlloc (getHeap state) (NAp a1 a2)
+  where (heap', a) = hAlloc (getHeap state) (NAp a1 a2)
         (a1, s1) = S.pop $ getStack state
         (a2, s2) = S.pop s1
 
@@ -623,7 +623,7 @@ allocNodes 0     heap = (heap, [])
 allocNodes (n+1) heap = (heap2, a:as)
   where (heap1, as) = allocNodes n heap
         (heap2, a ) = hAlloc heap1 (NInd hNull)
-allocNodes _ _        = error "allocNodes: negative"
+allocNodes _ _      = error "allocNodes: negative"
 
 getArg :: Node -> Addr
 getArg (NAp  _ a2)   = a2
