@@ -1,0 +1,8 @@
+-- Curse causes deadlock on Mark2
+-- A curse is what the finished task leaves nodes locked up.
+mul2 x = x * 2;
+twicep f x = par f (f x);
+main = letrec
+         f = twicep mul2;
+	 g = twicep f
+       in g 2
