@@ -1307,7 +1307,6 @@ showState w s@(global, locals)
              , showSparks s, iNewline
              , showMaxTaskId s, iNewline
              , iIndent $ iInterleave iNewline $ showLocalState global <$> locals, iNewline
-             , iNewline
              , if w then showHeap global (pgmGetHeap s) else iNil
              ]
             )
@@ -1322,7 +1321,7 @@ showLocalState global local
                                , showVStack s, iNewline
                                , showClock (getClock s), iNewline
                                , showSpinLock (spinLock local), iNewline
-                               , showLockPool (lockPool local)
+                               , showLockPool (lockPool local), iNewline
                                ])
             ]
     where s = (global, local)
