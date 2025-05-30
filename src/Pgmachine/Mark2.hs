@@ -459,6 +459,7 @@ updatebool n = sub . mkbool
             (a, s') = S.pop s
             a' = S.getStack s' !! n
             b = hLookup (getHeap state) a
+            -- FIXME: This unlock may be overkill. (no need to unlock recursively)
             (unlockedAddrs, unlocked) = unlock a' state
             heap' = hUpdate (getHeap unlocked) a' b
             lockpool = getLockPool state
@@ -475,6 +476,7 @@ updateint n = sub . mkint
             (a, s') = S.pop s
             a' = S.getStack s' !! n
             i = hLookup (getHeap state) a
+            -- FIXME: This unlock may be overkill. (no need to unlock recursively)
             (unlockedAddrs, unlocked) = unlock a' state
             heap' = hUpdate (getHeap unlocked) a' i
             lockpool = getLockPool state
