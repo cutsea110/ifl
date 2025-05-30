@@ -1304,8 +1304,10 @@ showState w s@(global, locals)
   = iConcat ([ showOutput s, iNewline
              , showSparks s, iNewline
              , showMaxTaskId s, iNewline
-             , iIndent $ iInterleave iNewline $ showLocalState global <$> locals
-             ] ++ if w then [iNewline, showHeap global (pgmGetHeap s)] else []
+             , iIndent $ iInterleave iNewline $ showLocalState global <$> locals, iNewline
+             , iNewline
+             , if w then showHeap global (pgmGetHeap s) else iNil
+             ]
             )
 
 
@@ -1317,7 +1319,7 @@ showLocalState global local
                                , showDump s, iNewline
                                , showVStack s, iNewline
                                , showClock (getClock s), iNewline
-                               , showSpinLock (spinLock local)
+                               , showSpinLock (spinLock local), iNewline
                                , showLockPool (lockPool local)
                                ])
             ]
@@ -1326,16 +1328,15 @@ showLocalState global local
           pid = parentId local
 
 showSpinLock :: Maybe (TaskId, Int) -> IseqRep
-showSpinLock = maybe iNil showSpinLock'
+showSpinLock = maybe (iStr "SpinLock: -") showSpinLock'
   where
-    showSpinLock' (tid, c) = iConcat [iStr "SpinLock: {🔒#", iNum tid, iStr ", ", iNum c, iStr "}", iNewline]
+    showSpinLock' (tid, c) = iConcat [iStr "SpinLock: {🔒#", iNum tid, iStr ", ", iNum c, iStr "}"]
 
 showLockPool :: [Addr] -> IseqRep
-showLockPool [] = iNil
+showLockPool [] = iStr "LockPool: -"
 showLockPool addrs = iConcat [ iStr "LockPool: ["
                          , iInterleave (iStr ", ") (map (iStr . showaddr) addrs)
                          , iStr "]"
-                         , iNewline
                          ]
 
 showHeap :: PgmGlobalState -> GmHeap -> IseqRep
