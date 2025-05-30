@@ -231,9 +231,16 @@ doAdmin (global, locals) = (global { heap = heap', stats = stats' }, locals')
   where
     (heap', stats', locals') = foldr filter (heap global, stats global, []) locals
     filter local (h, s, ls)
-      | null (code local) = (h, (taskId local, clock local):s, ls)
-      | otherwise         = (h, s, local:ls)
-
+      | null (code local) = (h', s', ls)
+      | otherwise         = (h,  s,  local:ls)
+      where h' = cleanup h $ lockPool local
+            s' = (taskId local, clock local):s
+    cleanup :: GmHeap -> [Addr] -> GmHeap
+    cleanup = foldr f
+        where f addr h = case hLookup h addr of
+                  NLAp a1 a2 _   -> hUpdate h addr (NAp a1 a2)
+                  NLGlobal n c _ -> hUpdate h addr (NGlobal n c)
+                  _ -> h -- no change for other nodes
 gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
@@ -444,22 +451,34 @@ mkint state = putStack stack'
 updatebool :: Int -> GmState -> GmState
 updatebool n = sub . mkbool
   where 
-    sub state = putHeap heap' (putStack s' state)
+    sub state = putHeap heap'
+                . putStack s'
+                . putLockPool lockpool'
+                $ state
       where s = getStack state
             (a, s') = S.pop s
             a' = S.getStack s' !! n
             b = hLookup (getHeap state) a
-            heap' = hUpdate (getHeap state) a' b
+            (unlockedAddrs, unlocked) = unlock a' state
+            heap' = hUpdate (getHeap unlocked) a' b
+            lockpool = getLockPool state
+            lockpool' = lockpool \\ unlockedAddrs
 
 updateint :: Int -> GmState -> GmState
 updateint n = sub . mkint
   where 
-    sub state = putHeap heap' (putStack s' state)
+    sub state = putHeap heap'
+                . putStack s'
+                . putLockPool lockpool'
+                $ state
       where s = getStack state
             (a, s') = S.pop s
             a' = S.getStack s' !! n
             i = hLookup (getHeap state) a
-            heap' = hUpdate (getHeap state) a' i
+            (unlockedAddrs, unlocked) = unlock a' state
+            heap' = hUpdate (getHeap unlocked) a' i
+            lockpool = getLockPool state
+            lockpool' = lockpool \\ unlockedAddrs
 
 gmget :: GmState -> GmState
 gmget state = newState (hLookup heap a) (putStack stack' state)
