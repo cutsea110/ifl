@@ -74,6 +74,7 @@ data PgmLocalState
                   , taskId   :: TaskId -- ^ my original feature
                   , parentId :: TaskId -- ^ parent task id
                   , spinLock :: Maybe (TaskId, Int) -- ^ (TaskId, wait count)
+                  , lockPool :: [Addr] -- ^ pool of locked addresses
                   }
 
 type GmClock = Int
@@ -176,6 +177,11 @@ getSpinLock (_, local) = spinLock local
 putSpinLock :: Maybe (TaskId, Int) -> GmState -> GmState
 putSpinLock spinLock' (global, local) = (global, local { spinLock = spinLock' })
 
+getLockPool :: GmState -> [Addr]
+getLockPool (_, local) = lockPool local
+putLockPool :: [Addr] -> GmState -> GmState
+putLockPool lockPool' (global, local) = (global, local { lockPool = lockPool' })
+
 data Node
   = NNum Int            -- Numbers
   | NAp Addr Addr       -- Applications
@@ -221,12 +227,12 @@ eval state = state : restStates
     nextState  = doAdmin (steps state)
 
 doAdmin :: PgmState -> PgmState
-doAdmin (global, locals) = (global { stats = stats' }, locals')
+doAdmin (global, locals) = (global { heap = heap', stats = stats' }, locals')
   where
-    (locals', stats') = foldr filter ([], stats global) locals
-    filter local (locals, stats)
-      | null (code local) = (locals, (taskId local, clock local):stats)
-      | otherwise         = (local:locals, stats)
+    (heap', stats', locals') = foldr filter (heap global, stats global, []) locals
+    filter local (h, s, ls)
+      | null (code local) = (h, (taskId local, clock local):s, ls)
+      | otherwise         = (h, s, local:ls)
 
 gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
@@ -279,6 +285,7 @@ makeTask tid pid addr = PgmLocalState { code     = [Eval]
                                       , taskId   = tid
                                       , parentId = pid
                                       , spinLock = Nothing
+                                      , lockPool = []
                                       }
 
 tick :: PgmLocalState -> PgmLocalState
@@ -488,27 +495,33 @@ par s@(global, local) = (global', local')
 
 lock :: Addr -> GmState -> GmState
 lock addr state@(glb, local)
-  = putHeap (newHeap (hLookup heap addr))
+  = putHeap heap'
     . putSpinLock Nothing
+    . putLockPool lookpool'
     $ state
   where heap = getHeap state
         tid = taskId local
-        newHeap (NAp a1 a2) = hUpdate heap addr (NLAp a1 a2 tid)
-        newHeap (NLAp _ _ _) = heap -- already locked
+        lockpool = lockPool local
+        (lockedp, heap') = newHeap (hLookup heap addr)
+        lookpool' | lockedp   = addr:lockpool
+                  | otherwise = lockpool
+        newHeap :: Node -> (Bool, GmHeap) -- ^ (lockedp, new heap)
+        newHeap (NAp a1 a2)  = (True,  hUpdate heap addr (NLAp a1 a2 tid))
+        newHeap (NLAp _ _ _) = (False, heap) -- already locked
         newHeap (NGlobal n c)
-          | n == 0    = hUpdate heap addr (NLGlobal n c tid)
-          | otherwise = heap
+          | n == 0    = (True, hUpdate heap addr (NLGlobal n c tid))
+          | otherwise = (False, heap)
         newHeap n = error $ "Unexpected Node: " ++ show n
 
-unlock :: Addr -> GmState -> GmState
+unlock :: Addr -> GmState -> ([Addr], GmState) -- ^ (unlocked addrs, new state)
 unlock addr state
   = newState (hLookup heap addr)
   where heap = getHeap state
-        newState (NLAp a1 a2 _)
-          = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) state)
-        newState (NLGlobal n c _)
-          = putHeap (hUpdate heap addr (NGlobal n c)) state
-        newState n = state
+        newState il = case il of
+          (NLAp a1 a2 _) -> (addr:as, s)
+            where (as, s) = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) state)
+          (NLGlobal n c _) -> ([addr], putHeap (hUpdate heap addr (NGlobal n c)) state)
+          _ -> ([], state)
 
 gmprint :: GmState -> GmState
 gmprint state = case hLookup h a of
@@ -598,12 +611,15 @@ pop n state = putStack (S.discard n s) state
 update :: Int -> GmState -> GmState
 update n state = putHeap heap'
                  . putStack s'
+                 . putLockPool lockpool'
                  $ state
   where s = getStack state
         (a, s') = S.pop s
         a' = S.getStack s' !! n
-        unlocked = unlock a' state
+        (unlockedAddrs, unlocked) = unlock a' state
         heap' = hUpdate (getHeap unlocked) a' (NInd a)
+        lockpool = getLockPool state
+        lockpool' = lockpool \\ unlockedAddrs
 
 slide :: Int -> GmState -> GmState
 slide n state = putStack (S.push a $ S.discard n s) state
@@ -729,6 +745,7 @@ initialTask tid addr = PgmLocalState { code     = initialCode
                                      , taskId   = tid
                                      , parentId = 0 -- main task's parent is none
                                      , spinLock = Nothing
+                                     , lockPool = []
                                      }
 
 extraPreludeDefs :: CoreProgram
@@ -1281,7 +1298,8 @@ showLocalState global local
                                , showDump s, iNewline
                                , showVStack s, iNewline
                                , showClock (getClock s), iNewline
-                               , showSpinLock (spinLock local), iNewline
+                               , showSpinLock (spinLock local)
+                               , showLockPool (lockPool local)
                                ])
             ]
     where s = (global, local)
@@ -1291,7 +1309,15 @@ showLocalState global local
 showSpinLock :: Maybe (TaskId, Int) -> IseqRep
 showSpinLock = maybe iNil showSpinLock'
   where
-    showSpinLock' (tid, c) = iConcat [iStr "SpinLock: {🔒#", iNum tid, iStr ", ", iNum c, iStr "}"]
+    showSpinLock' (tid, c) = iConcat [iStr "SpinLock: {🔒#", iNum tid, iStr ", ", iNum c, iStr "}", iNewline]
+
+showLockPool :: [Addr] -> IseqRep
+showLockPool [] = iNil
+showLockPool addrs = iConcat [ iStr "LockPool: ["
+                         , iInterleave (iStr ", ") (map (iStr . showaddr) addrs)
+                         , iStr "]"
+                         , iNewline
+                         ]
 
 showHeap :: PgmGlobalState -> GmHeap -> IseqRep
 showHeap g (_, _, _, m)
