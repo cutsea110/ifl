@@ -80,6 +80,10 @@ data PgmLocalState
 type GmClock = Int
 type GmSpinLock = (Maybe (TaskId, Int), [(TaskId, Int)]) -- ^ (current spin lock, locked history)
 
+spinTotal :: GmSpinLock -> Int
+spinTotal (cur, hist) = maybe 0 snd cur + sum (map snd hist)
+
+
 type GmState = (PgmGlobalState, PgmLocalState)
 
 type GmOutput = ([String], IseqRep)
@@ -215,7 +219,7 @@ putGlobals globals' (global, local) = (global { globals = globals' }, local)
 getClock :: GmState -> GmClock
 getClock (_, local) = clock local
 
-type GmStats = [(TaskId, GmClock)]
+type GmStats = [(TaskId, GmClock, Int)] -- ^ (task id, clock, spin total)
 
 statInitial :: GmStats
 statInitial = []
@@ -242,7 +246,7 @@ doAdmin (global, locals) = (global { heap = heap', stats = stats' }, locals')
       | null (code local) = (h', s', ls)
       | otherwise         = (h,  s,  local:ls)
       where h' = cleanup h $ lockPool local
-            s' = (taskId local, clock local):s
+            s' = (taskId local, clock local, spinTotal $ spinLock local):s
     cleanup :: GmHeap -> [Addr] -> GmHeap
     cleanup = foldr f
         where f addr h = case hLookup h addr of
@@ -1334,7 +1338,7 @@ showSpinLock :: Bool -- werbose
              -> GmSpinLock -> IseqRep
 showSpinLock w sl@(cur, hist)
   = iConcat [ iStr "SpinLock: ", maybe (iStr "{free}") showSpinLockItem cur
-            , iStr " spin total: ", iNum spinTotal
+            , iStr " spin total: ", iNum (spinTotal sl)
             , if w
               then iConcat [iStr " ["
                            , iIndent $ iInterleave (iStr ", ") $ map showSpinLockItem hist
@@ -1342,8 +1346,6 @@ showSpinLock w sl@(cur, hist)
                            ]
               else iNil
             ]
-  where
-    spinTotal = maybe 0 snd cur + sum (map snd hist)
 
 showSpinLockItem :: (TaskId, Int) -> IseqRep
 showSpinLockItem (tid, c)
@@ -1501,14 +1503,17 @@ showStats :: PgmState -> IseqRep
 showStats s = iConcat [ iStr "---------------"
                       , iNewline
                       , iNewline, iStr "Total number of clocks = "
-                      , iNum (sum $ map snd $ pgmGetStats s)
+                      , iNum (sum $ map snd3 $ pgmGetStats s)
                       , iStr " [", iInterleave (iStr ", ") $ showClk <$> pgmGetStats s, iStr "]"
                       , iNewline, iStr "         spawned tasks = "
                       , iNum (pgmGetMaxTaskId s)
                       , iNewline, iStr "             Heap size = "
                       , iNum (hSize (pgmGetHeap s))
                       ]
-  where showClk (tid, c) = iConcat [ iStr "#", iNum tid, iStr ": ", iNum c ]
+  where showClk (tid, c, sl) = iConcat [ iStr "#", iNum tid
+                                       , iStr ": ", iNum c
+                                       , iStr "(", iNum sl, iStr ")"
+                                       ]
 
 {- |
 >>> let runTest = outputAll . pgmGetOutput . last . eval . compile . parse
