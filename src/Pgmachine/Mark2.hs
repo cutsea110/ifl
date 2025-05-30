@@ -73,11 +73,12 @@ data PgmLocalState
                   , clock    :: GmClock
                   , taskId   :: TaskId -- ^ my original feature
                   , parentId :: TaskId -- ^ parent task id
-                  , spinLock :: Maybe (TaskId, Int) -- ^ (TaskId, wait count)
+                  , spinLock :: GmSpinLock -- ^ spin lock count list
                   , lockPool :: [Addr] -- ^ pool of locked addresses
                   }
 
 type GmClock = Int
+type GmSpinLock = (Maybe (TaskId, Int), [(TaskId, Int)]) -- ^ (current spin lock, locked history)
 
 type GmState = (PgmGlobalState, PgmLocalState)
 
@@ -172,10 +173,17 @@ putHeap heap' (global, local) = (global { heap = heap' }, local)
 getTaskId :: GmState -> TaskId
 getTaskId (_, local) = taskId local
 
-getSpinLock :: GmState -> Maybe (TaskId, Int)
-getSpinLock (_, local) = spinLock local
-putSpinLock :: Maybe (TaskId, Int) -> GmState -> GmState
-putSpinLock spinLock' (global, local) = (global, local { spinLock = spinLock' })
+putSpinLock :: Maybe TaskId -> GmState -> GmState
+putSpinLock mtid (global, local) = (global, local { spinLock = spinLock' })
+  where old@(cur, hist) = spinLock local
+        spinLock' = case mtid of
+          Nothing -> case cur of
+                Nothing -> old
+                Just (tid, c) -> (Nothing, (tid, c):hist)
+          Just tid -> case cur of
+            Nothing -> (Just (tid, 1), hist)
+            Just (t, c) | tid == t  -> (Just (tid, c + 1), hist)
+                        | otherwise -> (Just (tid, 1), (t, c):hist)
 
 getLockPool :: GmState -> [Addr]
 getLockPool (_, local) = lockPool local
@@ -292,7 +300,7 @@ makeTask tid pid addr = PgmLocalState { code     = [Eval]
                                       , clock    = 0
                                       , taskId   = tid
                                       , parentId = pid
-                                      , spinLock = Nothing
+                                      , spinLock = (Nothing, [])
                                       , lockPool = []
                                       }
 
@@ -723,21 +731,13 @@ unwind state = newState (hLookup heap a)
                           . putSpinLock Nothing
                           $ locked
           | otherwise   = putCode [Unwind]
-                          . putSpinLock spinLock'
+                          . putSpinLock (Just tid')
                           $ state -- spin lock
-          where spinLock' = case getSpinLock state of
-                  Nothing -> Just (tid', 1)
-                  Just (t, c) | tid' == t -> Just (tid', c + 1)
-                              | otherwise -> Just (tid', 1)
         newState (NLGlobal n c tid')
           | tid' == tid = error "TODO: The case occurred"
           | otherwise = putCode [Unwind]
-                        . putSpinLock spinLock'
+                        . putSpinLock (Just tid')
                         $ state -- spin lock
-          where spinLock' = case getSpinLock state of
-                  Nothing -> Just (tid', 1)
-                  Just (t, c) | tid' == t -> Just (tid', c + 1)
-                              | otherwise -> Just (tid', 1)
 
 
 compile :: CoreProgram -> PgmState
@@ -766,7 +766,7 @@ initialTask tid addr = PgmLocalState { code     = initialCode
                                      , clock    = 0
                                      , taskId   = tid
                                      , parentId = 0 -- main task's parent is none
-                                     , spinLock = Nothing
+                                     , spinLock = (Nothing, [])
                                      , lockPool = []
                                      }
 
@@ -1307,21 +1307,22 @@ showState w s@(global, locals)
   = iConcat ([ showOutput s, iNewline
              , showSparks s, iNewline
              , showMaxTaskId s, iNewline
-             , iIndent $ iInterleave iNewline $ showLocalState global <$> locals, iNewline
+             , iIndent $ iInterleave iNewline $ showLocalState w global <$> locals, iNewline
              , if w then showHeap global (pgmGetHeap s) else iNil
              ]
             )
 
 
-showLocalState :: PgmGlobalState -> PgmLocalState -> IseqRep
-showLocalState global local
+showLocalState :: Bool -- werbose
+               -> PgmGlobalState -> PgmLocalState -> IseqRep
+showLocalState w global local
   = iConcat [ iStr "Task #", iNum tid, iStr "(#", iNum pid, iStr ")", iStr ": "
             , iIndent (iConcat [ showInstructions (getCode s), iNewline
                                , showStack s, iNewline
                                , showDump s, iNewline
                                , showVStack s, iNewline
                                , showClock (getClock s), iNewline
-                               , showSpinLock (spinLock local), iNewline
+                               , showSpinLock w (spinLock local), iNewline
                                , showLockPool (lockPool local), iNewline
                                ])
             ]
@@ -1329,10 +1330,24 @@ showLocalState global local
           tid = taskId local
           pid = parentId local
 
-showSpinLock :: Maybe (TaskId, Int) -> IseqRep
-showSpinLock = maybe (iStr "SpinLock: -") showSpinLock'
+showSpinLock :: Bool -- werbose
+             -> GmSpinLock -> IseqRep
+showSpinLock w sl@(cur, hist)
+  = iConcat [ iStr "SpinLock: ", maybe (iStr "{free}") showSpinLockItem cur
+            , iStr " spin total: ", iNum spinTotal
+            , if w
+              then iConcat [iStr " ["
+                           , iIndent $ iInterleave (iStr ", ") $ map showSpinLockItem hist
+                           , iStr "]"
+                           ]
+              else iNil
+            ]
   where
-    showSpinLock' (tid, c) = iConcat [iStr "SpinLock: {🔒#", iNum tid, iStr ", ", iNum c, iStr "}"]
+    spinTotal = maybe 0 snd cur + sum (map snd hist)
+
+showSpinLockItem :: (TaskId, Int) -> IseqRep
+showSpinLockItem (tid, c)
+  = iConcat [ iStr "{🔒#", iNum tid, iStr ", ", iNum c, iStr "}" ]
 
 showLockPool :: [Addr] -> IseqRep
 showLockPool [] = iStr "LockPool: -"
