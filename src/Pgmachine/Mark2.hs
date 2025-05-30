@@ -241,6 +241,7 @@ doAdmin (global, locals) = (global { heap = heap', stats = stats' }, locals')
                   NLAp a1 a2 _   -> hUpdate h addr (NAp a1 a2)
                   NLGlobal n c _ -> hUpdate h addr (NGlobal n c)
                   _ -> h -- no change for other nodes
+
 gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
