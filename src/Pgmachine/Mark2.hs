@@ -71,14 +71,16 @@ data PgmLocalState
                   , dump     :: GmDump
                   , vstack   :: GmVStack
                   , clock    :: GmClock
-                  , taskId   :: TaskId -- ^ my original feature
-                  , parentId :: TaskId -- ^ parent task id
+                  , taskId   :: TaskId     -- ^ my original feature
+                  , parentId :: TaskId     -- ^ parent task id
                   , spinLock :: GmSpinLock -- ^ spin lock count list
-                  , lockPool :: [Addr] -- ^ pool of locked addresses
+                  , lockPool :: [Addr]     -- ^ pool of locked addresses
                   }
 
 type GmClock = Int
 type GmSpinLock = (Maybe (TaskId, Int), [(TaskId, Int)]) -- ^ (current spin lock, locked history)
+initSpinLock :: GmSpinLock
+initSpinLock = (Nothing, [])
 
 spinTotal :: GmSpinLock -> Int
 spinTotal (cur, hist) = maybe 0 snd cur + sum (map snd hist)
@@ -310,7 +312,7 @@ makeTask tid pid addr = PgmLocalState { code     = [Eval]
                                       , clock    = 0
                                       , taskId   = tid
                                       , parentId = pid
-                                      , spinLock = (Nothing, [])
+                                      , spinLock = initSpinLock
                                       , lockPool = []
                                       }
 
@@ -776,7 +778,7 @@ initialTask tid addr = PgmLocalState { code     = initialCode
                                      , clock    = 0
                                      , taskId   = tid
                                      , parentId = 0 -- main task's parent is none
-                                     , spinLock = (Nothing, [])
+                                     , spinLock = initSpinLock
                                      , lockPool = []
                                      }
 
