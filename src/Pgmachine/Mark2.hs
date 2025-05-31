@@ -276,6 +276,12 @@ steps (global, local) = mapAccumL step global' local'
 >>> buildTreeDfs objId [(0, Obj 1), (1, Obj 2), (2, Obj 3), (1, Obj 4), (3, Obj 5), (2, Obj 6), (4, Obj 7)]
 [Obj 5,Obj 3,Obj 6,Obj 2,Obj 7,Obj 4,Obj 1]
 -}
+-- | [Design memo] This ordering is depend on assume rule below:
+--
+-- 1. Child task's target node is subnod of the parent's. (scope)
+-- 2. Parent should be blocked until the children's node unlocked. (extent)
+-- 3. Children cannot blocked by the parent. (extent)
+-- 4. younger brother's target node should include the elder brother's. (It's correct?)
 buildTreeDfs :: (a -> IM.Key) -- ^ getter function to get the key from the value
              -> [(IM.Key, a)] -- ^ parent-child pairs
              -> [a]
