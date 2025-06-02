@@ -1,7 +1,7 @@
 # Implementing Functional Languages
 
 [![Haskell](https://github.com/cutsea110/ifl/actions/workflows/haskell.yml/badge.svg)](https://github.com/cutsea110/ifl/actions/workflows/haskell.yml)
-[![Docker Cloud Build Status](https://img.shields.io/docker/pulls/cutsea110/ifl?label=Docker+ifl)](https://hub.docker.com/repository/docker/cutsea110/ifl/general)
+[![Docker Cloud Build Status](https://img.shields.io/docker/pulls/cutsea110/ifl?label=ifl&logo=docker)](https://hub.docker.com/repository/docker/cutsea110/ifl/general)
 
 Reference: [Simon L. Payton Jones, David R. Lester Implementing Functional Languages: a tutorial, 1991](https://www.microsoft.com/en-us/research/publication/implementing-functional-languages-a-tutorial)
 
