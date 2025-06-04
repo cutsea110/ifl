@@ -184,10 +184,10 @@ putSpinLock mtid (global, local) = (global, local { spinLock = spinLock' })
   where old@(cur, hist) = spinLock local
         spinLock' = case mtid of
           Nothing -> case cur of
-                Nothing -> old
-                Just (tid, c) -> (Nothing, (tid, c):hist)
+            Nothing -> old
+            Just sl -> (Nothing, sl:hist)
           Just tid -> case cur of
-            Nothing -> (Just (tid, 1), hist)
+            Nothing                 -> (Just (tid, 1), hist)
             Just (t, c) | tid == t  -> (Just (tid, c + 1), hist)
                         | otherwise -> (Just (tid, 1), (t, c):hist)
 
@@ -254,7 +254,7 @@ doAdmin (global, locals) = (global { heap = heap', stats = stats' }, locals')
         where f addr h = case hLookup h addr of
                   NLAp a1 a2 _   -> hUpdate h addr (NAp a1 a2)
                   NLGlobal n c _ -> hUpdate h addr (NGlobal n c)
-                  _ -> h -- no change for other nodes
+                  _              -> h -- no change for other nodes
 
 gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
