@@ -64,7 +64,7 @@ ghci> compileSc [("fib", Label "fib")] . head . parse $ p
 You should specify the version 0.3.22, because the latest version is 0.3.21.
 
 ```bash
-$ docker buildx build --load -t cutsea110/ifl:0.3.22 .
+$ docker buildx build --rm --load -t cutsea110/ifl:0.3.22 .
 ```
 ### How to run on Docker image
 
