@@ -25,6 +25,9 @@ import Prelude hiding (head)
 head :: [a] -> a
 head = maybe (error "head: empty list") id . listToMaybe
 
+machineSize :: Int
+machineSize = 4
+
 data Config = Config { verbose :: Bool
                      , werbose :: Bool
                      }
@@ -253,13 +256,16 @@ gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: PgmState -> PgmState
-steps (global, local) = mapAccumL step global' local'
-  where local'  = map tick ls
-          where ls | null newtasks = local
-                   | otherwise     = buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ local ++ newtasks
+steps (global, local) = scheduler global' local'
+  where local' | null newtasks = local
+               | otherwise     = buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ local ++ newtasks
         (global', newtasks) = mapAccumL f (global { sparks = [] }) $ sparks global
           where f g (a, pid) = let tid = maxTaskId g + 1
                                in (g { maxTaskId = tid }, makeTask tid pid a)
+
+scheduler :: PgmGlobalState -> [PgmLocalState] -> PgmState
+scheduler global locals = mapAccumL step global locals'
+  where locals' = map tick locals
 
 {- |
 >>> data Obj = Obj Int deriving (Show, Eq)
