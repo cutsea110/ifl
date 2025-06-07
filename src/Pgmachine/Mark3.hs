@@ -259,7 +259,9 @@ steps :: PgmState -> PgmState
 steps (global, local) = scheduler global' local'
   where local' | null newtasks = local
                | otherwise     = local ++ newtasks
-        (global', newtasks) = mapAccumL f (global { sparks = [] }) $ sparks global
+        numOfIdles = machineSize - length local
+        (ready, wait) = splitAt numOfIdles (sparks global)
+        (global', newtasks) = mapAccumL f (global { sparks = wait }) ready
           where f g (a, pid) = let tid = maxTaskId g + 1
                                in (g { maxTaskId = tid }, makeTask tid pid a)
 
