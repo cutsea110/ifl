@@ -258,14 +258,21 @@ gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 steps :: PgmState -> PgmState
 steps (global, local) = scheduler global' local'
   where local' | null newtasks = local
-               | otherwise     = buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ local ++ newtasks
+               | otherwise     = local ++ newtasks
         (global', newtasks) = mapAccumL f (global { sparks = [] }) $ sparks global
           where f g (a, pid) = let tid = maxTaskId g + 1
                                in (g { maxTaskId = tid }, makeTask tid pid a)
 
 scheduler :: PgmGlobalState -> [PgmLocalState] -> PgmState
-scheduler global locals = mapAccumL step global locals'
-  where locals' = map tick locals
+scheduler global tasks = (global', nonRunning ++ running')
+  where nextTaskId = taskId $ head tasks
+        locals | length tasks <= machineSize = tasks'
+               | otherwise                   = ys ++ xs
+          where  tasks' = buildTreeDfs taskId $ map (\o -> (parentId o, o)) tasks
+                 (xs, ys) = break (\t -> taskId t == nextTaskId) tasks'
+        (running, nonRunning) = splitAt machineSize locals
+        (global', running') = mapAccumL step global $ map tick running
+
 
 {- |
 >>> data Obj = Obj Int deriving (Show, Eq)
