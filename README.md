@@ -37,7 +37,7 @@ $ cat test.ifl
 fib n = if (n<2) 1 (fib (n-1) + fib (n-2));
 main = fib 10
 
-$ docker run -v ./:/work -it --rm cutsea110/ifl:0.3.21 ifl -c gmark7 /work/test.ifl
+$ docker run -v ./:/work -it --rm cutsea110/ifl:0.3.22 ifl -c gmark7 /work/test.ifl
 89
 ```
 
@@ -61,36 +61,36 @@ ghci> compileSc [("fib", Label "fib")] . head . parse $ p
 
 ### How to build Docker image
 
-You should specify the version 0.3.22, because the latest version is 0.3.21.
+You should specify the version 0.3.23, because the latest version is 0.3.22.
 
 ```bash
-$ docker buildx build --rm --load -t cutsea110/ifl:0.3.22 .
+$ docker buildx build --rm --load -t cutsea110/ifl:0.3.23 .
 ```
 ### How to run on Docker image
 
 I suppose that you have some test programs for ifl in `${PWD}/examples` directory.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.22 ifl -v -c pgmark1 /work/testProg80.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.23 ifl -v -c pgmark1 /work/testProg80.ifl
 ```
 
 or try this.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.22 ifl -t 1000 -l -v -c timark6 /work/testProg134.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.23 ifl -t 1000 -l -v -c timark6 /work/testProg134.ifl
 ```
 
 Further more, just only on the TMark6, You can use -p option which profile your code.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.22 ifl -t 1000 -l -v -c timark6 -p /work/testProg134.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.23 ifl -t 1000 -l -v -c timark6 -p /work/testProg134.ifl
 ```
 
 If you want to try the latest PgMark2, you can use -w option which pretty verbose.
 This option show heap data for all steps, so you know this option make the program slow.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.22 ifl -w -c pgmark2 /work/testProg80.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.23 ifl -w -c pgmark2 /work/testProg80.ifl
 ```
 
 
@@ -98,7 +98,7 @@ $ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.22 ifl -w -c pg
 
 ```bash
 $ docker login
-$ docker push cutsea110/ifl:0.3.22
+$ docker push cutsea110/ifl:0.3.23
 ```
 
 ### Update This README
