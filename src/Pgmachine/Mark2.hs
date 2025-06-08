@@ -245,16 +245,9 @@ doAdmin (global, locals) = (global { heap = heap', stats = stats' }, locals')
   where
     (heap', stats', locals') = foldr filter (heap global, stats global, []) locals
     filter local (h, s, ls)
-      | null (code local) = (h', s', ls)
-      | otherwise         = (h,  s,  local:ls)
-      where h' = cleanup h $ lockPool local
-            s' = (taskId local, clock local, spinTotal $ spinLock local):s
-    cleanup :: GmHeap -> [Addr] -> GmHeap
-    cleanup = foldr f
-        where f addr h = case hLookup h addr of
-                  NLAp a1 a2 _   -> hUpdate h addr (NAp a1 a2)
-                  NLGlobal n c _ -> hUpdate h addr (NGlobal n c)
-                  _              -> h -- no change for other nodes
+      | null (code local) = (h, s', ls)
+      | otherwise         = (h, s,  local:ls)
+      where s' = (taskId local, clock local, spinTotal $ spinLock local):s
 
 gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
@@ -563,6 +556,8 @@ unlock addr state
           (NLAp a1 a2 _) -> (addr:as, s)
             where (as, s) = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) state)
           (NLGlobal n c _) -> ([addr], putHeap (hUpdate heap addr (NGlobal n c)) state)
+          (NInd a1) | a1 /= 0 -> (addr:as, s)
+            where (as, s) = unlock a1 state
           _ -> ([], state)
 
 gmprint :: GmState -> GmState
