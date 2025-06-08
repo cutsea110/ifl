@@ -670,7 +670,7 @@ alloc n state = putStack stack2
         (heap2, addrs) = allocNodes n heap1
         stack1 = getStack state
         stack2 = foldr S.push stack1 addrs
-        
+
 allocNodes :: Int -> GmHeap -> (GmHeap, [Addr])
 allocNodes 0     heap = (heap, [])
 allocNodes (n+1) heap = (heap2, a:as)
