@@ -47,8 +47,6 @@ pgmGetSparks :: PgmState -> GmSparks
 pgmGetSparks (global, _) = sparks global
 pgmGetKilled :: PgmState -> GmKilled
 pgmGetKilled (global, _) = killed global
-pgmGetBlocked :: PgmState -> GmBlocked
-pgmGetBlocked (global, _) = blocked global
 pgmGetMaxTaskId :: PgmState -> TaskId
 pgmGetMaxTaskId (global, _) = maxTaskId global
 pgmGetStats :: PgmState -> GmStats
@@ -60,7 +58,6 @@ data PgmGlobalState
                    , globals   :: GmGlobals
                    , sparks    :: GmSparks
                    , killed    :: GmKilled
-                   , blocked   :: GmBlocked
                    , stats     :: GmStats
                    , maxTaskId :: TaskId
                    }
@@ -72,15 +69,6 @@ sparksInitial = []
 type GmKilled = [TaskId] -- ^ killed task ids
 killedInitial :: GmKilled
 killedInitial = []
-
-type GmBlocked = [(TaskId, TaskId)] -- ^ (blocked task id, blocking task id)
-blockedInitial :: GmBlocked
-blockedInitial = []
-
-getBlocked :: GmState -> GmBlocked
-getBlocked (global, _) = blocked global
-pushBlocked :: (TaskId, TaskId) -> GmState -> GmState
-pushBlocked ent (global, local) = (global { blocked = ent : blocked global }, local)
 
 type TaskId = Int
 
@@ -272,12 +260,14 @@ gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: PgmState -> PgmState
-steps stat = mapAccumL step global' local'
-  where (global1, locals1) = maybe stat (kill stat) $ deadLocked (pgmGetBlocked stat) -- my own original feature
+steps stat@(_, locals) = mapAccumL step global' local'
+  where blocked = foldl f [] locals
+          where f acc l = maybe acc (\(tid, _) -> (taskId l, tid):acc) $ fst (spinLock l)
+        (global1, locals1) = maybe stat (kill stat) $ deadLocked blocked -- my own original feature
         local'  = map tick ls
           where ls | null newtasks = locals1
                    | otherwise     = buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ locals1 ++ newtasks
-        (global', newtasks) = mapAccumL f (global1 { sparks = [], blocked = [] }) $ sparks global1
+        (global', newtasks) = mapAccumL f (global1 { sparks = [] }) $ sparks global1
           where f g (a, pid) = let tid = maxTaskId g + 1
                                in (g { maxTaskId = tid }, makeTask tid pid a)
 
@@ -299,7 +289,8 @@ kill (global, locals) tid = (global { heap = heap', killed = killed' }, locals')
 
 
 -- | NOTE: This depends on the assumption that these fst is ordered by buildTreeDfs in steps.
-deadLocked :: GmBlocked -> Maybe TaskId
+deadLocked :: [(TaskId, TaskId)] -- ^ (blocked task id, blocking task id)
+           -> Maybe TaskId
 deadLocked = go Set.empty
   where go _ [] = Nothing
         go bigger ((a, b):xs)
@@ -784,13 +775,11 @@ unwind state = newState (hLookup heap a)
                           $ locked
           | otherwise   = putCode [Unwind]
                           . putSpinLock (Just tid')
-                          . pushBlocked (tid, tid')
                           $ state -- spin lock
         newState (NLGlobal n c tid')
           | tid' == tid = error "TODO: The case occurred"
           | otherwise = putCode [Unwind]
                         . putSpinLock (Just tid')
-                        . pushBlocked (tid, tid')
                         $ state -- spin lock
 
 
@@ -804,7 +793,6 @@ compile program = (pgmGlobalState, [initialTask mainTaskId addr])
                                         , globals   = globals
                                         , sparks    = sparksInitial
                                         , killed    = killedInitial
-                                        , blocked   = blockedInitial
                                         , stats     = statInitial
                                         , maxTaskId = mainTaskId
                                         }
@@ -1362,7 +1350,6 @@ showState :: Bool -- werbose
 showState w s@(global, locals)
   = iConcat ([ showOutput s, iNewline
              , showSparks s, iNewline
-             , showBlocked s, iNewline
              , showMaxTaskId s, iNewline
              , iIndent $ iInterleave iNewline $ showLocalState w global <$> locals, iNewline
              , if w then showHeap global (pgmGetHeap s) else iNil
@@ -1433,15 +1420,6 @@ showSparks s
                                           , iStr " TaskId ", iNum tid
                                           , iStr "}"
                                           ]
-
-showBlocked :: PgmState -> IseqRep
-showBlocked s
-  = iConcat [ iStr "Blocked: ["
-            , iInterleave (iStr ", ") $ showBlockedTask <$> pgmGetBlocked s
-            , iStr "]"
-            ]
-    where showBlockedTask (blocked, blocking)
-            = iConcat [iNum blocked, iStr " -> ", iNum blocking]
 
 showMaxTaskId :: PgmState -> IseqRep
 showMaxTaskId s
