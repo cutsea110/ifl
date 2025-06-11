@@ -267,15 +267,20 @@ steps stat@(_, locals) = scheduler global' local'
   where blocked = foldl f [] locals
           where f acc l = maybe acc (\(tid, _) -> (taskId l, tid):acc) $ fst (spinLock l)
         (global1, locals1) = maybe stat (kill stat) $ deadLocked blocked -- my own original feature
-        local'| null newtasks = locals1
-              | otherwise     = buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ locals1 ++ newtasks
+        local' = locals1 ++ newtasks
         (global', newtasks) = mapAccumL f (global1 { sparks = [] }) $ sparks global1
           where f g (a, pid) = let tid = maxTaskId g + 1
                                in (g { maxTaskId = tid }, makeTask tid pid a)
 
 scheduler :: PgmGlobalState -> [PgmLocalState] -> PgmState
-scheduler global locals = mapAccumL step global locals'
-  where locals' = map tick locals
+scheduler global tasks = (global', nonRunning ++ running')
+  where nextTaskId = taskId $ head tasks
+        locals | length tasks <= machineSize = tasks'
+               | otherwise                   = ys ++ xs
+          where tasks' = buildTreeDfs taskId $ map (\o -> (parentId o, o)) tasks
+                (xs, ys) = break (\t -> taskId t == nextTaskId) tasks'
+        (running, nonRunning) = splitAt machineSize locals
+        (global', running') = mapAccumL step global $ map tick running
 
 kill :: PgmState -> TaskId -> PgmState
 kill (global, locals) tid = (global { heap = heap', killed = killed' }, locals')
