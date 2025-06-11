@@ -269,7 +269,7 @@ steps stat = mapAccumL step global' local'
   where (global1, locals1) = maybe stat (kill stat) $ deadLocked (pgmGetBlocked stat)
         local'  = map tick ls
           where ls | null newtasks = locals1
-                   | otherwise     = locals1 ++ newtasks -- buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ locals1 ++ newtasks
+                   | otherwise     = buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ locals1 ++ newtasks
         (global', newtasks) = mapAccumL f (global1 { sparks = [], blocked = [] }) $ sparks global1
           where f g (a, pid) = let tid = maxTaskId g + 1
                                in (g { maxTaskId = tid }, makeTask tid pid a)
