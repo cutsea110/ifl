@@ -268,7 +268,9 @@ steps stat@(_, locals) = scheduler global' local'
           where f acc l = maybe acc (\(tid, _) -> (taskId l, tid):acc) $ fst (spinLock l)
         (global1, locals1) = maybe stat (kill stat) $ deadLocked blocked -- my own original feature
         local' = locals1 ++ newtasks
-        (global', newtasks) = mapAccumL f (global1 { sparks = [] }) $ sparks global1
+        numOfIdles = machineSize - length locals1
+        (ready, wait) = splitAt numOfIdles (sparks global1)
+        (global', newtasks) = mapAccumL f (global1 { sparks = wait }) ready
           where f g (a, pid) = let tid = maxTaskId g + 1
                                in (g { maxTaskId = tid }, makeTask tid pid a)
 
