@@ -261,6 +261,18 @@ doAdmin (global, locals) = (global { heap = heap', stats = stats' }, locals')
       | otherwise         = (h, s,  local:ls)
       where s' = (taskId local, clock local, spinTotal $ spinLock local):s
 
+gmFinal :: PgmState -> Bool
+gmFinal s@(_, local) = null local && null (pgmGetSparks s)
+
+steps :: PgmState -> PgmState
+steps stat = mapAccumL step global' local'
+  where (global1, locals1) = maybe stat (kill stat) $ deadLocked (pgmGetBlocked stat)
+        local'  = map tick ls
+          where ls | null newtasks = locals1
+                   | otherwise     = locals1 ++ newtasks -- buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ locals1 ++ newtasks
+        (global', newtasks) = mapAccumL f (global1 { sparks = [], blocked = [] }) $ sparks global1
+          where f g (a, pid) = let tid = maxTaskId g + 1
+                               in (g { maxTaskId = tid }, makeTask tid pid a)
 
 kill :: PgmState -> TaskId -> PgmState
 kill (global, locals) tid = (global { heap = heap' }, locals')
@@ -285,19 +297,6 @@ deadLocked = go Set.empty
         go bigger ((a, b):xs)
           | b `Set.member` bigger = Just a
           | otherwise = go (Set.insert a bigger) xs
-
-gmFinal :: PgmState -> Bool
-gmFinal s@(_, local) = null local && null (pgmGetSparks s)
-
-steps :: PgmState -> PgmState
-steps stat = mapAccumL step global' local'
-  where (global1, locals1) = maybe stat (kill stat) $ deadLocked (pgmGetBlocked stat)
-        local'  = map tick ls
-          where ls | null newtasks = locals1
-                   | otherwise     = locals1 ++ newtasks -- buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ locals1 ++ newtasks
-        (global', newtasks) = mapAccumL f (global1 { sparks = [], blocked = [] }) $ sparks global1
-          where f g (a, pid) = let tid = maxTaskId g + 1
-                               in (g { maxTaskId = tid }, makeTask tid pid a)
 
 {- |
 >>> data Obj = Obj Int deriving (Show, Eq)
