@@ -264,8 +264,9 @@ gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: PgmState -> PgmState
 steps stat@(_, locals) = scheduler global' local'
-  where blocked = foldl f [] locals
+  where blocked = foldl f [] $ sortTasks locals -- ^ use only for deadlock detection and kill
           where f acc l = maybe acc (\(tid, _) -> (taskId l, tid):acc) $ fst (spinLock l)
+        -- | NOTE: locals1 holds the order of locals because kill function holds.
         (global1, locals1) = maybe stat (kill stat) $ deadLocked blocked -- my own original feature
         local' = locals1 ++ newtasks
         numOfIdles = machineSize - length locals1
@@ -279,11 +280,15 @@ scheduler global tasks = (global', nonRunning ++ running')
   where nextTaskId = taskId $ head tasks
         locals | length tasks <= machineSize = tasks'
                | otherwise                   = ys ++ xs
-          where tasks' = buildTreeDfs taskId $ map (\o -> (parentId o, o)) tasks
+          where tasks' = sortTasks tasks
                 (xs, ys) = break (\t -> taskId t == nextTaskId) tasks'
         (running, nonRunning) = splitAt machineSize locals
         (global', running') = mapAccumL step global $ map tick running
 
+sortTasks :: [PgmLocalState] -> [PgmLocalState]
+sortTasks = buildTreeDfs taskId . map (\o -> (parentId o, o))
+
+-- | NOTE: hold the order of locals
 kill :: PgmState -> TaskId -> PgmState
 kill (global, locals) tid = (global { heap = heap', killed = killed' }, locals')
   where task    = case find (\l -> taskId l == tid) locals of
