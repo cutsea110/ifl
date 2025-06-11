@@ -41,6 +41,7 @@ import qualified TIM.Mark6   as TIMark6   (runProg, Config(..))
 
 import qualified Pgmachine.Mark1 as PgMark1   (runProg, Config(..))
 import qualified Pgmachine.Mark2 as PgMark2   (runProg, Config(..))
+import qualified Pgmachine.Mark3 as PgMark3   (runProg, Config(..))
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -81,6 +82,7 @@ executer opts = putStr . run
           TIMark6     -> TIMark6.runProg   $ TIMark6.Config verbose threshold convertList profile
           PgMark1     -> PgMark1.runProg   $ PgMark1.Config verbose werbose
           PgMark2     -> PgMark2.runProg   $ PgMark2.Config verbose werbose
+          PgMark3     -> PgMark3.runProg   $ PgMark3.Config verbose werbose
           (Noco name) -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
@@ -93,7 +95,7 @@ data Compiler
   | Mark5 | Mark5Alt | Mark5GC | Mark5RevGC | Mark5Cp
   | GMark1 | GMark2 | GMark3 | GMark4 | GMark5 | GMark6 | GMark7
   | TIMark1 | TIMark1Cp | TIMark2 | TIMark3 | TIMark4 | TIMark5 | TIMark6
-  | PgMark1 | PgMark2
+  | PgMark1 | PgMark2 | PgMark3
   deriving (Show, Eq)
 
 validCompiler :: Compiler -> Bool
@@ -116,7 +118,7 @@ defaultOptions = Options
   , optWerbose     = False
   , optThreshold   = 300
   , optShowVersion = False
-  , optCompiler    = PgMark2
+  , optCompiler    = PgMark3
   , optConvertList = False
   , optProfile     = False
   }
@@ -128,7 +130,7 @@ name2Compiler
     , Mark5, Mark5Alt, Mark5GC, Mark5RevGC, Mark5Cp
     , GMark1, GMark2, GMark3, GMark4, GMark5, GMark6, GMark7
     , TIMark1, TIMark1Cp, TIMark2, TIMark3, TIMark4, TIMark5, TIMark6
-    , PgMark1, PgMark2
+    , PgMark1, PgMark2, PgMark3
     ]
 
 compilerNames :: [String]
