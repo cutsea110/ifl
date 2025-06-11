@@ -25,6 +25,9 @@ import Prelude hiding (head)
 head :: [a] -> a
 head = maybe (error "head: empty list") id . listToMaybe
 
+machineSize :: Int
+machineSize = 4
+
 data Config = Config { verbose :: Bool
                      , werbose :: Bool
                      }
@@ -260,16 +263,19 @@ gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: PgmState -> PgmState
-steps stat@(_, locals) = mapAccumL step global' local'
+steps stat@(_, locals) = scheduler global' local'
   where blocked = foldl f [] locals
           where f acc l = maybe acc (\(tid, _) -> (taskId l, tid):acc) $ fst (spinLock l)
         (global1, locals1) = maybe stat (kill stat) $ deadLocked blocked -- my own original feature
-        local'  = map tick ls
-          where ls | null newtasks = locals1
-                   | otherwise     = buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ locals1 ++ newtasks
+        local'| null newtasks = locals1
+              | otherwise     = buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ locals1 ++ newtasks
         (global', newtasks) = mapAccumL f (global1 { sparks = [] }) $ sparks global1
           where f g (a, pid) = let tid = maxTaskId g + 1
                                in (g { maxTaskId = tid }, makeTask tid pid a)
+
+scheduler :: PgmGlobalState -> [PgmLocalState] -> PgmState
+scheduler global locals = mapAccumL step global locals'
+  where locals' = map tick locals
 
 kill :: PgmState -> TaskId -> PgmState
 kill (global, locals) tid = (global { heap = heap', killed = killed' }, locals')
