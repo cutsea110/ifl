@@ -45,6 +45,8 @@ pgmGetGlobals :: PgmState -> GmGlobals
 pgmGetGlobals (global, _) = globals global
 pgmGetSparks :: PgmState -> GmSparks
 pgmGetSparks (global, _) = sparks global
+pgmGetKilled :: PgmState -> GmKilled
+pgmGetKilled (global, _) = killed global
 pgmGetBlocked :: PgmState -> GmBlocked
 pgmGetBlocked (global, _) = blocked global
 pgmGetMaxTaskId :: PgmState -> TaskId
@@ -57,6 +59,7 @@ data PgmGlobalState
                    , heap      :: GmHeap
                    , globals   :: GmGlobals
                    , sparks    :: GmSparks
+                   , killed    :: GmKilled
                    , blocked   :: GmBlocked
                    , stats     :: GmStats
                    , maxTaskId :: TaskId
@@ -65,6 +68,10 @@ data PgmGlobalState
 type GmSparks = [(Addr, TaskId)] -- ^ (node addr, parent task id)
 sparksInitial :: GmSparks
 sparksInitial = []
+
+type GmKilled = [TaskId] -- ^ killed task ids
+killedInitial :: GmKilled
+killedInitial = []
 
 type GmBlocked = [(TaskId, TaskId)] -- ^ (blocked task id, blocking task id)
 blockedInitial :: GmBlocked
@@ -275,12 +282,13 @@ steps stat = mapAccumL step global' local'
                                in (g { maxTaskId = tid }, makeTask tid pid a)
 
 kill :: PgmState -> TaskId -> PgmState
-kill (global, locals) tid = (global { heap = heap' }, locals')
+kill (global, locals) tid = (global { heap = heap', killed = killed' }, locals')
   where task    = case find (\l -> taskId l == tid) locals of
           Nothing -> error $ "kill: no task with id " ++ show tid
           Just t  -> t
         locals' = filter (\l -> taskId l /= tid) locals
         heap' = cleanup (heap global) (lockPool task)
+        killed' = tid:killed global
 
         cleanup :: GmHeap -> [Addr] -> GmHeap
         cleanup = foldr f
@@ -795,6 +803,7 @@ compile program = (pgmGlobalState, [initialTask mainTaskId addr])
                                         , heap      = heap
                                         , globals   = globals
                                         , sparks    = sparksInitial
+                                        , killed    = killedInitial
                                         , blocked   = blockedInitial
                                         , stats     = statInitial
                                         , maxTaskId = mainTaskId
@@ -1560,6 +1569,8 @@ showStats s = iConcat [ iStr "---------------"
                       , iStr " [", iInterleave (iStr ", ") $ showClk <$> pgmGetStats s, iStr "]"
                       , iNewline, iStr "         spawned tasks = "
                       , iNum (pgmGetMaxTaskId s)
+                      , iNewline, iStr "          killed tasks = "
+                      , showKilled (pgmGetKilled s)
                       , iNewline, iStr "             Heap size = "
                       , iNum (hSize (pgmGetHeap s))
                       ]
@@ -1567,6 +1578,10 @@ showStats s = iConcat [ iStr "---------------"
                                        , iStr ": ", iNum c
                                        , iStr "(", iNum sl, iStr ")"
                                        ]
+        showKilled taskids = iConcat [ iStr "["
+                                     , iInterleave (iStr ", ") (map iNum taskids)
+                                     , iStr "]"
+                                     ]
 
 {- |
 >>> let runTest = outputAll . pgmGetOutput . last . eval . compile . parse
