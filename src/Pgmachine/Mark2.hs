@@ -17,7 +17,7 @@ import Utils
 import Data.Char (chr, ord)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as Set
-import Data.List (mapAccumL, (\\))
+import Data.List (find, mapAccumL, (\\))
 import Data.Maybe (listToMaybe, maybe)
 import Prelude hiding (head)
 
@@ -261,15 +261,41 @@ doAdmin (global, locals) = (global { heap = heap', stats = stats' }, locals')
       | otherwise         = (h, s,  local:ls)
       where s' = (taskId local, clock local, spinTotal $ spinLock local):s
 
+
+kill :: PgmState -> TaskId -> PgmState
+kill (global, locals) tid = (global { heap = heap' }, locals')
+  where task    = case find (\l -> taskId l == tid) locals of
+          Nothing -> error $ "kill: no task with id " ++ show tid
+          Just t  -> t
+        locals' = filter (\l -> taskId l /= tid) locals
+        heap' = cleanup (heap global) (lockPool task)
+
+        cleanup :: GmHeap -> [Addr] -> GmHeap
+        cleanup = foldr f
+          where f addr h = case hLookup h addr of
+                  NLAp a1 a2 _   -> hUpdate h addr (NAp a1 a2)
+                  NLGlobal n c _ -> hUpdate h addr (NGlobal n c)
+                  _              -> h -- no change for other nodes
+
+
+-- | NOTE: This depends on the assumption that these fst is ordered by buildTreeDfs in steps.
+deadLocked :: GmBlocked -> Maybe TaskId
+deadLocked = go Set.empty
+  where go _ [] = Nothing
+        go bigger ((a, b):xs)
+          | b `Set.member` bigger = Just a
+          | otherwise = go (Set.insert a bigger) xs
+
 gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: PgmState -> PgmState
-steps (global, local) = mapAccumL step global' local'
-  where local'  = map tick ls
-          where ls | null newtasks = local
-                   | otherwise     = local ++ newtasks -- buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ local ++ newtasks
-        (global', newtasks) = mapAccumL f (global { sparks = [], blocked = [] }) $ sparks global
+steps stat = mapAccumL step global' local'
+  where (global1, locals1) = maybe stat (kill stat) $ deadLocked (pgmGetBlocked stat)
+        local'  = map tick ls
+          where ls | null newtasks = locals1
+                   | otherwise     = locals1 ++ newtasks -- buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ locals1 ++ newtasks
+        (global', newtasks) = mapAccumL f (global1 { sparks = [], blocked = [] }) $ sparks global1
           where f g (a, pid) = let tid = maxTaskId g + 1
                                in (g { maxTaskId = tid }, makeTask tid pid a)
 
