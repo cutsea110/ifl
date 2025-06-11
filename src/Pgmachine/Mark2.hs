@@ -266,7 +266,7 @@ gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: PgmState -> PgmState
 steps stat = mapAccumL step global' local'
-  where (global1, locals1) = maybe stat (kill stat) $ deadLocked (pgmGetBlocked stat)
+  where (global1, locals1) = maybe stat (kill stat) $ deadLocked (pgmGetBlocked stat) -- my own original feature
         local'  = map tick ls
           where ls | null newtasks = locals1
                    | otherwise     = buildTreeDfs taskId $ map (\o -> (parentId o, o)) $ locals1 ++ newtasks
