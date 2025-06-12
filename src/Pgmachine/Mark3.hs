@@ -306,6 +306,16 @@ kill (global, locals) tid = (global { heap = heap', killed = killed' }, locals')
                   _              -> h -- no change for other nodes
 
 
+{- |
+>>> deadLocked []
+Nothing
+>>> deadLocked [(4, 2), (2, 4), (1, 4)]
+Just 2
+>>> deadLocked [(1, 2), (2, 3), (3, 1)]
+Just 3
+>>> deadLocked [(3, 2), (2, 1), (4, 1)]
+Nothing
+-}
 -- | NOTE: This depends on the assumption that these fst is ordered by buildTreeDfs in steps.
 deadLocked :: [(TaskId, TaskId)] -- ^ (blocked task id, blocking task id)
            -> Maybe TaskId
