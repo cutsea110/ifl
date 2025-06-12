@@ -291,10 +291,10 @@ sortTasks = buildTreeDfs taskId . map (\o -> (parentId o, o))
 -- | NOTE: hold the order of locals
 kill :: PgmState -> TaskId -> PgmState
 kill (global, locals) tid = (global { heap = heap', killed = killed' }, locals')
-  where task    = case find (\l -> taskId l == tid) locals of
+  where task    = case find ((tid ==) . taskId) locals of
           Nothing -> error $ "kill: no task with id " ++ show tid
           Just t  -> t
-        locals' = filter (\l -> taskId l /= tid) locals
+        locals' = filter ((tid /=) . taskId) locals
         heap' = cleanup (heap global) (lockPool task)
         killed' = tid:killed global
 
