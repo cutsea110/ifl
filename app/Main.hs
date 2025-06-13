@@ -54,6 +54,7 @@ executer opts = putStr . run
         werbose = optWerbose opts
         compiler = optCompiler opts
         threshold = optThreshold opts
+        machineSize = optMachineSize opts
         convertList = optConvertList opts
         profile = optProfile opts
         run = case compiler of
@@ -82,7 +83,7 @@ executer opts = putStr . run
           TIMark6     -> TIMark6.runProg   $ TIMark6.Config verbose threshold convertList profile
           PgMark1     -> PgMark1.runProg   $ PgMark1.Config verbose werbose
           PgMark2     -> PgMark2.runProg   $ PgMark2.Config verbose werbose
-          PgMark3     -> PgMark3.runProg   $ PgMark3.Config verbose werbose
+          PgMark3     -> PgMark3.runProg   $ PgMark3.Config verbose werbose machineSize
           (Noco name) -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
@@ -106,6 +107,7 @@ data Options = Options
   { optVerbose     :: !Bool
   , optWerbose     :: !Bool -- more verbose output, showHeap!
   , optThreshold   :: !Int
+  , optMachineSize :: !Int -- machine size for Parallel G-machine
   , optShowVersion :: !Bool
   , optCompiler    :: !Compiler
   , optConvertList :: !Bool
@@ -117,6 +119,7 @@ defaultOptions = Options
   { optVerbose     = False
   , optWerbose     = False
   , optThreshold   = 300
+  , optMachineSize = 4
   , optShowVersion = False
   , optCompiler    = PgMark3
   , optConvertList = False
@@ -145,6 +148,8 @@ options = [ Option ['c'] ["compiler"] (ReqArg (\e opts -> opts {optCompiler = de
             "step output with showing heap on stderr"
           , Option ['t'] ["threshold"] (ReqArg (\n opts -> opts {optThreshold = read n}) "Threshold")
             "threshold for Garbage Collection"
+          , Option ['m'] ["machines"] (ReqArg (\n opts -> opts {optMachineSize = read n}) "MachineSize")
+            "Machine size for Parallel G-machine (default: 4)"
             -- NOTE: this option is only for the part of Template Instantiation Machines.
           , Option ['l'] ["convert-to-list-based"] (NoArg (\opts -> opts {optConvertList = True}))
             "convert to list based program"
@@ -195,6 +200,7 @@ settingInfos opts fp =
           , "              Verbose: " ++ show (optVerbose opts)
           , "       Pretty verbose: " ++ show (optWerbose opts)
           , "         GC Threshold: " ++ show (optThreshold opts)
+          , "         Machine Size: " ++ show (optMachineSize opts)
           , "Convert to List Based: " ++ show (optConvertList opts)
           , "The compilers that can be specified are as follows: " ++
             intercalate "," compilerNames ++ "."
@@ -223,6 +229,10 @@ checkOption opts = compilerSupported ++ convToListSupported ++ gcThresholdSuppor
       | optThreshold opts == optThreshold defaultOptions ||
         compiler `elem` [Mark5GC, Mark5RevGC, Mark5Cp, TIMark1Cp, TIMark2, TIMark3, TIMark4, TIMark5, TIMark6] = []
       | otherwise = ["The compiler does not support the option of GC threshold."]
+    machineSizeSupported
+      | optMachineSize opts == optMachineSize defaultOptions ||
+        compiler `elem` [PgMark3] = []
+      | otherwise = ["The compiler does not support the option of machine size."]
 
 run :: Options -> FilePath -> IO ()
 run opts fp = do

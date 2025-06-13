@@ -25,15 +25,13 @@ import Prelude hiding (head)
 head :: [a] -> a
 head = maybe (error "head: empty list") id . listToMaybe
 
-machineSize :: Int
-machineSize = 4
-
-data Config = Config { verbose :: Bool
-                     , werbose :: Bool
+data Config = Config { verbose     :: Bool
+                     , werbose     :: Bool
+                     , machineSize :: Int
                      }
 
 runProg :: Config -> String -> String
-runProg conf = showR . eval . compile . parse
+runProg conf = showR . eval conf . compile . parse
   where showR | werbose conf = showResults True
               | verbose conf = showResults False
               | otherwise    = showSimpleResult
@@ -243,12 +241,12 @@ putStats :: GmStats -> GmState -> GmState
 putStats stats' (global, local) = (global { stats = stats' }, local)
 
 
-eval :: PgmState -> [PgmState]
-eval state = state : restStates
+eval :: Config -> PgmState -> [PgmState]
+eval conf state = state : restStates
   where
     restStates | gmFinal state = []
-               | otherwise     = eval nextState
-    nextState  = doAdmin (steps state)
+               | otherwise     = eval conf nextState
+    nextState  = doAdmin (steps conf state)
 
 doAdmin :: PgmState -> PgmState
 doAdmin (global, locals) = (global { heap = heap', stats = stats' }, locals')
@@ -262,27 +260,28 @@ doAdmin (global, locals) = (global { heap = heap', stats = stats' }, locals')
 gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
-steps :: PgmState -> PgmState
-steps stat@(_, locals) = scheduler global' local'
+steps :: Config -> PgmState -> PgmState
+steps conf stat@(_, locals) = scheduler conf global' local'
   where blocked = foldl f [] $ sortTasks locals -- ^ use only for deadlock detection and kill
           where f acc l = maybe acc (\(tid, _) -> (taskId l, tid):acc) $ fst (spinLock l)
         -- | NOTE: locals1 holds the order of locals because kill function holds.
         (global1, locals1) = maybe stat (kill stat) $ deadLocked blocked -- my own original feature
         local' = locals1 ++ newtasks
-        numOfIdles = machineSize - length locals1
+        numOfIdles = machineSize conf - length locals1
         (ready, wait) = splitAt numOfIdles (sparks global1)
         (global', newtasks) = mapAccumL f (global1 { sparks = wait }) ready
           where f g (a, pid) = let tid = maxTaskId g + 1
                                in (g { maxTaskId = tid }, makeTask tid pid a)
 
-scheduler :: PgmGlobalState -> [PgmLocalState] -> PgmState
-scheduler global tasks = (global', nonRunning ++ running')
+scheduler :: Config -> PgmGlobalState -> [PgmLocalState] -> PgmState
+scheduler conf global tasks = (global', nonRunning ++ running')
   where nextTaskId = taskId $ head tasks
-        locals | length tasks <= machineSize = tasks'
+        mSize = machineSize conf
+        locals | length tasks <= mSize = tasks'
                | otherwise                   = ys ++ xs
           where tasks' = sortTasks tasks
                 (xs, ys) = break (\t -> taskId t == nextTaskId) tasks'
-        (running, nonRunning) = splitAt machineSize locals
+        (running, nonRunning) = splitAt mSize locals
         (global', running') = mapAccumL step global $ map tick running
 
 sortTasks :: [PgmLocalState] -> [PgmLocalState]
