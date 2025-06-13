@@ -1360,6 +1360,7 @@ showState :: Bool -- werbose
 showState w s@(global, locals)
   = iConcat ([ showOutput s, iNewline
              , showSparks s, iNewline
+             , showKilled s, iNewline
              , showMaxTaskId s, iNewline
              , iIndent $ iInterleave iNewline $ showLocalState w global <$> locals, iNewline
              , if w then showHeap global (pgmGetHeap s) else iNil
@@ -1430,6 +1431,15 @@ showSparks s
                                           , iStr " TaskId ", iNum tid
                                           , iStr "}"
                                           ]
+
+showKilled :: PgmState -> IseqRep
+showKilled s
+  = iConcat [ iStr "Killed: ["
+            , iInterleave (iStr ", ") $ showKilledTask <$> pgmGetKilled s
+            , iStr "]"
+            ]
+    where showKilledTask tid
+            = iConcat [iStr "TaskId ", iNum tid]
 
 showMaxTaskId :: PgmState -> IseqRep
 showMaxTaskId s
