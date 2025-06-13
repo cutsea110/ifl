@@ -3,4 +3,4 @@ add x y = x + y;
 dsum lo hi = let mid = (lo+hi)/2
              in if (hi==lo) hi (par (add (dsum lo mid)) (dsum (mid+1) hi));
 
-main = dsum 1 10
+main = dsum 1 100

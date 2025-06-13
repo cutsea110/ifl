@@ -294,9 +294,10 @@ kill (global, locals) tid = (global { heap = heap', killed = killed' }, locals')
   where task    = case find ((tid ==) . taskId) locals of
           Nothing -> error $ "kill: no task with id " ++ show tid
           Just t  -> t
-        locals' = map f $ filter ((tid /=) . taskId) locals
-          where f l | parentId l == tid = l { parentId = parentId task }
-                    | otherwise         = l
+        locals' = foldr f [] locals
+          where f l acc | taskId l   == tid = acc                                -- filter out the killed task
+                        | parentId l == tid = l { parentId = parentId task }:acc -- reparent children
+                        | otherwise         = l:acc                              -- keep other tasks
         heap' = cleanup (heap global) (lockPool task)
         killed' = tid:killed global
 
