@@ -1602,7 +1602,8 @@ showStats s = iConcat [ iStr "---------------"
                                      ]
 
 {- |
->>> let runTest = outputAll . pgmGetOutput . last . eval . compile . parse
+>>> let conf = Config False False 4
+>>> let runTest = outputAll . pgmGetOutput . last . eval conf . compile . parse
 >>> runTest "main = S K K 3"
 "3"
 
