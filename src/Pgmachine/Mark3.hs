@@ -1455,11 +1455,9 @@ showSparks s
 showKilled :: PgmState -> IseqRep
 showKilled s
   = iConcat [ iStr "Killed: ["
-            , iInterleave (iStr ", ") $ showKilledTask <$> pgmGetKilled s
+            , iInterleave (iStr ", ") $ iNum <$> pgmGetKilled s
             , iStr "]"
             ]
-    where showKilledTask tid
-            = iConcat [iStr "TaskId ", iNum tid]
 
 showMaxTaskId :: PgmState -> IseqRep
 showMaxTaskId s
