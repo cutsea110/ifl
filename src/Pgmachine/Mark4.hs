@@ -44,6 +44,8 @@ pgmGetHeap :: PgmState -> GmHeap
 pgmGetHeap (global, _) = heap global
 pgmGetGlobals :: PgmState -> GmGlobals
 pgmGetGlobals (global, _) = globals global
+pgmGetTaskTree :: PgmState -> [(TaskId, TaskId)]
+pgmGetTaskTree (global, _) = tasktree global
 pgmGetSparks :: PgmState -> GmSparks
 pgmGetSparks (global, _) = sparks global
 pgmGetKilled :: PgmState -> GmKilled
@@ -57,6 +59,7 @@ data PgmGlobalState
   = PgmGlobalState { output    :: GmOutput
                    , heap      :: GmHeap
                    , globals   :: GmGlobals
+                   , tasktree  :: [(TaskId, TaskId)] -- ^ (task id, parent task id)
                    , sparks    :: GmSparks
                    , killed    :: GmKilled
                    , stats     :: GmStats
@@ -271,7 +274,8 @@ steps conf stat@(_, locals) = scheduler conf global' local'
         (ready, wait) = splitAt numOfIdles (sparks global1)
         (global', newtasks) = mapAccumL f (global1 { sparks = wait }) ready
           where f g (a, pid) = let tid = maxTaskId g + 1
-                               in (g { maxTaskId = tid }, makeTask tid pid a)
+                                   tt = (tid, pid):tasktree g
+                               in (g { maxTaskId = tid, tasktree = tt }, makeTask tid pid a)
 
 scheduler :: Config -> PgmGlobalState -> [PgmLocalState] -> PgmState
 scheduler conf global tasks = (global', nonRunning ++ running')
@@ -817,10 +821,12 @@ compile :: CoreProgram -> PgmState
 compile program = (pgmGlobalState, [initialTask mainTaskId addr])
   where (heap, globals) = buildInitialHeap program
         mainTaskId = 1
+        godId = 0 -- invalid task id
         addr = aLookup globals "main" (error "main undefined")
         pgmGlobalState = PgmGlobalState { output    = initialOutput
                                         , heap      = heap
                                         , globals   = globals
+                                        , tasktree  = [(mainTaskId, godId)]
                                         , sparks    = sparksInitial
                                         , killed    = killedInitial
                                         , stats     = statInitial
@@ -1379,6 +1385,7 @@ showState :: Bool -- werbose
           -> PgmState -> IseqRep
 showState w s@(global, locals)
   = iConcat ([ showOutput s, iNewline
+             , showTaskTree s, iNewline
              , showSparks s, iNewline
              , showKilled s, iNewline
              , showMaxTaskId s, iNewline
@@ -1440,6 +1447,14 @@ showHeap g (_, _, _, m)
 showOutput :: PgmState -> IseqRep
 showOutput s
   = iConcat [iStr "Output: \"", iStr (outputAll (pgmGetOutput s)), iStr "\""]
+
+showTaskTree :: PgmState -> IseqRep
+showTaskTree s
+  = iConcat [ iStr "Task Tree: ["
+            , iIndent $ iInterleave (iStr ", ") $ map showTask (pgmGetTaskTree s)
+            , iStr "]"
+            ]
+    where showTask (tid, pid) = iConcat [iStr "(", iNum tid, iStr ", ", iNum pid, iStr ")"]
 
 showSparks :: PgmState -> IseqRep
 showSparks s
