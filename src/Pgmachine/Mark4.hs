@@ -44,7 +44,7 @@ pgmGetHeap :: PgmState -> GmHeap
 pgmGetHeap (global, _) = heap global
 pgmGetGlobals :: PgmState -> GmGlobals
 pgmGetGlobals (global, _) = globals global
-pgmGetTaskTree :: PgmState -> [(TaskId, TaskId)]
+pgmGetTaskTree :: PgmState -> [(TaskId, TaskId)] -- ^ (parent task id, task id)
 pgmGetTaskTree (global, _) = tasktree global
 pgmGetSparks :: PgmState -> GmSparks
 pgmGetSparks (global, _) = sparks global
@@ -59,7 +59,7 @@ data PgmGlobalState
   = PgmGlobalState { output    :: GmOutput
                    , heap      :: GmHeap
                    , globals   :: GmGlobals
-                   , tasktree  :: [(TaskId, TaskId)] -- ^ (task id, parent task id)
+                   , tasktree  :: [(TaskId, TaskId)] -- ^ (parent task id, task id)
                    , sparks    :: GmSparks
                    , killed    :: GmKilled
                    , stats     :: GmStats
@@ -274,7 +274,7 @@ steps conf stat@(_, locals) = scheduler conf global' local'
         (ready, wait) = splitAt numOfIdles (sparks global1)
         (global', newtasks) = mapAccumL f (global1 { sparks = wait }) ready
           where f g (a, pid) = let tid = maxTaskId g + 1
-                                   tt = (tid, pid):tasktree g
+                                   tt = (pid, tid):tasktree g
                                in (g { maxTaskId = tid, tasktree = tt }, makeTask tid pid a)
 
 scheduler :: Config -> PgmGlobalState -> [PgmLocalState] -> PgmState
@@ -826,7 +826,7 @@ compile program = (pgmGlobalState, [initialTask mainTaskId addr])
         pgmGlobalState = PgmGlobalState { output    = initialOutput
                                         , heap      = heap
                                         , globals   = globals
-                                        , tasktree  = [(mainTaskId, godId)]
+                                        , tasktree  = [(godId, mainTaskId)]
                                         , sparks    = sparksInitial
                                         , killed    = killedInitial
                                         , stats     = statInitial
