@@ -1,4 +1,5 @@
 {-# LANGUAGE NPlusKPatterns  #-}
+{-# LANGUAGE TupleSections  #-}
 module Pgmachine.Mark4
   ( parse
   , compile
@@ -15,10 +16,11 @@ import qualified Parser as P (runParser)
 import qualified Stack as S
 import Utils
 import Data.Char (chr, ord)
+import Data.Function (on)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as Set
-import Data.List (find, mapAccumL, (\\))
-import Data.Maybe (listToMaybe, maybe)
+import Data.List (find, mapAccumL, sortBy, (\\))
+import Data.Maybe (fromMaybe, listToMaybe)
 import Prelude hiding (head)
 
 -- for legacy functions
@@ -265,7 +267,7 @@ gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: Config -> PgmState -> PgmState
 steps conf stat@(_, locals) = scheduler conf global' local'
-  where blocked = foldl f [] $ sortTasks locals -- ^ use only for deadlock detection and kill
+  where blocked = foldl f [] $ sortTasks (pgmGetTaskTree stat) locals -- ^ use only for deadlock detection and kill
           where f acc l = maybe acc (\(tid, _) -> (taskId l, tid):acc) $ fst (spinLock l)
         -- | NOTE: locals1 holds the order of locals because kill function holds.
         (global1, locals1) = maybe stat (kill stat) $ deadLocked blocked -- my own original feature
@@ -283,13 +285,26 @@ scheduler conf global tasks = (global', nonRunning ++ running')
         mSize = machineSize conf
         locals | length tasks <= mSize = tasks'
                | otherwise                   = ys ++ xs
-          where tasks' = sortTasks tasks
+          where tasks' = sortTasks (tasktree global) tasks
                 (xs, ys) = break (\t -> taskId t == nextTaskId) tasks'
         (running, nonRunning) = splitAt mSize locals
         (global', running') = mapAccumL step global $ map tick running
 
-sortTasks :: [PgmLocalState] -> [PgmLocalState]
-sortTasks = buildTreeDfs taskId . map (\o -> (parentId o, o))
+sortTasks :: [(TaskId, TaskId)] -> [PgmLocalState] -> [PgmLocalState]
+sortTasks tt = customSortOn taskId ordered
+  where ordered = buildTreeDfs id tt
+
+-- {
+-- >>> baseOrder = [3,9,6,2,8,4,1,7,5] :: [Int]
+-- >>> inputList = [1,3,4,2]
+-- >>> customSortBasedOn baseOrder id inputList
+-- [3,4,2,1]
+customSortOn :: (a -> IM.Key) -> [IM.Key] -> [a] -> [a]
+customSortOn getter order xs =
+  let indexMap = IM.fromList (zip order [0..]) -- indexed based on positions of custom order
+      rank x = fromMaybe (error "unknown value occurred") (IM.lookup (getter x) indexMap)
+  in sortBy (compare `on` rank) xs
+
 
 -- | NOTE: hold the order of locals
 kill :: PgmState -> TaskId -> PgmState
