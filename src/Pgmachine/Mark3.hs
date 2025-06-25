@@ -278,7 +278,7 @@ scheduler conf global tasks = (global', nonRunning ++ running')
   where nextTaskId = taskId $ head tasks
         mSize = machineSize conf
         locals | length tasks <= mSize = tasks'
-               | otherwise                   = ys ++ xs
+               | otherwise             = ys ++ xs
           where tasks' = sortTasks tasks
                 (xs, ys) = break (\t -> taskId t == nextTaskId) tasks'
         (running, nonRunning) = splitAt mSize locals
