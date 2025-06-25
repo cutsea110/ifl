@@ -291,8 +291,7 @@ scheduler conf global tasks = (global', nonRunning ++ running')
         (global', running') = mapAccumL step global $ map tick running
 
 sortTasks :: [(TaskId, TaskId)] -> [PgmLocalState] -> [PgmLocalState]
-sortTasks tt = customSortOn taskId ordered
-  where ordered = buildTreeDfs id tt
+sortTasks = customSortOn taskId . buildTreeDfs id
 
 -- {
 -- >>> baseOrder = [3,9,6,2,8,4,1,7,5] :: [Int]
@@ -300,11 +299,9 @@ sortTasks tt = customSortOn taskId ordered
 -- >>> customSortBasedOn baseOrder id inputList
 -- [3,4,2,1]
 customSortOn :: (a -> IM.Key) -> [IM.Key] -> [a] -> [a]
-customSortOn getter order xs =
-  let indexMap = IM.fromList (zip order [0..]) -- indexed based on positions of custom order
-      rank x = fromMaybe (error "unknown value occurred") (IM.lookup (getter x) indexMap)
-  in sortBy (compare `on` rank) xs
-
+customSortOn getter order xs = sortBy (compare `on` rank) xs
+  where indexMap = IM.fromList (zip order [0..]) -- indexed based on positions of custom order
+        rank x = fromMaybe (error "unknown value occurred") (IM.lookup (getter x) indexMap)
 
 -- | NOTE: hold the order of locals
 kill :: PgmState -> TaskId -> PgmState
