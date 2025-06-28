@@ -70,7 +70,7 @@ data PgmGlobalState
 
 type PgmPendingList = [PgmLocalState] -- ^ pending tasks
 
-type GmSparks = [(Addr, TaskId)] -- ^ (node addr, parent task id)
+type GmSparks = [PgmLocalState]
 sparksInitial :: GmSparks
 sparksInitial = []
 
@@ -276,13 +276,9 @@ steps conf stat@(_, locals) = scheduler conf global' local'
           where f acc l = maybe acc (\(tid, _) -> (taskId l, tid):acc) $ fst (spinLock l)
         -- | NOTE: locals1 holds the order of locals because kill function holds.
         (global1, locals1) = maybe stat (kill stat) $ deadLocked blocked -- my own original feature
-        local' = locals1 ++ newtasks
         numOfIdles = machineSize conf - length locals1
         (ready, wait) = splitAt numOfIdles (sparks global1)
-        (global', newtasks) = mapAccumL f (global1 { sparks = wait }) ready
-          where f g (a, pid) = let tid = maxTaskId g + 1
-                                   tt = (pid, tid):tasktree g
-                               in (g { maxTaskId = tid, tasktree = tt }, makeTask tid pid a)
+        (global', local') = (global1 { sparks = wait }, locals1 ++ ready)
 
 scheduler :: Config -> PgmGlobalState -> [PgmLocalState] -> PgmState
 scheduler conf global tasks = (global', nonRunning ++ running')
@@ -611,8 +607,14 @@ par :: GmState -> GmState
 par s@(global, local) = (global', local')
   where
     (a, stack') = S.pop (getStack s)
+    tt = tasktree global
     parentId = taskId local
-    global' = global { sparks = (a, parentId) : sparks global }
+    tid = maxTaskId global + 1
+    task = makeTask tid parentId a
+    global' = global { tasktree = (parentId, tid):tt
+                     , sparks = task:sparks global
+                     , maxTaskId = tid
+                     }
     local'  = local { stack = stack' }
 
 lock :: Addr -> GmState -> GmState
@@ -1479,10 +1481,7 @@ showSparks s
             , iInterleave (iStr ", ") $ showSpark <$> pgmGetSparks s
             , iStr "]"
             ]
-    where showSpark (addr, tid) = iConcat [ iStr "{#", iNum addr, iStr ","
-                                          , iStr " TaskId ", iNum tid
-                                          , iStr "}"
-                                          ]
+    where showSpark local = iNum (taskId local)
 
 showKilled :: PgmState -> IseqRep
 showKilled s
