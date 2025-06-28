@@ -68,6 +68,8 @@ data PgmGlobalState
                    , maxTaskId :: TaskId
                    }
 
+type PgmPendingList = [PgmLocalState] -- ^ pending tasks
+
 type GmSparks = [(Addr, TaskId)] -- ^ (node addr, parent task id)
 sparksInitial :: GmSparks
 sparksInitial = []
@@ -89,6 +91,9 @@ data PgmLocalState
                   , spinLock :: GmSpinLock -- ^ spin lock count list
                   , lockPool :: [Addr]     -- ^ pool of locked addresses
                   }
+
+instance Show PgmLocalState where
+  show s = "PgmLocalState { taskId = " ++ show (taskId s) ++ "}"
 
 type GmClock = Int
 type GmSpinLock = (Maybe (TaskId, Int), [(TaskId, Int)]) -- ^ (current spin lock, locked history)
@@ -215,8 +220,8 @@ data Node
   | NGlobal Int GmCode  -- Globals
   | NInd Addr           -- Indirections
   | NConstr Int [Addr]
-  | NLAp Addr Addr TaskId      -- Locked Applications
-  | NLGlobal Int GmCode TaskId -- Locked globals
+  | NLAp Addr Addr TaskId PgmPendingList      -- Locked Applications
+  | NLGlobal Int GmCode TaskId PgmPendingList -- Locked globals
   deriving Show
 
 instance Eq Node where
@@ -319,9 +324,9 @@ kill (global, locals) tid = (global { heap = heap', killed = killed' }, locals')
         cleanup :: GmHeap -> [Addr] -> GmHeap
         cleanup = foldr f
           where f addr h = case hLookup h addr of
-                  NLAp a1 a2 _   -> hUpdate h addr (NAp a1 a2)
-                  NLGlobal n c _ -> hUpdate h addr (NGlobal n c)
-                  _              -> h -- no change for other nodes
+                  NLAp a1 a2 _ _   -> hUpdate h addr (NAp a1 a2)
+                  NLGlobal n c _ _ -> hUpdate h addr (NGlobal n c)
+                  _                -> h -- no change for other nodes
 
 
 {- |
@@ -623,10 +628,10 @@ lock addr state@(glb, local)
         lookpool' | lockedp   = addr:lockpool
                   | otherwise = lockpool
         newHeap :: Node -> (Bool, GmHeap) -- ^ (lockedp, new heap)
-        newHeap (NAp a1 a2)  = (True,  hUpdate heap addr (NLAp a1 a2 tid))
-        newHeap (NLAp _ _ _) = (False, heap) -- already locked
+        newHeap (NAp a1 a2)  = (True,  hUpdate heap addr (NLAp a1 a2 tid []))
+        newHeap (NLAp _ _ _ _) = (False, heap) -- already locked
         newHeap (NGlobal n c)
-          | n == 0    = (True, hUpdate heap addr (NLGlobal n c tid))
+          | n == 0    = (True, hUpdate heap addr (NLGlobal n c tid []))
           | otherwise = (False, heap)
         newHeap n = error $ "Unexpected Node: " ++ show n
 
@@ -635,9 +640,9 @@ unlock addr state
   = newState (hLookup heap addr)
   where heap = getHeap state
         newState il = case il of
-          (NLAp a1 a2 _) -> (addr:as, s)
+          (NLAp a1 a2 _ _) -> (addr:as, s)
             where (as, s) = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) state)
-          (NLGlobal n c _) -> ([addr], putHeap (hUpdate heap addr (NGlobal n c)) state)
+          (NLGlobal n c _ _) -> ([addr], putHeap (hUpdate heap addr (NGlobal n c)) state)
           (NInd a1) | a1 /= 0 -> (addr:as, s)
             where (as, s) = unlock a1 state
           _ -> ([], state)
@@ -761,9 +766,9 @@ allocNodes (n+1) heap = (heap2, a:as)
 allocNodes _ _      = error "allocNodes: negative"
 
 getArg :: Node -> Addr
-getArg (NAp  _ a2)   = a2
-getArg (NLAp _ a2 _) = a2
-getArg n             = error $ "not application Node: " ++ show n
+getArg (NAp  _ a2)     = a2
+getArg (NLAp _ a2 _ _) = a2
+getArg n               = error $ "not application Node: " ++ show n
 
 rearrange :: Int -> GmHeap -> GmStack -> GmStack
 rearrange n heap as = foldr S.push (S.discard n as) $ take n as'
@@ -814,7 +819,7 @@ unwind state = newState (hLookup heap a)
                              . putDump d
                              . putSpinLock Nothing
                              $ state
-        newState (NLAp a1 a2 tid')
+        newState (NLAp a1 a2 tid' pl)
           | tid' == tid = putCode [Unwind]
                           . putStack (S.push a1 s)
                           . putSpinLock Nothing
@@ -822,7 +827,7 @@ unwind state = newState (hLookup heap a)
           | otherwise   = putCode [Unwind]
                           . putSpinLock (Just tid')
                           $ state -- spin lock
-        newState (NLGlobal n c tid')
+        newState (NLGlobal n c tid' pl)
           | tid' == tid = error "TODO: The case occurred"
           | otherwise = putCode [Unwind]
                         . putSpinLock (Just tid')
@@ -1575,12 +1580,14 @@ showNode s a (NConstr t as)
             , iInterleave (iStr ", ") (map (iStr . showaddr) as)
             , iStr "]"
             ]
-showNode s a (NLAp a1 a2 tid)
+showNode s a (NLAp a1 a2 tid pl)
   = iConcat [ iStr "*Ap ", iStr (showaddr a1)
             , iStr " ", iStr (showaddr a2)
-            , iStr " {🔒#", iNum tid, iStr "}"
+            , iStr " {🔒#", iNum tid, showPendingList pl, iStr "}"
             ]
-showNode s a (NLGlobal n g tid) = iConcat [iStr "*Global ", iStr v, iStr " {🔒#", iNum tid, iStr "}"]
+showNode s a (NLGlobal n g tid pl)
+  = iConcat [ iStr "*Global ", iStr v
+            , iStr " {🔒#", iNum tid, showPendingList pl, iStr "}"]
   where v = head [n | (n, b) <- getGlobals s, a == b]
 
 showNodeSimple :: PgmGlobalState -> Addr -> Node -> IseqRep
@@ -1594,15 +1601,21 @@ showNodeSimple s a (NGlobal n _) = iConcat [iStr "Global ", iStr v, iStr " (", i
 showNodeSimple _ _ (NInd a1) = iConcat [iStr "Ind ", iStr (showaddr a1)]
 showNodeSimple _ _ (NConstr t as)
   = iConcat [ iStr "Constr ", iNum t, iStr " .."]
-showNodeSimple s a (NLGlobal n _ tid) = iConcat [ iStr "*Global ", iStr v, iStr " (", iNum n, iStr ")"
-                                                , iStr " {🔒#", iNum tid, iStr "}"]
+showNodeSimple s a (NLGlobal n _ tid pl) = iConcat [ iStr "*Global ", iStr v, iStr " (", iNum n, iStr ")"
+                                                   , iStr " {🔒#", iNum tid, showPendingList pl, iStr "}"]
   where v = head [n | (n, b) <- globals s, a == b]
-showNodeSimple _ _ (NLAp a1 a2 tid)
+showNodeSimple _ _ (NLAp a1 a2 tid pl)
   = iConcat [ iStr "*Ap ", iStr (showaddr a1)
             , iStr " ", iStr (showaddr a2)
-            , iStr " {🔒#", iNum tid, iStr "}"
+            , iStr " {🔒#", iNum tid, showPendingList pl, iStr "}"
             ]
 
+showPendingList :: [PgmLocalState] -> IseqRep
+showPendingList pl = iConcat [ iStr " ["
+                             , iInterleave (iStr ", ") (map showPending pl)
+                             , iStr "]"
+                             ]
+  where showPending local = iNum (taskId local)
 
 showStats :: PgmState -> IseqRep
 showStats s = iConcat [ iStr "---------------"
