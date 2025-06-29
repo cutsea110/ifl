@@ -108,6 +108,9 @@ spinTotal (cur, hist) = maybe 0 snd cur + sum (map snd hist)
 
 type GmState = (PgmGlobalState, PgmLocalState)
 
+putLocalState :: PgmLocalState -> GmState -> GmState
+putLocalState local (global, _) = (global, local)
+
 type GmOutput = ([String], IseqRep)
 initialOutput :: GmOutput
 initialOutput = ([], iNil)
@@ -399,6 +402,17 @@ makeTask tid pid addr = PgmLocalState { code     = [Eval]
                                       , spinLock = initSpinLock
                                       , lockPool = []
                                       }
+emptyTask :: PgmLocalState
+emptyTask = PgmLocalState { code     = []
+                          , stack    = S.emptyStack
+                          , dump     = S.emptyStack
+                          , vstack   = S.emptyStack
+                          , clock    = 0
+                          , taskId   = 0
+                          , parentId = (-1)
+                          , spinLock = initSpinLock
+                          , lockPool = []
+                          }
 
 tick :: PgmLocalState -> PgmLocalState
 tick state = state { clock = clock state + 1 }
@@ -627,22 +641,30 @@ par s@(global, local) = (global', local')
 
 lock :: Addr -> GmState -> GmState
 lock addr state@(glb, local)
-  = putHeap heap'
+  = updateLocal       -- this must be called at last
+    . putHeap heap'
     . putSpinLock Nothing
     . putLockPool lookpool'
     $ state
   where heap = getHeap state
         tid = taskId local
         lockpool = lockPool local
-        (lockedp, heap') = newHeap (hLookup heap addr)
-        lookpool' | lockedp   = addr:lockpool
-                  | otherwise = lockpool
-        newHeap :: Node -> (Bool, GmHeap) -- ^ (lockedp, new heap)
-        newHeap (NAp a1 a2)  = (True,  hUpdate heap addr (NLAp a1 a2 tid [])) -- exercise 5.20
-        newHeap (NLAp _ _ _ _) = (False, heap) -- already locked
+        (nodelocked, tasklocked, heap') = newHeap (hLookup heap addr)
+        lookpool' | nodelocked = addr:lockpool
+                  | otherwise  = lockpool
+        updateLocal | tasklocked = putLocalState emptyTask
+                    | otherwise  = id
+        newHeap :: Node -> (Bool, Bool, GmHeap) -- ^ (node locked, task locked, new heap)
+        newHeap (NAp a1 a2) = (True, False, hUpdate heap addr (NLAp a1 a2 tid [])) -- exercise 5.20
+        newHeap (NLAp a1 a2 tid pl)
+          | taskId local == tid = (False, False, heap) -- be able to ignore self-locked
+          | otherwise           = (False, True, hUpdate heap addr (NLAp a1 a2 tid (local:pl)))
         newHeap (NGlobal n c)
-          | n == 0    = (True, hUpdate heap addr (NLGlobal n c tid []))       -- exercise 5.20
-          | otherwise = (False, heap)
+          | n == 0    = (True, False, hUpdate heap addr (NLGlobal n c tid []))       -- exercise 5.20
+          | otherwise = (False, False, heap)
+        newHeap (NLGlobal n c tid pl)
+          | taskId local == tid = (False, False, heap) -- be able to ignore self-locked
+          | otherwise           = (False, True, hUpdate heap addr (NLGlobal n c tid (local:pl)))
         newHeap n = error $ "Unexpected Node: " ++ show n
 
 unlock :: Addr -> GmState -> ([Addr], GmState) -- ^ (unlocked addrs, new state)
