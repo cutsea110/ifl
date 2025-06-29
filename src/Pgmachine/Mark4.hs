@@ -638,10 +638,10 @@ lock addr state@(glb, local)
         lookpool' | lockedp   = addr:lockpool
                   | otherwise = lockpool
         newHeap :: Node -> (Bool, GmHeap) -- ^ (lockedp, new heap)
-        newHeap (NAp a1 a2)  = (True,  hUpdate heap addr (NLAp a1 a2 tid []))
+        newHeap (NAp a1 a2)  = (True,  hUpdate heap addr (NLAp a1 a2 tid [])) -- exercise 5.20
         newHeap (NLAp _ _ _ _) = (False, heap) -- already locked
         newHeap (NGlobal n c)
-          | n == 0    = (True, hUpdate heap addr (NLGlobal n c tid []))
+          | n == 0    = (True, hUpdate heap addr (NLGlobal n c tid []))       -- exercise 5.20
           | otherwise = (False, heap)
         newHeap n = error $ "Unexpected Node: " ++ show n
 
