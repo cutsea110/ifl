@@ -793,7 +793,6 @@ unwind state = newState (hLookup heap a)
         (a, s1) = S.pop s
         heap = getHeap state
         dump = getDump state
-        locked = lock a state
         ((i', s', v'), d) = S.pop dump
         tid = getTaskId state
         newState (NNum n)
@@ -804,18 +803,24 @@ unwind state = newState (hLookup heap a)
                              . putDump d
                              . putSpinLock Nothing
                              $ state
-        newState (NAp a1 a2) = putCode [Unwind]
+        newState (NAp a1 a2) = lock a          -- lock must be called at last
+                               . putCode [Unwind]
                                . putStack (S.push a1 s)
-                               $ locked
+                               $ state
         newState (NGlobal n c)
-          | k < n     = putCode i'
+          | k < n     = lock a                 -- lock must be called at last
+                        . putCode i'
                         . putStack (S.push ak s')
                         . putVStack v'
                         . putDump d
-                        $ locked
+                        $ state
+          | n == 0    = lock a                 -- lock must be called at last
+                        . putCode c
+                        . putStack (rearrange n heap s)
+                        $ state
           | otherwise = putCode c
                         . putStack (rearrange n heap s)
-                        $ if n == 0 then locked else state
+                        $ state
           where k       = S.getDepth s1
                 (ak, _) = S.pop (S.discard k s)
         newState (NInd a1) = putCode [Unwind]
@@ -831,10 +836,11 @@ unwind state = newState (hLookup heap a)
                              . putSpinLock Nothing
                              $ state
         newState (NLAp a1 a2 tid' pl)
-          | tid' == tid = putCode [Unwind]
+          | tid' == tid = lock a               -- lock must be called at last
+                          . putCode [Unwind]
                           . putStack (S.push a1 s)
                           . putSpinLock Nothing
-                          $ locked
+                          $ state
           | otherwise   = putCode [Unwind]
                           . putSpinLock (Just tid')
                           $ state -- spin lock
