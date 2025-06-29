@@ -331,8 +331,8 @@ kill (global, locals) tid = (global { heap = heap', killed = killed' }, locals')
         cleanup :: GmHeap -> [Addr] -> GmHeap
         cleanup = foldr f
           where f addr h = case hLookup h addr of
-                  NLAp a1 a2 _ _   -> hUpdate h addr (NAp a1 a2)
-                  NLGlobal n c _ _ -> hUpdate h addr (NGlobal n c)
+                  NLAp a1 a2 _ pl   -> hUpdate h addr (NAp a1 a2)   -- TODO: pl -> sparks
+                  NLGlobal n c _ pl -> hUpdate h addr (NGlobal n c) -- TODO: pl -> sparks
                   _                -> h -- no change for other nodes
 
 
@@ -573,7 +573,7 @@ updatebool n = sub . mkbool
     sub state = putHeap heap'
                 . putStack s'
                 . putLockPool lockpool'
-                $ state
+                $ unlocked
       where s = getStack state
             (a, s') = S.pop s
             a' = S.getStack s' !! n
@@ -590,7 +590,7 @@ updateint n = sub . mkint
     sub state = putHeap heap'
                 . putStack s'
                 . putLockPool lockpool'
-                $ state
+                $ unlocked
       where s = getStack state
             (a, s') = S.pop s
             a' = S.getStack s' !! n
@@ -769,7 +769,7 @@ update :: Int -> GmState -> GmState
 update n state = putHeap heap'
                  . putStack s'
                  . putLockPool lockpool'
-                 $ state
+                 $ unlocked
   where s = getStack state
         (a, s') = S.pop s
         a' = S.getStack s' !! n
@@ -858,12 +858,12 @@ unwind state = newState (hLookup heap a)
                              . putSpinLock Nothing
                              $ state
         newState (NLAp a1 a2 tid' pl)
-          | tid' == tid = lock a               -- lock must be called at last
-                          . putCode [Unwind]
+          | tid' == tid =  putCode [Unwind]
                           . putStack (S.push a1 s)
                           . putSpinLock Nothing
                           $ state
-          | otherwise   = putCode [Unwind]
+          | otherwise   = lock a               -- lock must be called at last
+                          . putCode [Unwind]
                           . putSpinLock (Just tid')
                           $ state -- spin lock
         newState (NLGlobal n c tid' pl)
