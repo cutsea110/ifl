@@ -69,6 +69,8 @@ data PgmGlobalState
                    }
 
 type PgmPendingList = [PgmLocalState] -- ^ pending tasks
+emptyPendingList :: [PgmLocalState] -> GmState -> GmState
+emptyPendingList tasks state = putSparks (tasks ++ getSparks state) state
 
 type GmSparks = [PgmLocalState]
 sparksInitial :: GmSparks
@@ -196,6 +198,12 @@ putHeap heap' (global, local) = (global { heap = heap' }, local)
 
 getTaskId :: GmState -> TaskId
 getTaskId (_, local) = taskId local
+
+getSparks :: GmState -> GmSparks
+getSparks (global, _) = sparks global
+
+putSparks :: GmSparks -> GmState -> GmState
+putSparks sparks' (global, local) = (global { sparks = sparks' }, local)
 
 putSpinLock :: Maybe TaskId -> GmState -> GmState
 putSpinLock mtid (global, local) = (global, local { spinLock = spinLock' })
@@ -642,9 +650,10 @@ unlock addr state
   = newState (hLookup heap addr)
   where heap = getHeap state
         newState il = case il of
-          (NLAp a1 a2 _ _) -> (addr:as, s)
+          (NLAp a1 a2 _ pl) -> (addr:as, emptyPendingList pl s)
             where (as, s) = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) state)
-          (NLGlobal n c _ _) -> ([addr], putHeap (hUpdate heap addr (NGlobal n c)) state)
+          (NLGlobal n c _ pl) -> (addr:[], emptyPendingList pl s)
+            where s = putHeap (hUpdate heap addr (NGlobal n c)) state
           (NInd a1) | a1 /= 0 -> (addr:as, s)
             where (as, s) = unlock a1 state
           _ -> ([], state)
