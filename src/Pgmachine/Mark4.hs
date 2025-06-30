@@ -634,11 +634,6 @@ par s@(global, local) = (global', local')
 
 lock :: Addr -> GmState -> GmState
 lock addr state@(global, local) = newState (hLookup heap addr)
---   = updateLocal       -- this must be called at last
---     . putHeap heap'
---     . putSpinLock Nothing
---     . putLockPool lookpool'
---     $ state
   where heap = getHeap state
         lockpool = lockPool local
         spinlock = spinLock local
