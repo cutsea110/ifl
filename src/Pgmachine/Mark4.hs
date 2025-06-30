@@ -328,6 +328,12 @@ kill task global = global' { killed = killed' }
                   where heap' = heap g
 
 
+{- |
+>>> deadLocked [(0, 1), (1, 2), (2, 3), (1, 4)] (3, 1)
+True
+>>> deadLocked [(0, 1), (1, 2), (2, 3), (1, 4)] (1, 3)
+False
+-}
 deadLocked :: [(TaskId, TaskId)] -- ^ (parent task id, task id))
            -> (TaskId, TaskId) -- ^ (blocked task id, blocking task id)
            -> Bool
