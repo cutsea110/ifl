@@ -1,5 +1,6 @@
 {-# LANGUAGE NPlusKPatterns  #-}
-module Pgmachine.Mark3
+{-# LANGUAGE TupleSections  #-}
+module Pgmachine.Mark4
   ( parse
   , compile
   , eval
@@ -15,10 +16,11 @@ import qualified Parser as P (runParser)
 import qualified Stack as S
 import Utils
 import Data.Char (chr, ord)
+import Data.Function (on)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as Set
-import Data.List (find, mapAccumL, (\\))
-import Data.Maybe (listToMaybe, maybe)
+import Data.List (find, mapAccumL, sortBy, (\\))
+import Data.Maybe (fromMaybe, listToMaybe)
 import Prelude hiding (head)
 
 -- for legacy functions
@@ -44,6 +46,8 @@ pgmGetHeap :: PgmState -> GmHeap
 pgmGetHeap (global, _) = heap global
 pgmGetGlobals :: PgmState -> GmGlobals
 pgmGetGlobals (global, _) = globals global
+pgmGetTaskTree :: PgmState -> [(TaskId, TaskId)] -- ^ (parent task id, task id)
+pgmGetTaskTree (global, _) = tasktree global
 pgmGetSparks :: PgmState -> GmSparks
 pgmGetSparks (global, _) = sparks global
 pgmGetKilled :: PgmState -> GmKilled
@@ -57,13 +61,18 @@ data PgmGlobalState
   = PgmGlobalState { output    :: GmOutput
                    , heap      :: GmHeap
                    , globals   :: GmGlobals
+                   , tasktree  :: [(TaskId, TaskId)] -- ^ (parent task id, task id)
                    , sparks    :: GmSparks
                    , killed    :: GmKilled
                    , stats     :: GmStats
                    , maxTaskId :: TaskId
                    }
 
-type GmSparks = [(Addr, TaskId)] -- ^ (node addr, parent task id)
+type PgmPendingList = [PgmLocalState] -- ^ pending tasks
+emptyPendingList :: [PgmLocalState] -> GmState -> GmState
+emptyPendingList tasks state = putSparks (tasks ++ getSparks state) state
+
+type GmSparks = [PgmLocalState]
 sparksInitial :: GmSparks
 sparksInitial = []
 
@@ -85,6 +94,9 @@ data PgmLocalState
                   , lockPool :: [Addr]     -- ^ pool of locked addresses
                   }
 
+instance Show PgmLocalState where
+  show s = "PgmLocalState { taskId = " ++ show (taskId s) ++ "}"
+
 type GmClock = Int
 type GmSpinLock = (Maybe (TaskId, Int), [(TaskId, Int)]) -- ^ (current spin lock, locked history)
 initSpinLock :: GmSpinLock
@@ -95,6 +107,9 @@ spinTotal (cur, hist) = maybe 0 snd cur + sum (map snd hist)
 
 
 type GmState = (PgmGlobalState, PgmLocalState)
+
+putLocalState :: PgmLocalState -> GmState -> GmState
+putLocalState local (global, _) = (global, local)
 
 type GmOutput = ([String], IseqRep)
 initialOutput :: GmOutput
@@ -187,17 +202,26 @@ putHeap heap' (global, local) = (global { heap = heap' }, local)
 getTaskId :: GmState -> TaskId
 getTaskId (_, local) = taskId local
 
+getSparks :: GmState -> GmSparks
+getSparks (global, _) = sparks global
+
+putSparks :: GmSparks -> GmState -> GmState
+putSparks sparks' (global, local) = (global { sparks = sparks' }, local)
+
+
+updateSpinLock :: Maybe TaskId -> GmSpinLock -> GmSpinLock
+updateSpinLock mtid old@(cur, hist) = case mtid of
+  Nothing -> case cur of
+    Nothing -> old
+    Just sl -> (Nothing, sl:hist)
+  Just tid -> case cur of
+    Nothing                 -> (Just (tid, 1), hist)
+    Just (t, c) | tid == t  -> (Just (tid, c + 1), hist)
+                | otherwise -> (Just (tid, 1), (t, c):hist)
+
 putSpinLock :: Maybe TaskId -> GmState -> GmState
 putSpinLock mtid (global, local) = (global, local { spinLock = spinLock' })
-  where old@(cur, hist) = spinLock local
-        spinLock' = case mtid of
-          Nothing -> case cur of
-            Nothing -> old
-            Just sl -> (Nothing, sl:hist)
-          Just tid -> case cur of
-            Nothing                 -> (Just (tid, 1), hist)
-            Just (t, c) | tid == t  -> (Just (tid, c + 1), hist)
-                        | otherwise -> (Just (tid, 1), (t, c):hist)
+  where spinLock' = updateSpinLock mtid $ spinLock local
 
 getLockPool :: GmState -> [Addr]
 getLockPool (_, local) = lockPool local
@@ -210,8 +234,8 @@ data Node
   | NGlobal Int GmCode  -- Globals
   | NInd Addr           -- Indirections
   | NConstr Int [Addr]
-  | NLAp Addr Addr TaskId      -- Locked Applications
-  | NLGlobal Int GmCode TaskId -- Locked globals
+  | NLAp Addr Addr TaskId PgmPendingList      -- Locked Applications
+  | NLGlobal Int GmCode TaskId PgmPendingList -- Locked globals
   deriving Show
 
 instance Eq Node where
@@ -253,6 +277,7 @@ doAdmin (global, locals) = (global { heap = heap', stats = stats' }, locals')
   where
     (heap', stats', locals') = foldr filter (heap global, stats global, []) locals
     filter local (h, s, ls)
+      | isEmptyTask local = (h, s,  ls)  -- exercise 5.23
       | null (code local) = (h, s', ls)
       | otherwise         = (h, s,  local:ls)
       where s' = (taskId local, clock local, spinTotal $ spinLock local):s
@@ -261,17 +286,10 @@ gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: Config -> PgmState -> PgmState
-steps conf stat@(_, locals) = scheduler conf global' local'
-  where blocked = foldl f [] $ sortTasks locals -- ^ use only for deadlock detection and kill
-          where f acc l = maybe acc (\(tid, _) -> (taskId l, tid):acc) $ fst (spinLock l)
-        -- | NOTE: locals1 holds the order of locals because kill function holds.
-        (global1, locals1) = maybe stat (kill stat) $ deadLocked blocked -- my own original feature
-        local' = locals1 ++ newtasks
-        numOfIdles = machineSize conf - length locals1
-        (ready, wait) = splitAt numOfIdles (sparks global1)
-        (global', newtasks) = mapAccumL f (global1 { sparks = wait }) ready
-          where f g (a, pid) = let tid = maxTaskId g + 1
-                               in (g { maxTaskId = tid }, makeTask tid pid a)
+steps conf (global, locals) = scheduler conf global' local'
+  where numOfIdles = machineSize conf - length locals
+        (ready, wait) = splitAt numOfIdles (sparks global)
+        (global', local') = (global { sparks = wait }, locals ++ ready)
 
 scheduler :: Config -> PgmGlobalState -> [PgmLocalState] -> PgmState
 scheduler conf global tasks = (global', nonRunning ++ running')
@@ -279,53 +297,53 @@ scheduler conf global tasks = (global', nonRunning ++ running')
         mSize = machineSize conf
         locals | length tasks <= mSize = tasks'
                | otherwise             = ys ++ xs
-          where tasks' = sortTasks tasks
+          where tasks' = sortTasks (tasktree global) tasks
                 (xs, ys) = break (\t -> taskId t == nextTaskId) tasks'
         (running, nonRunning) = splitAt mSize locals
         (global', running') = mapAccumL step global $ map tick running
 
-sortTasks :: [PgmLocalState] -> [PgmLocalState]
-sortTasks = buildTreeDfs taskId . map (\o -> (parentId o, o))
+sortTasks :: [(TaskId, TaskId)] -> [PgmLocalState] -> [PgmLocalState]
+sortTasks = customSortOn taskId . buildTreeDfs id
 
--- | NOTE: hold the order of locals
-kill :: PgmState -> TaskId -> PgmState
-kill (global, locals) tid = (global { heap = heap', killed = killed' }, locals')
-  where task    = case find ((tid ==) . taskId) locals of
-          Nothing -> error $ "kill: no task with id " ++ show tid
-          Just t  -> t
-        locals' = foldr f [] locals
-          where f l acc | taskId l   == tid = acc                                -- filter out the killed task
-                        | parentId l == tid = l { parentId = parentId task }:acc -- reparent children
-                        | otherwise         = l:acc                              -- keep other tasks
-        heap' = cleanup (heap global) (lockPool task)
-        killed' = tid:killed global
+-- {
+-- >>> baseOrder = [3,9,6,2,8,4,1,7,5] :: [Int]
+-- >>> inputList = [1,3,4,2]
+-- >>> customSortBasedOn baseOrder id inputList
+-- [3,4,2,1]
+customSortOn :: (a -> IM.Key) -> [IM.Key] -> [a] -> [a]
+customSortOn getter order xs = sortBy (compare `on` rank) xs
+  where indexMap = IM.fromList (zip order [0..]) -- indexed based on positions of custom order
+        rank x = fromMaybe (error "unknown value occurred") (IM.lookup (getter x) indexMap)
 
-        cleanup :: GmHeap -> [Addr] -> GmHeap
-        cleanup = foldr f
-          where f addr h = case hLookup h addr of
-                  NLAp a1 a2 _   -> hUpdate h addr (NAp a1 a2)
-                  NLGlobal n c _ -> hUpdate h addr (NGlobal n c)
-                  _              -> h -- no change for other nodes
+kill :: PgmLocalState -> PgmGlobalState -> PgmGlobalState
+kill task global = global' { killed = killed' }
+  where global' = cleanup (lockPool task) global
+        killed' = taskId task:killed global
+
+        cleanup :: [Addr] -> PgmGlobalState -> PgmGlobalState
+        cleanup addrs state = foldr f state addrs
+          where f addr g = case hLookup heap' addr of
+                  NLAp a1 a2 _ pl   -> g { heap = hUpdate heap' addr (NAp a1 a2),   sparks = sparks g ++ pl }
+                  NLGlobal n c _ pl -> g { heap = hUpdate heap' addr (NGlobal n c), sparks = sparks g ++ pl }
+                  _                 -> g -- no change for other nodes
+                  where heap' = heap g
 
 
 {- |
->>> deadLocked []
-Nothing
->>> deadLocked [(4, 2), (2, 4), (1, 4)]
-Just 2
->>> deadLocked [(1, 2), (2, 3), (3, 1)]
-Just 3
->>> deadLocked [(3, 2), (2, 1), (4, 1)]
-Nothing
+>>> deadLocked [(0, 1), (1, 2), (2, 3), (1, 4)] (3, 1)
+True
+>>> deadLocked [(0, 1), (1, 2), (2, 3), (1, 4)] (1, 3)
+False
 -}
--- | NOTE: This depends on the assumption that these fst is ordered by buildTreeDfs in steps.
-deadLocked :: [(TaskId, TaskId)] -- ^ (blocked task id, blocking task id)
-           -> Maybe TaskId
-deadLocked = go Set.empty
-  where go _ [] = Nothing
-        go bigger ((a, b):xs)
-          | b `Set.member` bigger = Just a
-          | otherwise = go (Set.insert a bigger) xs
+deadLocked :: [(TaskId, TaskId)] -- ^ (parent task id, task id))
+           -> (TaskId, TaskId) -- ^ (blocked task id, blocking task id)
+           -> Bool
+deadLocked tt (blocked, blocking) = rank blocked < rank blocking
+  where rank k = maybe (error $ "deadLocked: unknown task id " ++ show k) id $ IM.lookup k indexMap
+        indexMap = IM.fromList $ zip (buildTreeDfs id tt) [0..]
+
+
+
 
 {- |
 >>> data Obj = Obj Int deriving (Show, Eq)
@@ -374,6 +392,20 @@ makeTask tid pid addr = PgmLocalState { code     = [Eval]
                                       , spinLock = initSpinLock
                                       , lockPool = []
                                       }
+emptyTask :: PgmLocalState
+emptyTask = PgmLocalState { code     = []
+                          , stack    = S.emptyStack
+                          , dump     = S.emptyStack
+                          , vstack   = S.emptyStack
+                          , clock    = 0
+                          , taskId   = 0
+                          , parentId = (-1)
+                          , spinLock = initSpinLock
+                          , lockPool = []
+                          }
+
+isEmptyTask :: PgmLocalState -> Bool
+isEmptyTask local = taskId local == 0 -- God or empty task, but God cannot exist.
 
 tick :: PgmLocalState -> PgmLocalState
 tick state = state { clock = clock state + 1 }
@@ -534,7 +566,7 @@ updatebool n = sub . mkbool
     sub state = putHeap heap'
                 . putStack s'
                 . putLockPool lockpool'
-                $ state
+                $ unlocked
       where s = getStack state
             (a, s') = S.pop s
             a' = S.getStack s' !! n
@@ -551,7 +583,7 @@ updateint n = sub . mkint
     sub state = putHeap heap'
                 . putStack s'
                 . putLockPool lockpool'
-                $ state
+                $ unlocked
       where s = getStack state
             (a, s') = S.pop s
             a' = S.getStack s' !! n
@@ -590,38 +622,69 @@ par :: GmState -> GmState
 par s@(global, local) = (global', local')
   where
     (a, stack') = S.pop (getStack s)
+    tt = tasktree global
     parentId = taskId local
-    global' = global { sparks = (a, parentId) : sparks global }
+    tid = maxTaskId global + 1
+    task = makeTask tid parentId a
+    global' = global { tasktree = (parentId, tid):tt
+                     , sparks = task:sparks global
+                     , maxTaskId = tid
+                     }
     local'  = local { stack = stack' }
 
 lock :: Addr -> GmState -> GmState
-lock addr state@(glb, local)
-  = putHeap heap'
-    . putSpinLock Nothing
-    . putLockPool lookpool'
-    $ state
+lock addr state@(global, local) = newState (hLookup heap addr)
+--   = updateLocal       -- this must be called at last
+--     . putHeap heap'
+--     . putSpinLock Nothing
+--     . putLockPool lookpool'
+--     $ state
   where heap = getHeap state
-        tid = taskId local
         lockpool = lockPool local
-        (lockedp, heap') = newHeap (hLookup heap addr)
-        lookpool' | lockedp   = addr:lockpool
-                  | otherwise = lockpool
-        newHeap :: Node -> (Bool, GmHeap) -- ^ (lockedp, new heap)
-        newHeap (NAp a1 a2)  = (True,  hUpdate heap addr (NLAp a1 a2 tid))
-        newHeap (NLAp _ _ _) = (False, heap) -- already locked
-        newHeap (NGlobal n c)
-          | n == 0    = (True, hUpdate heap addr (NLGlobal n c tid))
-          | otherwise = (False, heap)
-        newHeap n = error $ "Unexpected Node: " ++ show n
+        spinlock = spinLock local
+        tid = taskId local
+        deadLockp blockingId = deadLocked (tasktree global) (taskId local, blockingId)
+        newState il = case il of
+          (NAp a1 a2) -> let spinlock' = updateSpinLock Nothing spinlock
+                             lockpool' = addr:lockpool
+                             heap' = hUpdate heap addr (NLAp a1 a2 tid []) -- exercise 5.20
+                         in (global { heap = heap' }, local { spinLock = spinlock', lockPool = lockpool' })
+          (NLAp a1 a2 tid pl)
+            | taskId local == tid -> let spinlock' = updateSpinLock Nothing spinlock
+                                     in (global, local { spinLock = spinlock' }) -- be able to ignore self-locked
+            | deadLockp tid       -> let global' = kill local global
+                                     in (global', emptyTask)
+            | otherwise           -> let spinlock' = updateSpinLock (Just tid) spinlock
+                                         local' = local { spinLock = spinlock' }
+                                         heap' = hUpdate heap addr (NLAp a1 a2 tid (local':pl))
+                                     in (global { heap = heap' }, emptyTask)
+          (NGlobal n c)
+            | n == 0    -> let spinlock' = updateSpinLock Nothing spinlock
+                               heap' = hUpdate heap addr (NLGlobal n c tid [])       -- exercise 5.20
+                               lockpool' = addr:lockpool
+                           in (global { heap = heap' }, local { spinLock = spinlock', lockPool = lockpool' })
+            | otherwise -> let spinlock' = updateSpinLock Nothing spinlock
+                           in (global, local { spinLock = spinlock' })
+          (NLGlobal n c tid pl)
+            | taskId local == tid -> let spinlock' = updateSpinLock Nothing spinlock
+                                     in (global, local { spinLock = spinlock' }) -- be able to ignore self-locked
+            | deadLockp tid       -> let global' = kill local global
+                                     in (global', emptyTask)
+            | otherwise           -> let spinlock' = updateSpinLock (Just tid) spinlock
+                                         local' = local { spinLock = spinlock' }
+                                         heap' = hUpdate heap addr (NLGlobal n c tid (local':pl))
+                                     in (global { heap = heap' }, emptyTask)
+          n -> error $ "Unexpected Node: " ++ show n
 
 unlock :: Addr -> GmState -> ([Addr], GmState) -- ^ (unlocked addrs, new state)
 unlock addr state
   = newState (hLookup heap addr)
   where heap = getHeap state
         newState il = case il of
-          (NLAp a1 a2 _) -> (addr:as, s)
+          (NLAp a1 a2 _ pl) -> (addr:as, emptyPendingList pl s)
             where (as, s) = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) state)
-          (NLGlobal n c _) -> ([addr], putHeap (hUpdate heap addr (NGlobal n c)) state)
+          (NLGlobal n c _ pl) -> (addr:[], emptyPendingList pl s)
+            where s = putHeap (hUpdate heap addr (NGlobal n c)) state
           (NInd a1) | a1 /= 0 -> (addr:as, s)
             where (as, s) = unlock a1 state
           _ -> ([], state)
@@ -715,7 +778,7 @@ update :: Int -> GmState -> GmState
 update n state = putHeap heap'
                  . putStack s'
                  . putLockPool lockpool'
-                 $ state
+                 $ unlocked
   where s = getStack state
         (a, s') = S.pop s
         a' = S.getStack s' !! n
@@ -745,9 +808,9 @@ allocNodes (n+1) heap = (heap2, a:as)
 allocNodes _ _      = error "allocNodes: negative"
 
 getArg :: Node -> Addr
-getArg (NAp  _ a2)   = a2
-getArg (NLAp _ a2 _) = a2
-getArg n             = error $ "not application Node: " ++ show n
+getArg (NAp  _ a2)     = a2
+getArg (NLAp _ a2 _ _) = a2
+getArg n               = error $ "not application Node: " ++ show n
 
 rearrange :: Int -> GmHeap -> GmStack -> GmStack
 rearrange n heap as = foldr S.push (S.discard n as) $ take n as'
@@ -761,7 +824,6 @@ unwind state = newState (hLookup heap a)
         (a, s1) = S.pop s
         heap = getHeap state
         dump = getDump state
-        locked = lock a state
         ((i', s', v'), d) = S.pop dump
         tid = getTaskId state
         newState (NNum n)
@@ -772,18 +834,24 @@ unwind state = newState (hLookup heap a)
                              . putDump d
                              . putSpinLock Nothing
                              $ state
-        newState (NAp a1 a2) = putCode [Unwind]
+        newState (NAp a1 a2) = lock a          -- lock must be called at last
+                               . putCode [Unwind]
                                . putStack (S.push a1 s)
-                               $ locked
+                               $ state
         newState (NGlobal n c)
-          | k < n     = putCode i'
+          | k < n     = lock a                 -- lock must be called at last
+                        . putCode i'
                         . putStack (S.push ak s')
                         . putVStack v'
                         . putDump d
-                        $ locked
+                        $ state
+          | n == 0    = lock a                 -- lock must be called at last
+                        . putCode c
+                        . putStack (rearrange n heap s)
+                        $ state
           | otherwise = putCode c
                         . putStack (rearrange n heap s)
-                        $ if n == 0 then locked else state
+                        $ state
           where k       = S.getDepth s1
                 (ak, _) = S.pop (S.discard k s)
         newState (NInd a1) = putCode [Unwind]
@@ -798,15 +866,16 @@ unwind state = newState (hLookup heap a)
                              . putDump d
                              . putSpinLock Nothing
                              $ state
-        newState (NLAp a1 a2 tid')
-          | tid' == tid = putCode [Unwind]
+        newState (NLAp a1 a2 tid' pl)
+          | tid' == tid =  putCode [Unwind]
                           . putStack (S.push a1 s)
                           . putSpinLock Nothing
-                          $ locked
-          | otherwise   = putCode [Unwind]
+                          $ state
+          | otherwise   = lock a               -- lock must be called at last
+                          . putCode [Unwind]
                           . putSpinLock (Just tid')
                           $ state -- spin lock
-        newState (NLGlobal n c tid')
+        newState (NLGlobal n c tid' pl)
           | tid' == tid = error "TODO: The case occurred"
           | otherwise = putCode [Unwind]
                         . putSpinLock (Just tid')
@@ -817,10 +886,12 @@ compile :: CoreProgram -> PgmState
 compile program = (pgmGlobalState, [initialTask mainTaskId addr])
   where (heap, globals) = buildInitialHeap program
         mainTaskId = 1
+        godId = 0 -- invalid task id
         addr = aLookup globals "main" (error "main undefined")
         pgmGlobalState = PgmGlobalState { output    = initialOutput
                                         , heap      = heap
                                         , globals   = globals
+                                        , tasktree  = [(godId, mainTaskId)]
                                         , sparks    = sparksInitial
                                         , killed    = killedInitial
                                         , stats     = statInitial
@@ -1379,6 +1450,7 @@ showState :: Bool -- werbose
           -> PgmState -> IseqRep
 showState w s@(global, locals)
   = iConcat ([ showOutput s, iNewline
+             , showTaskTree s, iNewline
              , showSparks s, iNewline
              , showKilled s, iNewline
              , showMaxTaskId s, iNewline
@@ -1441,16 +1513,21 @@ showOutput :: PgmState -> IseqRep
 showOutput s
   = iConcat [iStr "Output: \"", iStr (outputAll (pgmGetOutput s)), iStr "\""]
 
+showTaskTree :: PgmState -> IseqRep
+showTaskTree s
+  = iConcat [ iStr "Task Tree: ["
+            , iIndent $ iInterleave (iStr ", ") $ map showTask (pgmGetTaskTree s)
+            , iStr "]"
+            ]
+    where showTask (tid, pid) = iConcat [iStr "(", iNum tid, iStr ", ", iNum pid, iStr ")"]
+
 showSparks :: PgmState -> IseqRep
 showSparks s
   = iConcat [ iStr "Sparks: ["
             , iInterleave (iStr ", ") $ showSpark <$> pgmGetSparks s
             , iStr "]"
             ]
-    where showSpark (addr, tid) = iConcat [ iStr "{#", iNum addr, iStr ","
-                                          , iStr " TaskId ", iNum tid
-                                          , iStr "}"
-                                          ]
+    where showSpark local = iNum (taskId local)
 
 showKilled :: PgmState -> IseqRep
 showKilled s
@@ -1548,12 +1625,14 @@ showNode s a (NConstr t as)
             , iInterleave (iStr ", ") (map (iStr . showaddr) as)
             , iStr "]"
             ]
-showNode s a (NLAp a1 a2 tid)
+showNode s a (NLAp a1 a2 tid pl)
   = iConcat [ iStr "*Ap ", iStr (showaddr a1)
             , iStr " ", iStr (showaddr a2)
-            , iStr " {🔒#", iNum tid, iStr "}"
+            , iStr " {🔒#", iNum tid, showPendingList pl, iStr "}"
             ]
-showNode s a (NLGlobal n g tid) = iConcat [iStr "*Global ", iStr v, iStr " {🔒#", iNum tid, iStr "}"]
+showNode s a (NLGlobal n g tid pl)
+  = iConcat [ iStr "*Global ", iStr v
+            , iStr " {🔒#", iNum tid, showPendingList pl, iStr "}"]
   where v = head [n | (n, b) <- getGlobals s, a == b]
 
 showNodeSimple :: PgmGlobalState -> Addr -> Node -> IseqRep
@@ -1567,15 +1646,21 @@ showNodeSimple s a (NGlobal n _) = iConcat [iStr "Global ", iStr v, iStr " (", i
 showNodeSimple _ _ (NInd a1) = iConcat [iStr "Ind ", iStr (showaddr a1)]
 showNodeSimple _ _ (NConstr t as)
   = iConcat [ iStr "Constr ", iNum t, iStr " .."]
-showNodeSimple s a (NLGlobal n _ tid) = iConcat [ iStr "*Global ", iStr v, iStr " (", iNum n, iStr ")"
-                                                , iStr " {🔒#", iNum tid, iStr "}"]
+showNodeSimple s a (NLGlobal n _ tid pl) = iConcat [ iStr "*Global ", iStr v, iStr " (", iNum n, iStr ")"
+                                                   , iStr " {🔒#", iNum tid, showPendingList pl, iStr "}"]
   where v = head [n | (n, b) <- globals s, a == b]
-showNodeSimple _ _ (NLAp a1 a2 tid)
+showNodeSimple _ _ (NLAp a1 a2 tid pl)
   = iConcat [ iStr "*Ap ", iStr (showaddr a1)
             , iStr " ", iStr (showaddr a2)
-            , iStr " {🔒#", iNum tid, iStr "}"
+            , iStr " {🔒#", iNum tid, showPendingList pl, iStr "}"
             ]
 
+showPendingList :: [PgmLocalState] -> IseqRep
+showPendingList pl = iConcat [ iStr " ["
+                             , iInterleave (iStr ", ") (map showPending pl)
+                             , iStr "]"
+                             ]
+  where showPending local = iNum (taskId local)
 
 showStats :: PgmState -> IseqRep
 showStats s = iConcat [ iStr "---------------"

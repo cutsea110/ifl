@@ -42,6 +42,7 @@ import qualified TIM.Mark6   as TIMark6   (runProg, Config(..))
 import qualified Pgmachine.Mark1 as PgMark1   (runProg, Config(..))
 import qualified Pgmachine.Mark2 as PgMark2   (runProg, Config(..))
 import qualified Pgmachine.Mark3 as PgMark3   (runProg, Config(..))
+import qualified Pgmachine.Mark4 as PgMark4   (runProg, Config(..))
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -84,6 +85,7 @@ executer opts = putStr . run
           PgMark1     -> PgMark1.runProg   $ PgMark1.Config verbose werbose
           PgMark2     -> PgMark2.runProg   $ PgMark2.Config verbose werbose
           PgMark3     -> PgMark3.runProg   $ PgMark3.Config verbose werbose machineSize
+          PgMark4     -> PgMark4.runProg   $ PgMark4.Config verbose werbose machineSize
           (Noco name) -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
@@ -96,7 +98,7 @@ data Compiler
   | Mark5 | Mark5Alt | Mark5GC | Mark5RevGC | Mark5Cp
   | GMark1 | GMark2 | GMark3 | GMark4 | GMark5 | GMark6 | GMark7
   | TIMark1 | TIMark1Cp | TIMark2 | TIMark3 | TIMark4 | TIMark5 | TIMark6
-  | PgMark1 | PgMark2 | PgMark3
+  | PgMark1 | PgMark2 | PgMark3 | PgMark4
   deriving (Show, Eq)
 
 validCompiler :: Compiler -> Bool
@@ -121,7 +123,7 @@ defaultOptions = Options
   , optThreshold   = 300
   , optMachineSize = 4
   , optShowVersion = False
-  , optCompiler    = PgMark3
+  , optCompiler    = PgMark4
   , optConvertList = False
   , optProfile     = False
   }
@@ -133,7 +135,7 @@ name2Compiler
     , Mark5, Mark5Alt, Mark5GC, Mark5RevGC, Mark5Cp
     , GMark1, GMark2, GMark3, GMark4, GMark5, GMark6, GMark7
     , TIMark1, TIMark1Cp, TIMark2, TIMark3, TIMark4, TIMark5, TIMark6
-    , PgMark1, PgMark2, PgMark3
+    , PgMark1, PgMark2, PgMark3, PgMark4
     ]
 
 compilerNames :: [String]
