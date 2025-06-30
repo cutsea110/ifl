@@ -285,14 +285,10 @@ gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: Config -> PgmState -> PgmState
-steps conf stat@(_, locals) = scheduler conf global' local'
-  where blocked = foldl f [] $ sortTasks (pgmGetTaskTree stat) locals -- ^ use only for deadlock detection and kill
-          where f acc l = maybe acc (\(tid, _) -> (taskId l, tid):acc) $ fst (spinLock l)
-        -- | NOTE: locals1 holds the order of locals because kill function holds.
-        (global1, locals1) = maybe stat (kill stat) $ deadLocked (pgmGetTaskTree stat) blocked -- my own original feature
-        numOfIdles = machineSize conf - length locals1
-        (ready, wait) = splitAt numOfIdles (sparks global1)
-        (global', local') = (global1 { sparks = wait }, locals1 ++ ready)
+steps conf (global, locals) = scheduler conf global' local'
+  where numOfIdles = machineSize conf - length locals
+        (ready, wait) = splitAt numOfIdles (sparks global)
+        (global', local') = (global { sparks = wait }, locals ++ ready)
 
 scheduler :: Config -> PgmGlobalState -> [PgmLocalState] -> PgmState
 scheduler conf global tasks = (global', nonRunning ++ running')
@@ -318,29 +314,8 @@ customSortOn getter order xs = sortBy (compare `on` rank) xs
   where indexMap = IM.fromList (zip order [0..]) -- indexed based on positions of custom order
         rank x = fromMaybe (error "unknown value occurred") (IM.lookup (getter x) indexMap)
 
--- | NOTE: hold the order of locals
-kill :: PgmState -> TaskId -> PgmState
-kill (global, locals) tid = (global' { killed = killed' }, locals')
-  where task    = case find ((tid ==) . taskId) locals of
-          Nothing -> error $ "kill: no task with id " ++ show tid
-          Just t  -> t
-        locals' = foldr f [] locals
-          where f l acc | taskId l   == tid = acc                                -- filter out the killed task
-                        | parentId l == tid = l { parentId = parentId task }:acc -- reparent children
-                        | otherwise         = l:acc                              -- keep other tasks
-        global' = cleanup global (lockPool task)
-        killed' = tid:killed global
-
-        cleanup :: PgmGlobalState -> [Addr] -> PgmGlobalState
-        cleanup state addrs = foldr f state addrs
-          where f addr g = case hLookup heap' addr of
-                  NLAp a1 a2 _ pl   -> g { heap = hUpdate heap' addr (NAp a1 a2),   sparks = sparks g ++ pl }
-                  NLGlobal n c _ pl -> g { heap = hUpdate heap' addr (NGlobal n c), sparks = sparks g ++ pl }
-                  _                 -> g -- no change for other nodes
-                  where heap' = heap g
-
-kill1 :: PgmLocalState -> PgmGlobalState -> PgmGlobalState
-kill1 task global = global' { killed = killed' }
+kill :: PgmLocalState -> PgmGlobalState -> PgmGlobalState
+kill task global = global' { killed = killed' }
   where global' = cleanup (lockPool task) global
         killed' = taskId task:killed global
 
@@ -353,32 +328,10 @@ kill1 task global = global' { killed = killed' }
                   where heap' = heap g
 
 
-{- |
->>> deadLocked []
-Nothing
->>> deadLocked [(4, 2), (2, 4), (1, 4)]
-Just 2
->>> deadLocked [(1, 2), (2, 3), (3, 1)]
-Just 3
->>> deadLocked [(3, 2), (2, 1), (4, 1)]
-Nothing
--}
--- | NOTE: This depends on the assumption that these fst is ordered by buildTreeDfs in steps.
 deadLocked :: [(TaskId, TaskId)] -- ^ (parent task id, task id))
-           -> [(TaskId, TaskId)] -- ^ (blocked task id, blocking task id)
-           -> Maybe TaskId
-deadLocked tt = go
-  where go [] = Nothing
-        go ((blocked, blocking):bs)
-          | rank blocked < rank blocking = Just blocked
-          | otherwise = go bs
-        rank k = maybe (error $ "deadLocked: unknown task id " ++ show k) id $ IM.lookup k indexMap
-        indexMap = IM.fromList $ zip (buildTreeDfs id tt) [0..]
-
-deadLocked1 :: [(TaskId, TaskId)] -- ^ (parent task id, task id))
            -> (TaskId, TaskId) -- ^ (blocked task id, blocking task id)
            -> Bool
-deadLocked1 tt (blocked, blocking) = rank blocked < rank blocking
+deadLocked tt (blocked, blocking) = rank blocked < rank blocking
   where rank k = maybe (error $ "deadLocked: unknown task id " ++ show k) id $ IM.lookup k indexMap
         indexMap = IM.fromList $ zip (buildTreeDfs id tt) [0..]
 
@@ -680,7 +633,7 @@ lock addr state@(global, local) = newState (hLookup heap addr)
         lockpool = lockPool local
         spinlock = spinLock local
         tid = taskId local
-        deadLockp blockingId = deadLocked1 (tasktree global) (taskId local, blockingId)
+        deadLockp blockingId = deadLocked (tasktree global) (taskId local, blockingId)
         newState il = case il of
           (NAp a1 a2) -> let spinlock' = updateSpinLock Nothing spinlock
                              lockpool' = addr:lockpool
@@ -689,7 +642,7 @@ lock addr state@(global, local) = newState (hLookup heap addr)
           (NLAp a1 a2 tid pl)
             | taskId local == tid -> let spinlock' = updateSpinLock Nothing spinlock
                                      in (global, local { spinLock = spinlock' }) -- be able to ignore self-locked
-            | deadLockp tid       -> let global' = kill1 local global
+            | deadLockp tid       -> let global' = kill local global
                                      in (global', emptyTask)
             | otherwise           -> let spinlock' = updateSpinLock (Just tid) spinlock
                                          local' = local { spinLock = spinlock' }
@@ -705,7 +658,7 @@ lock addr state@(global, local) = newState (hLookup heap addr)
           (NLGlobal n c tid pl)
             | taskId local == tid -> let spinlock' = updateSpinLock Nothing spinlock
                                      in (global, local { spinLock = spinlock' }) -- be able to ignore self-locked
-            | deadLockp tid       -> let global' = kill1 local global
+            | deadLockp tid       -> let global' = kill local global
                                      in (global', emptyTask)
             | otherwise           -> let spinlock' = updateSpinLock (Just tid) spinlock
                                          local' = local { spinLock = spinlock' }
