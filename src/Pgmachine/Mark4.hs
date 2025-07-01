@@ -283,21 +283,22 @@ gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: Config -> PgmState -> PgmState
-steps conf (global, locals) = scheduler conf global' local'
-  where numOfIdles = machineSize conf - length locals
-        (ready, wait) = splitAt numOfIdles (sparks global)
-        (global', local') = (global { sparks = wait }, locals ++ ready)
+steps conf (global, locals) = scheduler conf global locals
+--   where numOfIdles = machineSize conf - length locals
+--         (ready, wait) = splitAt numOfIdles (sparks global)
+--         (global', local') = (global { sparks = wait }, locals ++ ready)
 
 scheduler :: Config -> PgmGlobalState -> [PgmLocalState] -> PgmState
-scheduler conf global tasks = (global', nonRunning ++ running')
-  where nextTaskId = taskId $ head tasks
-        mSize = machineSize conf
-        locals | length tasks <= mSize = tasks'
+scheduler conf global tasks = (global', running')
+  where mSize = machineSize conf
+        ready = sparks global ++ tasks
+        nextTaskId = taskId . head $ ready
+        locals | length ready <= mSize = tasks'
                | otherwise             = ys ++ xs
-          where tasks' = sortTasks (tasktree global) tasks
+          where tasks' = sortTasks (tasktree global) ready
                 (xs, ys) = break (\t -> taskId t == nextTaskId) tasks'
         (running, nonRunning) = splitAt mSize locals
-        (global', running') = mapAccumL step global $ map tick running
+        (global', running') = mapAccumL step (global { sparks = nonRunning }) $ map tick running
 
 sortTasks :: [(TaskId, TaskId)] -> [PgmLocalState] -> [PgmLocalState]
 sortTasks = customSortOn taskId . buildTreeDfs id
@@ -349,6 +350,7 @@ deadLocked tt (blocked, blocking) = rank blocked < rank blocking
 [Obj 5,Obj 3,Obj 6,Obj 2,Obj 7,Obj 4,Obj 1]
 -}
 -- | [Design memo] This ordering is depend on assume rule below:
+--   WARNING: This function is sensitive for the ordering of the input list.
 --
 -- 1. Child task's target node is subnod of the parent's. (scope)
 -- 2. Parent should be blocked until the children's node unlocked. (extent)
@@ -618,8 +620,8 @@ par s@(global, local) = (global', local')
     parentId = taskId local
     tid = maxTaskId global + 1
     task = makeTask tid parentId a
-    global' = global { tasktree = (parentId, tid):tt
-                     , sparks = task:sparks global
+    global' = global { tasktree = tt ++ [(parentId, tid)]
+                     , sparks = sparks global ++ [task]
                      , maxTaskId = tid
                      }
     local'  = local { stack = stack' }
