@@ -108,9 +108,6 @@ spinTotal (cur, hist) = maybe 0 snd cur + sum (map snd hist)
 
 type GmState = (PgmGlobalState, PgmLocalState)
 
-putLocalState :: PgmLocalState -> GmState -> GmState
-putLocalState local (global, _) = (global, local)
-
 type GmOutput = ([String], IseqRep)
 initialOutput :: GmOutput
 initialOutput = ([], iNil)
@@ -328,7 +325,6 @@ kill task global = global' { killed = killed' }
                   _                 -> g -- no change for other nodes
                   where heap' = heap g
 
-
 {- |
 >>> deadLocked [(0, 1), (1, 2), (2, 3), (1, 4)] (3, 1)
 True
@@ -341,9 +337,6 @@ deadLocked :: [(TaskId, TaskId)] -- ^ (parent task id, task id))
 deadLocked tt (blocked, blocking) = rank blocked < rank blocking
   where rank k = maybe (error $ "deadLocked: unknown task id " ++ show k) id $ IM.lookup k indexMap
         indexMap = IM.fromList $ zip (buildTreeDfs id tt) [0..]
-
-
-
 
 {- |
 >>> data Obj = Obj Int deriving (Show, Eq)
@@ -379,7 +372,6 @@ dfs getter m node visited
   where children   = IM.findWithDefault [] (getter node) m
         visited'   = Set.insert (getter node) visited
         recResults = concatMap (\child -> dfs getter m child visited') children
-
 
 makeTask :: TaskId -> TaskId -> Addr -> PgmLocalState
 makeTask tid pid addr = PgmLocalState { code     = [Eval]
