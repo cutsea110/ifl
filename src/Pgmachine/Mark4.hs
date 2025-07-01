@@ -286,21 +286,22 @@ gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: Config -> PgmState -> PgmState
-steps conf (global, locals) = scheduler conf global' local'
-  where numOfIdles = machineSize conf - length locals
-        (ready, wait) = splitAt numOfIdles (sparks global)
-        (global', local') = (global { sparks = wait }, locals ++ ready)
+steps conf (global, locals) = scheduler conf global locals
+--   where numOfIdles = machineSize conf - length locals
+--         (ready, wait) = splitAt numOfIdles (sparks global)
+--         (global', local') = (global { sparks = wait }, locals ++ ready)
 
 scheduler :: Config -> PgmGlobalState -> [PgmLocalState] -> PgmState
-scheduler conf global tasks = (global', nonRunning ++ running')
-  where nextTaskId = taskId $ head tasks
-        mSize = machineSize conf
-        locals | length tasks <= mSize = tasks'
+scheduler conf global tasks = (global', running')
+  where mSize = machineSize conf
+        ready = sparks global ++ tasks
+        nextTaskId = taskId . head $ ready
+        locals | length ready <= mSize = tasks'
                | otherwise             = ys ++ xs
-          where tasks' = sortTasks (tasktree global) tasks
+          where tasks' = sortTasks (tasktree global) ready
                 (xs, ys) = break (\t -> taskId t == nextTaskId) tasks'
         (running, nonRunning) = splitAt mSize locals
-        (global', running') = mapAccumL step global $ map tick running
+        (global', running') = mapAccumL step (global { sparks = nonRunning }) $ map tick running
 
 sortTasks :: [(TaskId, TaskId)] -> [PgmLocalState] -> [PgmLocalState]
 sortTasks = customSortOn taskId . buildTreeDfs id
