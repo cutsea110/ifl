@@ -356,6 +356,7 @@ deadLocked tt (blocked, blocking) = rank blocked < rank blocking
 [Obj 5,Obj 3,Obj 6,Obj 2,Obj 7,Obj 4,Obj 1]
 -}
 -- | [Design memo] This ordering is depend on assume rule below:
+--   WARNING: This function is sensitive for the ordering of the input list.
 --
 -- 1. Child task's target node is subnod of the parent's. (scope)
 -- 2. Parent should be blocked until the children's node unlocked. (extent)
@@ -626,8 +627,8 @@ par s@(global, local) = (global', local')
     parentId = taskId local
     tid = maxTaskId global + 1
     task = makeTask tid parentId a
-    global' = global { tasktree = (parentId, tid):tt
-                     , sparks = task:sparks global
+    global' = global { tasktree = tt ++ [(parentId, tid)]
+                     , sparks = sparks global ++ [task]
                      , maxTaskId = tid
                      }
     local'  = local { stack = stack' }
