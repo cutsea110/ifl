@@ -283,10 +283,11 @@ gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: Config -> PgmState -> PgmState
-steps conf (global, locals) = scheduler conf global locals
+steps conf (global, locals) = mapAccumL step global' $ map tick locals'
+  where (global', locals') = scheduler conf global locals
 
 scheduler :: Config -> PgmGlobalState -> [PgmLocalState] -> PgmState
-scheduler conf global tasks = (global', running')
+scheduler conf global tasks = (global { sparks = nonRunning }, running)
   where mSize = machineSize conf
         ready = sparks global ++ tasks
         nextTaskId = taskId . head $ ready
@@ -295,7 +296,6 @@ scheduler conf global tasks = (global', running')
           where tasks' = sortTasks (tasktree global) ready
                 (xs, ys) = break (\t -> taskId t == nextTaskId) tasks'
         (running, nonRunning) = splitAt mSize locals
-        (global', running') = mapAccumL step (global { sparks = nonRunning }) $ map tick running
 
 -- sortOn is necessary, because of buildTreeDfs is sensitive of the order of input list
 sortTasks :: [(TaskId, TaskId)] -> [PgmLocalState] -> [PgmLocalState]
