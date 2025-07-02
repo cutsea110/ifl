@@ -17,7 +17,7 @@ import Utils
 import Data.Char (chr, ord)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as Set
-import Data.List (find, mapAccumL, (\\))
+import Data.List (find, mapAccumL, sortOn, (\\))
 import Data.Maybe (listToMaybe, maybe)
 import Prelude hiding (head)
 
@@ -284,8 +284,9 @@ scheduler conf global tasks = (global', nonRunning ++ running')
         (running, nonRunning) = splitAt mSize locals
         (global', running') = mapAccumL step global $ map tick running
 
+-- sortOn is necessary, because of buildTreeDfs is sensitive of the order of input list
 sortTasks :: [PgmLocalState] -> [PgmLocalState]
-sortTasks = buildTreeDfs taskId . map (\o -> (parentId o, o))
+sortTasks = buildTreeDfs taskId . map (\o -> (parentId o, o)) . sortOn taskId
 
 -- | NOTE: hold the order of locals
 kill :: PgmState -> TaskId -> PgmState
@@ -338,6 +339,7 @@ deadLocked = go Set.empty
 [Obj 5,Obj 3,Obj 6,Obj 2,Obj 7,Obj 4,Obj 1]
 -}
 -- | [Design memo] This ordering is depend on assume rule below:
+--   WARNING: This function is sensitive for the ordering of the input list.
 --
 -- 1. Child task's target node is subnod of the parent's. (scope)
 -- 2. Parent should be blocked until the children's node unlocked. (extent)
@@ -591,7 +593,7 @@ par s@(global, local) = (global', local')
   where
     (a, stack') = S.pop (getStack s)
     parentId = taskId local
-    global' = global { sparks = (a, parentId) : sparks global }
+    global' = global { sparks = sparks global ++ [(a, parentId)] }
     local'  = local { stack = stack' }
 
 lock :: Addr -> GmState -> GmState
