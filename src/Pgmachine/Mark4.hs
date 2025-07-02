@@ -19,7 +19,7 @@ import Data.Char (chr, ord)
 import Data.Function (on)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as Set
-import Data.List (find, mapAccumL, sortBy, (\\))
+import Data.List (find, mapAccumL, sortBy, sortOn, (\\))
 import Data.Maybe (fromMaybe, listToMaybe)
 import Prelude hiding (head)
 
@@ -284,9 +284,6 @@ gmFinal s@(_, local) = null local && null (pgmGetSparks s)
 
 steps :: Config -> PgmState -> PgmState
 steps conf (global, locals) = scheduler conf global locals
---   where numOfIdles = machineSize conf - length locals
---         (ready, wait) = splitAt numOfIdles (sparks global)
---         (global', local') = (global { sparks = wait }, locals ++ ready)
 
 scheduler :: Config -> PgmGlobalState -> [PgmLocalState] -> PgmState
 scheduler conf global tasks = (global', running')
@@ -300,8 +297,9 @@ scheduler conf global tasks = (global', running')
         (running, nonRunning) = splitAt mSize locals
         (global', running') = mapAccumL step (global { sparks = nonRunning }) $ map tick running
 
+-- sortOn is necessary, because of buildTreeDfs is sensitive of the order of input list
 sortTasks :: [(TaskId, TaskId)] -> [PgmLocalState] -> [PgmLocalState]
-sortTasks = customSortOn taskId . buildTreeDfs id
+sortTasks = customSortOn taskId . buildTreeDfs id . sortOn snd
 
 -- {
 -- >>> baseOrder = [3,9,6,2,8,4,1,7,5] :: [Int]
