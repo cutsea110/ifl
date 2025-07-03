@@ -37,7 +37,7 @@ $ cat test.ifl
 fib n = if (n<2) 1 (fib (n-1) + fib (n-2));
 main = fib 10
 
-$ docker run -v ./:/work -it --rm cutsea110/ifl:0.3.27 ifl -c gmark7 /work/test.ifl
+$ docker run -v ./:/work -it --rm cutsea110/ifl:0.3.27 -c gmark7 /work/test.ifl
 89
 ```
 
@@ -71,26 +71,26 @@ $ docker buildx build --rm --load -t cutsea110/ifl:0.3.28 .
 I suppose that you have some test programs for ifl in `${PWD}/examples` directory.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 ifl -v -c pgmark1 /work/testProg80.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 -v -c pgmark1 /work/testProg80.ifl
 ```
 
 or try this.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 ifl -t 1000 -l -v -c timark6 /work/testProg134.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 -t 1000 -l -v -c timark6 /work/testProg134.ifl
 ```
 
 Further more, just only on the TMark6, You can use -p option which profile your code.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 ifl -t 1000 -l -v -c timark6 -p /work/testProg134.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 -t 1000 -l -v -c timark6 -p /work/testProg134.ifl
 ```
 
 If you want to try the latest PgMark2, you can use -w option which pretty verbose.
 This option show heap data for all steps, so you know this option make the program slow.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 ifl -w -c pgmark4 /work/testProg80.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 -w -c pgmark4 /work/testProg80.ifl
 ```
 
 
