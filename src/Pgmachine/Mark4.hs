@@ -19,7 +19,7 @@ import Data.Char (chr, ord)
 import Data.Function (on)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as Set
-import Data.List (find, mapAccumL, sortBy, sortOn, (\\))
+import Data.List (mapAccumL, sortBy, sortOn, (\\))
 import Data.Maybe (fromMaybe, listToMaybe)
 import Prelude hiding (head)
 
