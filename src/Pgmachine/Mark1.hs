@@ -209,10 +209,10 @@ eval state = state : restStates
 doAdmin :: PgmState -> PgmState
 doAdmin (global, locals) = (global { stats = stats' }, locals')
   where
-    (locals', stats') = foldr filter ([], stats global) locals
-    filter local (locals, stats)
-      | null (code local) = (locals, (taskId local, clock local):stats)
-      | otherwise         = (local:locals, stats)
+    (locals', stats') = foldr phi ([], stats global) locals
+    phi l (ls, sts)
+      | null (code l) = (ls, (taskId l, clock l):sts)
+      | otherwise     = (l:ls, sts)
 
 gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)

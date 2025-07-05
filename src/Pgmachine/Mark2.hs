@@ -250,11 +250,11 @@ eval state = state : restStates
 doAdmin :: PgmState -> PgmState
 doAdmin (global, locals) = (global { heap = heap', stats = stats' }, locals')
   where
-    (heap', stats', locals') = foldr filter (heap global, stats global, []) locals
-    filter local (h, s, ls)
-      | null (code local) = (h, s', ls)
-      | otherwise         = (h, s,  local:ls)
-      where s' = (taskId local, clock local, spinTotal $ spinLock local):s
+    (heap', stats', locals') = foldr phi (heap global, stats global, []) locals
+    phi l (h, s, ls)
+      | null (code l) = (h, s', ls)
+      | otherwise     = (h, s,  l:ls)
+      where s' = (taskId l, clock l, spinTotal $ spinLock l):s
 
 gmFinal :: PgmState -> Bool
 gmFinal s@(_, local) = null local && null (pgmGetSparks s)
