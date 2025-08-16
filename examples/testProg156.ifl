@@ -1,0 +1,7 @@
+add x y = x + y;
+
+fib n = if (n < 2)
+      	1
+	(par (add (fib (n - 1))) (fib (n - 2)));
+
+main = fib 10
