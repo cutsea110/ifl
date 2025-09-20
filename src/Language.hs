@@ -68,8 +68,11 @@ isAtomicExpr e        = False
 -- pretty printer
 ----------------------------------------------------------------------------------------
 
+gPprint :: (a -> IseqRep) -> Program a -> String
+gPprint ppr prog = iDisplay (gPprProgram ppr prog)
+
 pprint :: CoreProgram -> String
-pprint prog = iDisplay (pprProgram prog)
+pprint prog = gPprint iStr prog
 
 iNL :: Iseq iseq => iseq
 iNL = iStr ";" `iAppend` iNewline
@@ -127,19 +130,29 @@ unfoldr psi xs = case psi xs of
                    <1> -> Pack{1,0} ;
                    <2> y ys -> Pack{2,2} y (unfoldr psi ys)
 -}
-pprProgram :: CoreProgram -> IseqRep
-pprProgram scdefns = iInterleave iNL' $ map pprScDefn scdefns
+gPprProgram :: (a -> IseqRep) -> Program a -> IseqRep
+gPprProgram ppr scdefns = iInterleave iNL' $ map (gPprScDefn ppr) scdefns
 
-pprScDefn :: CoreScDefn -> IseqRep
-pprScDefn (name, args, expr)
-  = iConcat [ iStr name, sep, pprArgs args
+pprProgram :: CoreProgram -> IseqRep
+pprProgram scdefns = gPprProgram iStr scdefns
+
+gPprScDefn :: (a -> IseqRep) -> ScDefn a -> IseqRep
+gPprScDefn ppr (name, args, expr)
+  = iConcat [ iStr name, sep, gPprArgs ppr args
             , iStr " = "
-            , iIndent (pprExpr Top defaultFixity expr)
+            , iIndent (gPprExpr ppr Top defaultFixity expr)
             ]
     where sep = if null args then iNil else iSpace
 
+pprScDefn :: CoreScDefn -> IseqRep
+pprScDefn scdefn = gPprScDefn iStr scdefn
+
+
+gPprArgs :: (a -> IseqRep) -> [a] -> IseqRep
+gPprArgs ppr args = iInterleave iSpace $ map ppr args
+
 pprArgs :: [String] -> IseqRep
-pprArgs args = iInterleave iSpace $ map iStr args
+pprArgs args = gPprArgs iStr args
 
 {- $setup
 >>> [a, b, c, i, j, k, n, f, g, h, x, y, z, w, p, q, r, s] = map (EVar . (:[])) "abcijknfghxyzwpqrs"
@@ -475,34 +488,37 @@ letrec
 in y (\ f i -> bool (i * f (i - 1)) 1 (i == 1))
 -}
 pprExpr :: Level -> Fixity -> CoreExpr -> IseqRep
-pprExpr _ _ (ENum n) = iNum n
-pprExpr _ _ (EVar v) = iStr v
-pprExpr _ _ (EConstr tag arity) = iConcat $ map iStr ["Pack{", show tag, ",", show arity, "}"]
-pprExpr _ pa (EAp (EAp (EVar op) e1) e2)
+pprExpr l f e = gPprExpr iStr l f e
+
+gPprExpr :: (a -> IseqRep) -> Level -> Fixity -> Expr a -> IseqRep
+gPprExpr ppr _ _ (ENum n) = iNum n
+gPprExpr ppr _ _ (EVar v) = iStr v
+gPprExpr ppr _ _ (EConstr tag arity) = iConcat $ map iStr ["Pack{", show tag, ",", show arity, "}"]
+gPprExpr ppr _ pa (EAp (EAp (EVar op) e1) e2)
   | infixOperator op = if weakp pa' (prec pa) (assoc pa) then iParen e else e
-  where e = iConcat [ pprExpr Sub pa' e1
+  where e = iConcat [ gPprExpr ppr Sub pa' e1
                     , iSpace, iStr op, iSpace
-                    , pprExpr Sub pa' e2
+                    , gPprExpr ppr Sub pa' e2
                     ]
         pa' = fixity op
-pprExpr _ pa (EAp e1 e2) = if weakp pa (prec pa) (assoc pa) then iParen e else e
-  where e = iConcat [ pprExpr Sub functionFixity e1
+gPprExpr ppr _ pa (EAp e1 e2) = if weakp pa (prec pa) (assoc pa) then iParen e else e
+  where e = iConcat [ gPprExpr ppr Sub functionFixity e1
                     , iSpace
-                    , pprExpr Sub functionArgFixity e2
+                    , gPprExpr ppr Sub functionArgFixity e2
                     ]
-pprExpr l _ (ELet isrec defns expr) = if l /= Top then iParen e else e
+gPprExpr ppr l _ (ELet isrec defns expr) = if l /= Top then iParen e else e
   where keyword = if isrec then "letrec" else "let"
         e = iConcat [ iStr keyword, iNewline
-                    , iStr "  ", iIndent (pprDefns defns), iNewline
-                    , iStr "in ", pprExpr Top defaultFixity expr
+                    , iStr "  ", iIndent (gPprDefns ppr defns), iNewline
+                    , iStr "in ", gPprExpr ppr Top defaultFixity expr
                     ]
-pprExpr l _ (ECase expr alts) = if l /= Top then iParen e else e
-  where e = iConcat [ iStr "case ", iIndent (pprExpr Top defaultFixity expr), iStr " of", iNewline
-                    , iStr "  ", iIndent (iInterleave iNL' (map pprAlt alts))
+gPprExpr ppr l _ (ECase expr alts) = if l /= Top then iParen e else e
+  where e = iConcat [ iStr "case ", iIndent (gPprExpr ppr Top defaultFixity expr), iStr " of", iNewline
+                    , iStr "  ", iIndent (iInterleave iNL' (map (gPprAlt ppr) alts))
                     ]
-pprExpr l _ (ELam args expr) = if l /= Top then iParen e else e
-  where e = iConcat [ iStr "\\ ", pprArgs args, iStr " -> "
-                    , iIndent (pprExpr Top defaultFixity expr)
+gPprExpr ppr l _ (ELam args expr) = if l /= Top then iParen e else e
+  where e = iConcat [ iStr "\\ ", gPprArgs ppr args, iStr " -> "
+                    , iIndent (gPprExpr ppr Top defaultFixity expr)
                     ]
 
 fixity :: String -> Fixity
@@ -536,19 +552,28 @@ infixOperator op
               , "&&", "||"
               ]
 
+gPprDefns :: (a -> IseqRep) -> [(a, Expr a)] -> IseqRep
+gPprDefns ppr defns = iInterleave iNL (map (gPprDefn ppr) defns)
+
 pprDefns :: [(Name, CoreExpr)] -> IseqRep
-pprDefns defns = iInterleave iNL (map pprDefn defns)
+pprDefns defns = gPprDefns iStr defns
+
+gPprDefn :: (a -> IseqRep) -> (a, Expr a) -> IseqRep
+gPprDefn ppr (name, expr)
+  = iConcat [ ppr name, iStr " = ", iIndent (gPprExpr ppr Top defaultFixity expr) ]
 
 pprDefn :: (Name, CoreExpr) -> IseqRep
-pprDefn (name, expr)
-  = iConcat [ iStr name, iStr " = ", iIndent (pprExpr Top defaultFixity expr) ]
+pprDefn (name, expr) = gPprDefn iStr (name, expr)
 
-pprAlt :: CoreAlt -> IseqRep
-pprAlt (i, args, expr)
-  = iConcat [ iStr "<", iStr (show i), iStr ">", sep, pprArgs args
-            , iStr " -> ", iIndent (pprExpr Top defaultFixity expr)
+gPprAlt :: (a -> IseqRep) -> Alter a -> IseqRep
+gPprAlt ppr (i, args, expr)
+  = iConcat [ iStr "<", iStr (show i), iStr ">", sep, gPprArgs ppr args
+            , iStr " -> ", iIndent (gPprExpr ppr Top defaultFixity expr)
             ]
     where sep = if null args then iNil else iSpace
+
+pprAlt :: CoreAlt -> IseqRep
+pprAlt alt = gPprAlt iStr alt
 
 
 ----------------------------------------------------------------------------------------
