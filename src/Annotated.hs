@@ -30,6 +30,31 @@ abstract prog = [ (sc_name, args, abstract_e rhs)
                 | (sc_name, args, rhs) <- prog
                 ]
 
+{- |
+>>> abstract_e (Set.fromList ["x"], AVar "x")
+EVar "x"
+
+>>> abstract_e (Set.fromList [], AVar "x")
+EVar "x"
+
+>>> abstract_e (Set.fromList ["x"], AVar "x")
+EVar "x"
+
+>>> abstract_e (Set.fromList ["f","x"], AAp (Set.fromList ["f"], AVar "f") (Set.fromList ["x"], AVar "x"))
+EAp (EVar "f") (EVar "x")
+
+>>> abstract_e (Set.fromList [], AAp (Set.fromList [], AVar "f") (Set.fromList [], AVar "x"))
+EAp (EVar "f") (EVar "x")
+
+>>> abstract_e (Set.fromList ["x","y"], ALet False [("x",(Set.fromList [],ANum 1)),("y",(Set.fromList [],ANum 2))] (Set.fromList ["x"],AVar "x"))
+ELet False [("x",ENum 1),("y",ENum 2)] (EVar "x")
+
+>>> abstract_e (Set.fromList ["f"], ALet True [("g",(Set.fromList ["f","g"],AAp (Set.fromList ["f"],AVar "f") (Set.fromList ["g"],AVar "g")))] (Set.fromList ["g"],AVar "g"))
+ELet True [("g",EAp (EVar "f") (EVar "g"))] (EVar "g")
+
+>>> abstract_e (Set.fromList ["f","y"], ALam ["x"] (Set.fromList ["f","x","y"],AAp (Set.fromList ["f"],AVar "f") (Set.fromList ["x"],AVar "x")))
+EAp (EAp (ELet False [("sc",ELam ["f","y","x"] (EAp (EVar "f") (EVar "x")))] (EVar "sc")) (EVar "f")) (EVar "y")
+-}
 abstract_e :: AnnExpr Name (Set Name) -> CoreExpr
 abstract_e (free, AVar v) = EVar v
 abstract_e (free, ANum n) = ENum n
@@ -63,9 +88,6 @@ runS :: String -> String
 runS = pprint . lambdaLift . parse
 
 {- |
->>> import qualified Data.Set as Set
->>> import Data.Set (Set)
-
 >>> let expr = (EVar "x")
 >>> freeVars_e Set.empty expr
 (fromList [],AVar "x")
@@ -164,43 +186,37 @@ pprintAnnSc ppra pprb (name, args, body) =
           ]
 
 {- |
->>> let expr = ((), AVar "x")
->>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+>>> let p expr = putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+>>> p ((), AVar "x")
 {- () -} x
 
->>> let expr = ((), ALam ["y"] ((), AVar "y"))
->>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+>>> p ((), ALam ["y"] ((), AVar "y"))
 {- () -} \y -> ({- () -} y)
 
->>> let expr = ((), ACase ((), AVar "x") [(1, ["y"], ((), AVar "y")), (2, ["z"], ((), ANum 3))])
->>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+>>> p ((), ACase ((), AVar "x") [(1, ["y"], ((), AVar "y")), (2, ["z"], ((), ANum 3))])
 {- () -} case ({- () -} x) of
   <1> y -> ({- () -} y);
   <2> z -> ({- () -} 3)
 
->>> let expr = ((), ALet False [("x", ((), ANum 1)), ("y", ((), ANum 2))] ((), AVar "x"))
->>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+>>> p ((), ALet False [("x", ((), ANum 1)), ("y", ((), ANum 2))] ((), AVar "x"))
 {- () -} let
   x = ({- () -} 1);
   y = ({- () -} 2)
 in
   ({- () -} x)
 
->>> let expr = ((), ALet True [("x", ((), ANum 1)), ("y", ((), ANum 2))] ((), AVar "x"))
->>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+>>> p ((), ALet True [("x", ((), ANum 1)), ("y", ((), ANum 2))] ((), AVar "x"))
 {- () -} letrec
   x = ({- () -} 1);
   y = ({- () -} 2)
 in
   ({- () -} x)
 
->>> let expr = ((), AAp ((), AAp ((), AVar "f") ((), AVar "x")) ((), AVar "y"))
->>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+>>> p ((), AAp ((), AAp ((), AVar "f") ((), AVar "x")) ((), AVar "y"))
 {- () -} ({- () -} (({- () -} f) ({- () -} x))) {- () -} y
 
 -- 3 + 6
->>> let expr = ((), AAp ((), AAp ((), AVar "+") ((), ANum 3)) ((), ANum 6))
->>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+>>> p ((), AAp ((), AAp ((), AVar "+") ((), ANum 3)) ((), ANum 6))
 {- () -} ({- () -} (({- () -} +) ({- () -} 3))) {- () -} 6
 
 -}
