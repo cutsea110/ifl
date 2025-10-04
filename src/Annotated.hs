@@ -22,7 +22,44 @@ type AnnDefn a b = (a, AnnExpr a b)
 type AnnAlt a b = (Int, [a], AnnExpr a b)
 type AnnProgram a b = [(Name, [a], AnnExpr a b)]
 
+{- |
+>>> import qualified Data.Set as Set
+>>> import Data.Set (Set)
 
+>>> let expr = (EVar "x")
+>>> freeVars_e Set.empty expr
+(fromList [],AVar "x")
+
+>>> let expr = (EVar "x")
+>>> freeVars_e (Set.fromList ["x", "y"]) expr
+(fromList ["x"],AVar "x")
+
+>>> let expr = (EAp (EVar "f") (EVar "x"))
+>>> freeVars_e (Set.fromList ["f", "x", "y"]) expr
+(fromList ["f","x"],AAp (fromList ["f"],AVar "f") (fromList ["x"],AVar "x"))
+
+>>> let expr = (EAp (EVar "f") (EVar "x"))
+>>> freeVars_e (Set.fromList ["y"]) expr
+(fromList [],AAp (fromList [],AVar "f") (fromList [],AVar "x"))
+
+>>> let expr = (ELam ["x"] (EAp (EVar "f") (EVar "x")))
+>>> freeVars_e (Set.fromList ["x", "y"]) expr
+(fromList [],ALam ["x"] (fromList ["x"],AAp (fromList [],AVar "f") (fromList ["x"],AVar "x")))
+
+
+>>> let expr = (ELet False [("x", ENum 1), ("y", ENum 2)] (EVar "x"))
+>>> freeVars_e (Set.fromList ["x", "y", "z"]) expr
+(fromList [],ALet False [("x",(fromList [],ANum 1)),("y",(fromList [],ANum 2))] (fromList ["x"],AVar "x"))
+
+>>> let expr = (ELet True [("x", EVar "y"), ("y", ENum 2)] (EVar "x"))
+>>> freeVars_e (Set.fromList ["x", "y", "z"]) expr
+(fromList [],ALet True [("x",(fromList ["y"],AVar "y")),("y",(fromList [],ANum 2))] (fromList ["x"],AVar "x"))
+
+>>> let expr = (ELet True [("g", EAp (EVar "f") (EVar "g"))] (EVar "g"))
+>>> freeVars_e (Set.fromList ["fix", "f"]) expr
+(fromList ["f"],ALet True [("g",(fromList ["f","g"],AAp (fromList ["f"],AVar "f") (fromList ["g"],AVar "g")))] (fromList ["g"],AVar "g"))
+
+-}
 freeVars_e :: Set Name                    -- ^ Candidates for free variables
            -> CoreExpr                    -- ^ Expression to annotate
            -> AnnExpr Name (Set Name)     -- ^ Annotated result
@@ -88,43 +125,44 @@ pprintAnnSc ppra pprb (name, args, body) =
 
 {- |
 >>> let expr = ((), AVar "x")
->>> iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+>>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
 {- () -} x
 
 >>> let expr = ((), ALam ["y"] ((), AVar "y"))
->>> iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
-{- () -} \ y -> {- () -} y
+>>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+{- () -} \y -> ({- () -} y)
 
 >>> let expr = ((), ACase ((), AVar "x") [(1, ["y"], ((), AVar "y")), (2, ["z"], ((), ANum 3))])
->>> iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
-{- () -} case {- () -} x of
-  <1> y -> {- () -} y
-  <2> z -> {- () -} 3
+>>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+{- () -} case ({- () -} x) of
+  <1> y -> ({- () -} y)
+  <2> z -> ({- () -} 3)
 
 >>> let expr = ((), ALet False [("x", ((), ANum 1)), ("y", ((), ANum 2))] ((), AVar "x"))
->>> iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+>>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
 {- () -} let
-  x = {- () -} 1;
-  y = {- () -} 2
+  x = ({- () -} 1);
+  y = ({- () -} 2)
 in
-  {- () -} x
+  ({- () -} x)
 
 >>> let expr = ((), ALet True [("x", ((), ANum 1)), ("y", ((), ANum 2))] ((), AVar "x"))
->>> iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+>>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
 {- () -} letrec
-  x = {- () -} 1;
-  y = {- () -} 2
+  x = ({- () -} 1);
+  y = ({- () -} 2)
 in
-  {- () -} x
+  ({- () -} x)
 
 >>> let expr = ((), AAp ((), AAp ((), AVar "f") ((), AVar "x")) ((), AVar "y"))
->>> iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
-{- () -} f {- () -} x {- () -} y
+>>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+{- () -} ({- () -} (({- () -} f) ({- () -} x))) {- () -} y
 
 -- 3 + 6
 >>> let expr = ((), AAp ((), AAp ((), AVar "+") ((), ANum 3)) ((), ANum 6))
->>> iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
+>>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
 {- () -} ({- () -} (({- () -} +) ({- () -} 3))) {- () -} 6
+
 -}
 pprintAnnExpr :: (a -> IseqRep)           -- ^ Pretty-print annotation on variables
               -> (b -> IseqRep)           -- ^ Pretty-print annotation on expressions
@@ -190,6 +228,7 @@ pprintAnnAlt :: (a -> IseqRep) -> (b -> IseqRep) -> Int -> AnnAlt a b -> IseqRep
 pprintAnnAlt ppra pprb d (tag, args, expr)
   = let argsDoc = iInterleave iSpace (map ppra args)
         exprDoc = pprintAnnExpr ppra pprb d expr
-    in iConcat [ iStr (space (d * 2)), iStr "{- ", iNum tag, iStr " -} ", argsDoc
+    in iConcat [ iStr (space (d * 2)), iStr "<", iNum tag, iStr ">", sep, argsDoc
                , iStr " -> ", exprDoc
                ]
+       where sep = if null args then iNil else iSpace

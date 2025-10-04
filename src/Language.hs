@@ -14,7 +14,6 @@ module Language
   -- ?
   , pConstr
   , clex
-  , Name
   , bindersOf
   , rhssOf
   ) where
