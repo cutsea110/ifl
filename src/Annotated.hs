@@ -26,7 +26,31 @@ lambdaLift :: CoreProgram -> CoreProgram
 lambdaLift = collectSCs . rename . abstract . freeVars
 
 abstract :: AnnProgram Name (Set Name) -> CoreProgram
-abstract = undefined
+abstract prog = [ (sc_name, args, abstract_e rhs)
+                | (sc_name, args, rhs) <- prog
+                ]
+
+abstract_e :: AnnExpr Name (Set Name) -> CoreExpr
+abstract_e (free, AVar v) = EVar v
+abstract_e (free, ANum n) = ENum n
+abstract_e (free, AAp e1 e2) = EAp (abstract_e e1) (abstract_e e2)
+abstract_e (free, ALet is_rec defns body)
+  = ELet is_rec [ (name, abstract_e body)
+                | (name, body) <- defns
+                ] (abstract_e body)
+abstract_e (free, ALam args body)
+  = foldl EAp sc (map EVar fvList)
+  where fvList = Set.toList free
+        sc     = ELet nonRecursive [("sc", sc_rhs)] (EVar "sc")
+        sc_rhs = ELam (fvList ++ args) (abstract_e body)
+abstract_e (free, AConstr t a)  = error "abstract_e: no case for Constr"
+abstract_e (free, ACase e alts) = abstract_case free e alts
+
+abstract_case :: Set Name
+              -> AnnExpr Name (Set Name)
+              -> [AnnAlt Name (Set Name)]
+              -> CoreExpr
+abstract_case free e alts = error "abstract_case: not yet written"
 
 rename :: CoreProgram -> CoreProgram
 rename = undefined

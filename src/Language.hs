@@ -17,6 +17,7 @@ module Language
   , clex
   , bindersOf
   , rhssOf
+  , nonRecursive
   ) where
 
 import Data.Char (isAlpha, isDigit, isSpace)
