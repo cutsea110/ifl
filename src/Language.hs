@@ -14,6 +14,9 @@ module Language
   -- ?
   , pConstr
   , clex
+  , Name
+  , bindersOf
+  , rhssOf
   ) where
 
 import Data.Char (isAlpha, isDigit, isSpace)
