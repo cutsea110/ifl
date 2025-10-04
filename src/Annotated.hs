@@ -151,7 +151,7 @@ pprintAnnSc ppra pprb (name, args, body) =
 >>> let expr = ((), ACase ((), AVar "x") [(1, ["y"], ((), AVar "y")), (2, ["z"], ((), ANum 3))])
 >>> putStr $ iDisplay $ pprintAnnExpr (iStr . id) (iStr . show) 0 expr
 {- () -} case ({- () -} x) of
-  <1> y -> ({- () -} y)
+  <1> y -> ({- () -} y);
   <2> z -> ({- () -} 3)
 
 >>> let expr = ((), ALet False [("x", ((), ANum 1)), ("y", ((), ANum 2))] ((), AVar "x"))
@@ -224,7 +224,8 @@ pprintAnnExpr' ppra pprb d (ALet isRec defs body)
     in if d > 0 then iParen doc else doc
 pprintAnnExpr' ppra pprb d (ACase expr alts)
   = let exprDoc = pprintAnnExpr ppra pprb (d + 1) expr
-        altsDoc = iInterleave iNewline (map (pprintAnnAlt ppra pprb (d + 1)) alts)
+        altsDoc = iInterleave (iConcat [iStr ";", iNewline])
+                  (map (pprintAnnAlt ppra pprb (d + 1)) alts)
         doc     = iConcat [ iStr "case ", exprDoc, iStr " of", iNewline
                           , altsDoc
                           ]
