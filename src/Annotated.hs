@@ -22,6 +22,22 @@ type AnnDefn a b = (a, AnnExpr a b)
 type AnnAlt a b = (Int, [a], AnnExpr a b)
 type AnnProgram a b = [(Name, [a], AnnExpr a b)]
 
+lambdaLift :: CoreProgram -> CoreProgram
+lambdaLift = collectSCs . rename . abstract . freeVars
+
+abstract :: AnnProgram Name (Set Name) -> CoreProgram
+abstract = undefined
+
+rename :: CoreProgram -> CoreProgram
+rename = undefined
+
+collectSCs :: CoreProgram -> CoreProgram
+collectSCs = undefined
+
+
+runS :: String -> String
+runS = pprint . lambdaLift . parse
+
 {- |
 >>> import qualified Data.Set as Set
 >>> import Data.Set (Set)

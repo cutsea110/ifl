@@ -10,6 +10,7 @@ module Language
   , Tag
   , Arity
   , parse
+  , pprint
   , preludeDefs
   -- ?
   , pConstr
