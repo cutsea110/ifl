@@ -1,4 +1,4 @@
-module Annotated where
+module Lambda where
 
 import qualified Data.Set as Set
 import Data.Set (Set)
