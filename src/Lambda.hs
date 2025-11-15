@@ -75,14 +75,17 @@ abstract_e (free, ALam args body)
   where fvList = Set.toList free
         sc     = ELet nonRecursive [("sc", sc_rhs)] (EVar "sc")
         sc_rhs = ELam (fvList ++ args) (abstract_e body)
-abstract_e (free, AConstr t a)  = error "abstract_e: no case for Constr"
+abstract_e (free, AConstr t a)  = EConstr t a
 abstract_e (free, ACase e alts) = abstract_case free e alts
 
 abstract_case :: Set Name
               -> AnnExpr Name (Set Name)
               -> [AnnAlt Name (Set Name)]
               -> CoreExpr
-abstract_case free e alts = error "abstract_case: not yet written"
+abstract_case free e alts = ECase (abstract_e e) alts'
+  where alts' = [ (tag, args, abstract_e rhs)
+                | (tag, args, rhs) <- alts
+                ]
 
 {- |
 >>> rename $ parse "g x = letrec f = \\x -> x + x in f 3"
@@ -271,10 +274,18 @@ freeVars_e lv (ELet is_rec defns body)
         body'                 = freeVars_e body_lv body
         bodyFree              = Set.difference (freeVarsOf body') binderSet
 freeVars_e lv (ECase e alts)  = freeVars_case lv e alts
-freeVars_e lv (EConstr t a)   = error "freeVars_e: no case for constructors"
+freeVars_e lv (EConstr t a)   = (Set.empty, AConstr t a)
 
 freeVars_case :: Set Name -> CoreExpr -> [CoreAlt] -> AnnExpr Name (Set Name)
-freeVars_case lv e alts = error "freeVars_case: not yet written"
+freeVars_case lv e alts = (totalFree, ACase e' alts')
+  where e' = freeVars_e lv e
+        alts' = [ (tag, args, alt')
+                | (tag, args, rhs) <- alts
+                , let alt'   = freeVars_e new_lv rhs
+                      new_lv = Set.difference lv (Set.fromList args)
+                ]
+        altsFree  = Set.unions [ freeVarsOf_alt alt | alt <- alts' ]
+        totalFree = Set.union (freeVarsOf e') altsFree
 
 freeVars :: CoreProgram -> AnnProgram Name (Set Name)
 freeVars prog = [ (name, args, freeVars_e (Set.fromList args) body)
