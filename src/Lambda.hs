@@ -23,6 +23,12 @@ type AnnDefn a b = (a, AnnExpr a b)
 type AnnAlt a b = (Int, [a], AnnExpr a b)
 type AnnProgram a b = [(Name, [a], AnnExpr a b)]
 
+{- |
+>>> lambdaLift $ parse "f x = let g = x + 1 in g"
+[("f",["x_0"],ELet False [("g_1",EAp (EAp (EVar "+") (EVar "x_0")) (ENum 1))] (EVar "g_1"))]
+>>> lambdaLift $ parse "f x = let g = \\y -> x + y in g 1"
+[("f",["x_0"],ELet False [("g_1",EAp (ELet False [] (EVar "sc_2")) (EVar "x_0"))] (EAp (EVar "g_1") (ENum 1))),("sc_2",["x_3","y_4"],EAp (EAp (EVar "+") (EVar "x_3")) (EVar "y_4"))]
+-}
 lambdaLift :: CoreProgram -> CoreProgram
 lambdaLift = collectSCs . rename . abstract . freeVars
 
