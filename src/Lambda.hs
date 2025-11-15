@@ -173,7 +173,7 @@ rename_case :: Assoc Name Name
 rename_case env ns e alts
   = (ns2, ECase e' alts')
   where (ns1, e') = rename_e env ns e
-        (ns2, alts') = mapAccumL (rename_alt env) ns1 alts
+        (ns2, alts') = mapAccumL (rename_alt env) ns alts
 
 rename_alt :: Assoc Name Name
            -> NameSupply
@@ -307,15 +307,12 @@ freeVars_e lv (ECase e alts)  = freeVars_case lv e alts
 freeVars_e lv (EConstr t a)   = (Set.empty, AConstr t a)
 
 freeVars_case :: Set Name -> CoreExpr -> [CoreAlt] -> AnnExpr Name (Set Name)
-freeVars_case lv e alts = (totalFree, ACase e' alts')
+freeVars_case lv e alts = (Set.union (freeVarsOf e') free, ACase e' alts')
   where e' = freeVars_e lv e
-        alts' = [ (tag, args, alt')
+        alts' = [ (tag, args, freeVars_e (Set.union lv (Set.fromList args)) rhs)
                 | (tag, args, rhs) <- alts
-                , let alt'   = freeVars_e new_lv rhs
-                      new_lv = Set.difference lv (Set.fromList args)
                 ]
-        altsFree  = Set.unions [ freeVarsOf_alt alt | alt <- alts' ]
-        totalFree = Set.union (freeVarsOf e') altsFree
+        free  = Set.unions $ map freeVarsOf_alt alts'
 
 freeVars :: CoreProgram -> AnnProgram Name (Set Name)
 freeVars prog = [ (name, args, freeVars_e (Set.fromList args) body)
