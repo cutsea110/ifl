@@ -166,8 +166,16 @@ collectSCs :: CoreProgram -> CoreProgram
 collectSCs prog
   = concatMap collect_one_sc prog
   where collect_one_sc (sc_name, args, rhs)
-          = (sc_name, args, rhs') : scs
+          | onlyRename rhs' = [(sc_name, args', body')] -- exercise 6.5
+          | otherwise       = (sc_name, args, rhs') : scs
           where (scs, rhs') = collectSCs_e rhs
+
+                -- | The case of (sc_name, args, rhs') = ("f", [], EVar "$sc"), so this is the case 'f = $sc; $sc = ...'
+                onlyRename (EVar _) = True
+                onlyRename _        = False
+                -- | in this case, find the real supercombinator definition
+                (_, args', body') = let EVar new_name = rhs'
+                                    in head [(n, a, b) | (n, a, b) <- scs, n == new_name]
 
 collectSCs_e :: CoreExpr -> ([CoreScDefn], CoreExpr)
 collectSCs_e (EVar v) = ([], EVar v)
