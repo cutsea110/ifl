@@ -1,5 +1,6 @@
 module Lambda where
 
+import Data.List (mapAccumL)
 import qualified Data.Set as Set
 import Data.Set (Set)
 
@@ -78,7 +79,55 @@ abstract_case :: Set Name
 abstract_case free e alts = error "abstract_case: not yet written"
 
 rename :: CoreProgram -> CoreProgram
-rename = undefined
+rename prog
+  = snd (mapAccumL rename_sc initialNameSupply prog)
+  where
+    rename_sc ns (sc_name, args, rhs)
+      = (ns2, (sc_name, args', rhs'))
+      where (ns1, args', env) = newNames ns args
+            (ns2, rhs') = rename_e env ns1 rhs
+
+
+type NameSupply = Int
+initialNameSupply :: NameSupply
+initialNameSupply = 0
+getName :: NameSupply -> Name -> (NameSupply, Name)
+getName name_supply prefix = (name_supply + 1, makeName prefix name_supply)
+getNames :: NameSupply -> [Name] -> (NameSupply, [Name])
+getNames name_supply prefixes
+  = (name_supply + length prefixes, zipWith makeName prefixes [name_supply ..])
+makeName prefix ns = prefix ++ "_" ++ show ns
+
+newNames :: NameSupply -> [Name] -> (NameSupply, [Name], Assoc Name Name)
+newNames ns old_names = (ns', new_names, env)
+  where (ns', new_names) = getNames ns old_names
+        env = zip old_names new_names
+
+rename_e :: Assoc Name Name -> NameSupply -> CoreExpr -> (NameSupply, CoreExpr)
+rename_e env ns (EVar v) = (ns, EVar (aLookup env v v))
+rename_e env ns (ENum n) = (ns, ENum n)
+rename_e env ns (EAp e1 e2)
+  = (ns2, EAp e1' e2')
+    where (ns1, e1') = rename_e env ns  e1
+          (ns2, e2') = rename_e env ns1 e2
+rename_e env ns (ELam args body)
+  = (ns2, ELam args' body')
+  where (ns1, args', env') = newNames ns args
+        (ns2, body') = rename_e (env' ++ env) ns1 body
+rename_e env ns (ELet is_rec defns body)
+  = (ns3, ELet is_rec (zip binders' rhss') body')
+  where binders = bindersOf defns
+        (ns1, binders', env') = newNames ns binders
+        body_env = env' ++ env
+        (ns2, rhss') = mapAccumL (rename_e rhsEnv) ns1 (rhssOf defns)
+        rhsEnv | is_rec   = body_env
+               | otherwise = env
+        (ns3, body') = rename_e body_env ns2 body
+rename_e env ns (EConstr t a) = error "rename_e: no case for constructors"
+rename_e env ns (ECase e alts) = rename_case env ns e alts
+
+rename_case :: Assoc Name Name -> NameSupply -> CoreExpr -> [CoreAlt] -> (NameSupply, CoreExpr)
+rename_case env ns e alts = error "rename_case: not yet written"
 
 collectSCs :: CoreProgram -> CoreProgram
 collectSCs = undefined
