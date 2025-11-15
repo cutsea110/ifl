@@ -8,6 +8,12 @@ import Language
 import Utils
 import Iseq
 
+import Prelude hiding (head)
+
+head :: [a] -> a
+head [] = error "head: empty list"
+head (x:_) = x
+
 type AnnExpr a b = (b, AnnExpr' a b)
 
 data AnnExpr' a b = AVar Name
@@ -24,12 +30,23 @@ type AnnAlt a b = (Int, [a], AnnExpr a b)
 type AnnProgram a b = [(Name, [a], AnnExpr a b)]
 
 {- |
->>> lambdaLift $ parse "f = \\x -> x + 1"
-[("f",[],EVar "sc_0"),("sc_0",["x_1"],EAp (EAp (EVar "+") (EVar "x_1")) (ENum 1))]
->>> lambdaLift $ parse "f x = let g = x + 1 in g"
-[("f",["x_0"],ELet False [("g_1",EAp (EAp (EVar "+") (EVar "x_0")) (ENum 1))] (EVar "g_1"))]
->>> lambdaLift $ parse "f x = let g = \\y -> x + y in g 1"
-[("f",["x_0"],ELet False [("g_1",EAp (EVar "sc_2") (EVar "x_0"))] (EAp (EVar "g_1") (ENum 1))),("sc_2",["x_3","y_4"],EAp (EAp (EVar "+") (EVar "x_3")) (EVar "y_4"))]
+>>> putStrLn . pprint . lambdaLift $ parse "f = \\x -> x + 1"
+f x_1 = x_1 + 1
+>>> putStrLn . pprint . lambdaLift $ parse "f = \\x -> x + y"
+f x_1 = x_1 + y
+>>> putStrLn . pprint . lambdaLift $ parse "f = \\x y -> x + y"
+f x_1 y_2 = x_1 + y_2
+>>> putStrLn . pprint . lambdaLift $ parse "f = \\x y -> x + 3"
+f x_1 y_2 = x_1 + 3
+>>> putStrLn . pprint . lambdaLift $ parse "f x = let g = x + 1 in g"
+f x_0 = let
+          g_1 = x_0 + 1
+        in g_1
+>>> putStrLn . pprint . lambdaLift $ parse "f x = let g = \\y -> x + y in g 1"
+f x_0 = let
+          g_1 = sc_2 x_0
+        in g_1 1 ;
+sc_2 x_3 y_4 = x_3 + y_4
 -}
 lambdaLift :: CoreProgram -> CoreProgram
 lambdaLift = collectSCs . rename . abstract . freeVars
@@ -165,17 +182,13 @@ rename_alt env ns (tag, args, rhs)
 collectSCs :: CoreProgram -> CoreProgram
 collectSCs prog
   = concatMap collect_one_sc prog
-  where collect_one_sc (sc_name, args, rhs)
-          | onlyRename rhs' = [(sc_name, args', body')] -- exercise 6.5
-          | otherwise       = (sc_name, args, rhs') : scs
+  where collect_one_sc (sc_name, args, rhs) = case rhs' of
+          -- If the rhs is a variable referring to an existing supercombinator,
+          -- we can just reuse that supercombinator instead of creating a new one.
+          EVar new_name -> [(sc_name, args', body')] -- exercise 6.5
+            where (_, args', body') = head [(n, a, b) | (n, a, b) <- scs, n == new_name]
+          _             -> (sc_name, args, rhs') : scs
           where (scs, rhs') = collectSCs_e rhs
-
-                -- | The case of (sc_name, args, rhs') = ("f", [], EVar "$sc"), so this is the case 'f = $sc; $sc = ...'
-                onlyRename (EVar _) = True
-                onlyRename _        = False
-                -- | in this case, find the real supercombinator definition
-                (_, args', body') = let EVar new_name = rhs'
-                                    in head [(n, a, b) | (n, a, b) <- scs, n == new_name]
 
 collectSCs_e :: CoreExpr -> ([CoreScDefn], CoreExpr)
 collectSCs_e (EVar v) = ([], EVar v)
