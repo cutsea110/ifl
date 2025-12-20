@@ -23,8 +23,9 @@ import Prelude hiding (head)
 head :: [a] -> a
 head = maybe (error "head: empty list") id . listToMaybe
 
-newtype Config = Config { verbose :: Bool
-                        }
+data Config = Config { verbose :: Bool
+                     , lifter  :: CoreProgram -> CoreProgram
+                     }
 
 runProg :: Config -> String -> String
 runProg conf = showR . eval . compile . parse

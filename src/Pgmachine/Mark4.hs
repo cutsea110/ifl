@@ -30,6 +30,7 @@ head = maybe (error "head: empty list") id . listToMaybe
 data Config = Config { verbose     :: Bool
                      , werbose     :: Bool
                      , machineSize :: Int
+                     , lifter      :: CoreProgram -> CoreProgram
                      }
 
 runProg :: Config -> String -> String

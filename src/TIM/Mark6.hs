@@ -30,6 +30,7 @@ data Config = Config { verbose           :: !Bool
                      , gcThreshold       :: !Int
                      , convertToListBase :: !Bool
                      , profile           :: !Bool
+                     , lifter            :: CoreProgram -> CoreProgram
                      }
 
 runProg :: Config -> String -> String

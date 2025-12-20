@@ -63,29 +63,29 @@ executer opts = putStr . run
           Mark2       -> Mark2.runProg
           Mark3       -> Mark3.runProg
           Mark4       -> Mark4.runProg
-          Mark5       -> Mark5.runProg      $ Mark5.Config convertList
-          Mark5Alt    -> Mark5Alt.runProg   $ Mark5Alt.Config convertList
-          Mark5GC     -> Mark5GC.runProg    $ Mark5GC.Config threshold convertList
-          Mark5RevGC  -> Mark5RevGC.runProg $ Mark5RevGC.Config threshold convertList
-          Mark5Cp     -> Mark5Cp.runProg    $ Mark5Cp.Config verbose threshold convertList
+          Mark5       -> Mark5.runProg      $ Mark5.Config convertList id
+          Mark5Alt    -> Mark5Alt.runProg   $ Mark5Alt.Config convertList id
+          Mark5GC     -> Mark5GC.runProg    $ Mark5GC.Config threshold convertList id
+          Mark5RevGC  -> Mark5RevGC.runProg $ Mark5RevGC.Config threshold convertList id
+          Mark5Cp     -> Mark5Cp.runProg    $ Mark5Cp.Config verbose threshold convertList id
           GMark1      -> GMark1.runProg
           GMark2      -> GMark2.runProg
           GMark3      -> GMark3.runProg
           GMark4      -> GMark4.runProg
           GMark5      -> GMark5.runProg
-          GMark6      -> GMark6.runProg    $ GMark6.Config verbose
-          GMark7      -> GMark7.runProg    $ GMark7.Config verbose
-          TIMark1     -> TIMark1.runProg   $ TIMark1.Config verbose
-          TIMark1Cp   -> TIMark1Cp.runProg $ TIMark1Cp.Config verbose threshold
-          TIMark2     -> TIMark2.runProg   $ TIMark2.Config verbose threshold
-          TIMark3     -> TIMark3.runProg   $ TIMark3.Config verbose threshold
-          TIMark4     -> TIMark4.runProg   $ TIMark4.Config verbose threshold
-          TIMark5     -> TIMark5.runProg   $ TIMark5.Config verbose threshold convertList
-          TIMark6     -> TIMark6.runProg   $ TIMark6.Config verbose threshold convertList profile
-          PgMark1     -> PgMark1.runProg   $ PgMark1.Config verbose werbose
-          PgMark2     -> PgMark2.runProg   $ PgMark2.Config verbose werbose
-          PgMark3     -> PgMark3.runProg   $ PgMark3.Config verbose werbose machineSize
-          PgMark4     -> PgMark4.runProg   $ PgMark4.Config verbose werbose machineSize
+          GMark6      -> GMark6.runProg    $ GMark6.Config verbose id
+          GMark7      -> GMark7.runProg    $ GMark7.Config verbose id
+          TIMark1     -> TIMark1.runProg   $ TIMark1.Config verbose id
+          TIMark1Cp   -> TIMark1Cp.runProg $ TIMark1Cp.Config verbose threshold id
+          TIMark2     -> TIMark2.runProg   $ TIMark2.Config verbose threshold id
+          TIMark3     -> TIMark3.runProg   $ TIMark3.Config verbose threshold id
+          TIMark4     -> TIMark4.runProg   $ TIMark4.Config verbose threshold id
+          TIMark5     -> TIMark5.runProg   $ TIMark5.Config verbose threshold convertList id
+          TIMark6     -> TIMark6.runProg   $ TIMark6.Config verbose threshold convertList profile id
+          PgMark1     -> PgMark1.runProg   $ PgMark1.Config verbose werbose id
+          PgMark2     -> PgMark2.runProg   $ PgMark2.Config verbose werbose id
+          PgMark3     -> PgMark3.runProg   $ PgMark3.Config verbose werbose machineSize id
+          PgMark4     -> PgMark4.runProg   $ PgMark4.Config verbose werbose machineSize id
           (Noco name) -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------

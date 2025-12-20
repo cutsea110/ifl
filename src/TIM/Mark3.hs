@@ -18,6 +18,7 @@ import Utils
 
 data Config = Config { verbose     :: !Bool
                      , gcThreshold :: !Int
+                     , lifter      :: CoreProgram -> CoreProgram
                      }
 
 runProg :: Config -> String -> String

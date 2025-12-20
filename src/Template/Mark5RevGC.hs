@@ -19,6 +19,7 @@ import Utils
 
 data Config = Config { gcThreshold        :: !Int
                      , convertToListBased :: !Bool
+                     , lifter             :: CoreProgram -> CoreProgram
                      }
 
 runProg :: Config -> String -> String

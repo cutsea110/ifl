@@ -13,8 +13,9 @@ import Iseq
 import Language
 import Utils
 
-newtype Config = Config { verbose :: Bool
-                        }
+data Config = Config { verbose :: Bool
+                     , lifter  :: CoreProgram -> CoreProgram
+                     }
 
 
 runProg :: Config -> String -> String
