@@ -48,10 +48,8 @@ f x_0 = let
         in g_1 1 ;
 sc_2 x_3 y_4 = x_3 + y_4
 >>> putStrLn . pprint . lambdaLift $ parse "f x = let g = (\\y -> y + 1) in g (g x)"
-f x_0 = let
-          g_1 = sc_2
-        in g_1 (g_1 x_0) ;
-sc_2 y_3 = y_3 + 1
+f x_0 = g_1 (g_1 x_0) ;
+g_1 y_3 = y_3 + 1
 -}
 lambdaLift :: CoreProgram -> CoreProgram
 lambdaLift = collectSCs . rename . abstract . freeVars
