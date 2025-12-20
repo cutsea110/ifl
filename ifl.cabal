@@ -18,7 +18,7 @@ extra-source-files:  CHANGELOG.md
 
 library
   exposed-modules:     Iseq
-                       Lambda
+                       Lambda.Mark2
                        Language
                        Parser
                        Utils

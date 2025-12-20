@@ -1,4 +1,4 @@
-module Lambda where
+module Lambda.Mark2 where
 
 import Data.List (mapAccumL)
 import qualified Data.Set as Set
