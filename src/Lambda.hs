@@ -187,13 +187,14 @@ rename_alt env ns (tag, args, rhs)
 collectSCs :: CoreProgram -> CoreProgram
 collectSCs prog
   = concatMap collect_one_sc prog
-  where collect_one_sc (sc_name, args, rhs) = case rhs' of
-          -- If the rhs is a variable referring to an existing supercombinator,
-          -- we can just reuse that supercombinator instead of creating a new one.
-          EVar new_name -> [(sc_name, args', body')] -- exercise 6.5
-            where (_, args', body') = head [(n, a, b) | (n, a, b) <- scs, n == new_name]
-          _             -> (sc_name, args, rhs') : scs
-          where (scs, rhs') = collectSCs_e rhs
+  where
+    -- exercise 6.5
+    -- If the rhs is a variable referring to an existing supercombinator,
+    -- we can just reuse that supercombinator instead of creating a new one.
+    collect_one_sc (sc_name, args, ELet False [(name, ELam args' body')] (EVar new_name))
+      | new_name == name = [(sc_name, args ++ args', body')]
+    collect_one_sc (sc_name, args, rhs) = (sc_name, args, rhs') : scs
+      where (scs, rhs') = collectSCs_e rhs
 
 collectSCs_e :: CoreExpr -> ([CoreScDefn], CoreExpr)
 collectSCs_e (EVar v) = ([], EVar v)
