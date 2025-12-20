@@ -224,8 +224,12 @@ collectSCs_e (ELet is_rec defns body)
 
         (body_scs, body') = collectSCs_e body
 
-        collectSCs_d scs (name, rhs)
-          = (scs++rhs_scs, (name, rhs'))
+        -- exercise 6.6
+        -- this pattern means like this: g = let sc = \args -> body in sc.
+        collectSCs_d scs (name, ELet False [(name', ELam args' body')] (EVar name''))
+          | name' == name'' = case collectSCs_e body' of
+              (scs'', body'') -> (scs++scs'', (name, ELam args' body''))
+        collectSCs_d scs (name, rhs) = (scs++rhs_scs, (name, rhs'))
           where (rhs_scs, rhs') = collectSCs_e rhs
 
 isELam :: Expr a -> Bool
