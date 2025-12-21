@@ -44,6 +44,9 @@ import qualified Pgmachine.Mark2 as PgMark2   (runProg, Config(..))
 import qualified Pgmachine.Mark3 as PgMark3   (runProg, Config(..))
 import qualified Pgmachine.Mark4 as PgMark4   (runProg, Config(..))
 
+import qualified Lambda.Mark1 as LMark1 (lambdaLift)
+import qualified Lambda.Mark2 as LMark2 (lambdaLift)
+
 ---------------------------------------------------------------
 -- COMPILER
 ---------------------------------------------------------------
@@ -54,6 +57,10 @@ executer opts = putStr . run
   where verbose = optVerbose opts || werbose
         werbose = optWerbose opts
         compiler = optCompiler opts
+        lifter = case optLifter opts of
+                LMark1 -> LMark1.lambdaLift
+                LMark2 -> LMark2.lambdaLift
+                NoLift -> id
         threshold = optThreshold opts
         machineSize = optMachineSize opts
         convertList = optConvertList opts
@@ -63,29 +70,29 @@ executer opts = putStr . run
           Mark2       -> Mark2.runProg
           Mark3       -> Mark3.runProg
           Mark4       -> Mark4.runProg
-          Mark5       -> Mark5.runProg      $ Mark5.Config convertList id
-          Mark5Alt    -> Mark5Alt.runProg   $ Mark5Alt.Config convertList id
-          Mark5GC     -> Mark5GC.runProg    $ Mark5GC.Config threshold convertList id
-          Mark5RevGC  -> Mark5RevGC.runProg $ Mark5RevGC.Config threshold convertList id
-          Mark5Cp     -> Mark5Cp.runProg    $ Mark5Cp.Config verbose threshold convertList id
+          Mark5       -> Mark5.runProg      $ Mark5.Config convertList lifter
+          Mark5Alt    -> Mark5Alt.runProg   $ Mark5Alt.Config convertList lifter
+          Mark5GC     -> Mark5GC.runProg    $ Mark5GC.Config threshold convertList lifter
+          Mark5RevGC  -> Mark5RevGC.runProg $ Mark5RevGC.Config threshold convertList lifter
+          Mark5Cp     -> Mark5Cp.runProg    $ Mark5Cp.Config verbose threshold convertList lifter
           GMark1      -> GMark1.runProg
           GMark2      -> GMark2.runProg
           GMark3      -> GMark3.runProg
           GMark4      -> GMark4.runProg
           GMark5      -> GMark5.runProg
-          GMark6      -> GMark6.runProg    $ GMark6.Config verbose id
-          GMark7      -> GMark7.runProg    $ GMark7.Config verbose id
-          TIMark1     -> TIMark1.runProg   $ TIMark1.Config verbose id
-          TIMark1Cp   -> TIMark1Cp.runProg $ TIMark1Cp.Config verbose threshold id
-          TIMark2     -> TIMark2.runProg   $ TIMark2.Config verbose threshold id
-          TIMark3     -> TIMark3.runProg   $ TIMark3.Config verbose threshold id
-          TIMark4     -> TIMark4.runProg   $ TIMark4.Config verbose threshold id
-          TIMark5     -> TIMark5.runProg   $ TIMark5.Config verbose threshold convertList id
-          TIMark6     -> TIMark6.runProg   $ TIMark6.Config verbose threshold convertList profile id
-          PgMark1     -> PgMark1.runProg   $ PgMark1.Config verbose werbose id
-          PgMark2     -> PgMark2.runProg   $ PgMark2.Config verbose werbose id
-          PgMark3     -> PgMark3.runProg   $ PgMark3.Config verbose werbose machineSize id
-          PgMark4     -> PgMark4.runProg   $ PgMark4.Config verbose werbose machineSize id
+          GMark6      -> GMark6.runProg    $ GMark6.Config verbose lifter
+          GMark7      -> GMark7.runProg    $ GMark7.Config verbose lifter
+          TIMark1     -> TIMark1.runProg   $ TIMark1.Config verbose lifter
+          TIMark1Cp   -> TIMark1Cp.runProg $ TIMark1Cp.Config verbose threshold lifter
+          TIMark2     -> TIMark2.runProg   $ TIMark2.Config verbose threshold lifter
+          TIMark3     -> TIMark3.runProg   $ TIMark3.Config verbose threshold lifter
+          TIMark4     -> TIMark4.runProg   $ TIMark4.Config verbose threshold lifter
+          TIMark5     -> TIMark5.runProg   $ TIMark5.Config verbose threshold convertList lifter
+          TIMark6     -> TIMark6.runProg   $ TIMark6.Config verbose threshold convertList profile lifter
+          PgMark1     -> PgMark1.runProg   $ PgMark1.Config verbose werbose lifter
+          PgMark2     -> PgMark2.runProg   $ PgMark2.Config verbose werbose lifter
+          PgMark3     -> PgMark3.runProg   $ PgMark3.Config verbose werbose machineSize lifter
+          PgMark4     -> PgMark4.runProg   $ PgMark4.Config verbose werbose machineSize lifter
           (Noco name) -> const $ "Error: Unknown compiler = " ++ name ++ "\n" ++ helpMessage
 
 ---------------------------------------------------------------
@@ -112,6 +119,7 @@ data Options = Options
   , optMachineSize :: !Int -- machine size for Parallel G-machine
   , optShowVersion :: !Bool
   , optCompiler    :: !Compiler
+  , optLifter      :: !LambdaLifter
   , optConvertList :: !Bool
   , optProfile     :: !Bool
   }
@@ -124,6 +132,7 @@ defaultOptions = Options
   , optMachineSize = 4
   , optShowVersion = False
   , optCompiler    = PgMark4
+  , optLifter      = LMark2
   , optConvertList = False
   , optProfile     = False
   }
@@ -141,9 +150,21 @@ name2Compiler
 compilerNames :: [String]
 compilerNames = map fst name2Compiler
 
+data LambdaLifter = LMark1
+                  | LMark2
+                  | NoLift
+                  deriving (Show, Eq)
+
+name2Lifter :: [(String, LambdaLifter)]
+name2Lifter
+  = map (\c -> (map toLower (show c), c))
+    [ LMark1, LMark2 ]
+
 options :: [OptDescr (Options -> Options)]
-options = [ Option ['c'] ["compiler"] (ReqArg (\e opts -> opts {optCompiler = decide e}) "Compiler")
+options = [ Option ['c'] ["compiler"] (ReqArg (\e opts -> opts {optCompiler = compiler e}) "Compiler")
             ("compiler name (" ++ intercalate " | " compilerNames ++ ")")
+          , Option ['l'] ["lifter"] (ReqArg (\e opts -> opts {optLifter = lifter e}) "Lifter")
+            ("lambda lifter name (lmark1 | lmark2)")
           , Option ['v'] ["verbose"] (NoArg (\opts -> opts {optVerbose = True}))
             "step output on stderr"
           , Option ['w'] ["pretty verbose"] (NoArg (\opts -> opts {optWerbose = True}))
@@ -153,7 +174,7 @@ options = [ Option ['c'] ["compiler"] (ReqArg (\e opts -> opts {optCompiler = de
           , Option ['m'] ["machines"] (ReqArg (\n opts -> opts {optMachineSize = read n}) "MachineSize")
             "Machine size for Parallel G-machine (default: 4)"
             -- NOTE: this option is only for the part of Template Instantiation Machines.
-          , Option ['l'] ["convert-to-list-based"] (NoArg (\opts -> opts {optConvertList = True}))
+          , Option ['L'] ["convert-to-list-based"] (NoArg (\opts -> opts {optConvertList = True}))
             "convert to list based program"
             -- NOTE: this option is my original option. It's not in textbook.
           , Option ['p'] ["profile"] (NoArg (\opts -> opts {optProfile = True}))
@@ -161,8 +182,10 @@ options = [ Option ['c'] ["compiler"] (ReqArg (\e opts -> opts {optCompiler = de
           , Option ['V', '?'] ["version"]   (NoArg (\opts -> opts {optShowVersion = True}))
             "show version"
           ]
-  where decide :: String -> Compiler
-        decide name = fromMaybe (Noco name) $ lookup name name2Compiler
+  where compiler :: String -> Compiler
+        compiler name = fromMaybe (Noco name) $ lookup name name2Compiler
+        lifter :: String -> LambdaLifter
+        lifter name = fromMaybe NoLift $ lookup name name2Lifter
 
 compilerOpts :: [String] -> IO (Options, [String])
 compilerOpts argv =
@@ -199,6 +222,7 @@ settingInfos :: Options -> FilePath -> String
 settingInfos opts fp =
   unlines [ "       Program Source: " ++ fp
           , "     Choosed Compiler: " ++ show (optCompiler opts)
+          , "Choosed Lambda Lifter: " ++ show (optLifter opts)
           , "              Verbose: " ++ show (optVerbose opts)
           , "       Pretty verbose: " ++ show (optWerbose opts)
           , "         GC Threshold: " ++ show (optThreshold opts)

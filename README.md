@@ -19,13 +19,15 @@ $ cabal run ifl -- -V
 
 > cabal run ifl -- [OPTION...] <program-file>
 OPTION
-  -c Compiler   --compiler=Compiler      compiler name (mark1 | mark2 | mark3 | mark4 | mark5 | mark5alt | mark5gc | mark5revgc | mark5cp | gmark1 | gmark2 | gmark3 | gmark4 | gmark5 | gmark6 | gmark7 | timark1 | timark1cp | timark2 | timark3 | timark4 | timark5 | timark6 | pgmark1 | pgmark2 | pgmark3 | pgmark4)
-  -v            --verbose                step output on stderr
-  -w            --pretty verbose         step output with showing heap on stderr
-  -t Threshold  --threshold=Threshold    threshold for Garbage Collection
-  -l            --convert-to-list-based  convert to list based program
-  -p            --profile                profile output
-  -V, -?        --version                show version
+  -c Compiler     --compiler=Compiler      compiler name (mark1 | mark2 | mark3 | mark4 | mark5 | mark5alt | mark5gc | mark5revgc | mark5cp | gmark1 | gmark2 | gmark3 | gmark4 | gmark5 | gmark6 | gmark7 | timark1 | timark1cp | timark2 | timark3 | timark4 | timark5 | timark6 | pgmark1 | pgmark2 | pgmark3 | pgmark4)
+  -l Lifter       --lifter=Lifter          lambda lifter name (lmark1 | lmark2)
+  -v              --verbose                step output on stderr
+  -w              --pretty verbose         step output with showing heap on stderr
+  -t Threshold    --threshold=Threshold    threshold for Garbage Collection
+  -m MachineSize  --machines=MachineSize   Machine size for Parallel G-machine (default: 4)
+  -L              --convert-to-list-based  convert to list based program
+  -p              --profile                profile output
+  -V, -?          --version                show version
 ```
 
 ## Run on docker
@@ -77,13 +79,13 @@ $ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 -v -c pgmark
 or try this.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 -t 1000 -l -v -c timark6 /work/testProg134.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 -t 1000 -L -v -c timark6 /work/testProg134.ifl
 ```
 
 Further more, just only on the TMark6, You can use -p option which profile your code.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 -t 1000 -l -v -c timark6 -p /work/testProg134.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.28 -t 1000 -L -v -c timark6 -p /work/testProg134.ifl
 ```
 
 If you want to try the latest PgMark2, you can use -w option which pretty verbose.
