@@ -28,7 +28,7 @@ data Config = Config { verbose :: Bool
                      }
 
 runProg :: Config -> String -> String
-runProg conf = showR . eval . compile . parse
+runProg conf = showR . eval . compile . lifter conf . parse
   where showR | verbose conf = showResults
               | otherwise    = showSimpleResult
 

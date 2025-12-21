@@ -1,0 +1,6 @@
+f x = let
+        g = \x -> x + 1;
+	h = \x -> x * 2
+      in g (h x);
+
+main = f 3

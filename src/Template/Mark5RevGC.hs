@@ -24,7 +24,7 @@ data Config = Config { gcThreshold        :: !Int
 
 runProg :: Config -> String -> String
 runProg conf | convertToListBased conf = showResults . eval conf . cnv . compile . parse
-             | otherwise = showResults . eval conf . compile . parse
+             | otherwise = showResults . eval conf . compile . lifter conf . parse
 
 type Primitive = TiState -> TiState
 

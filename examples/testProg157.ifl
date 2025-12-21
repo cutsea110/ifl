@@ -1,0 +1,5 @@
+f x = let
+        g = \y -> y+1
+      in g (g x);
+
+main = f 3

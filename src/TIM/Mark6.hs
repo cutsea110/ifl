@@ -35,8 +35,8 @@ data Config = Config { verbose           :: !Bool
 
 runProg :: Config -> String -> String
 runProg conf
-  | convertToListBase conf = showR . eval conf . compile "__main" . parse
-  | otherwise              = showR . eval conf . compile "main" . parse
+  | convertToListBase conf = showR . eval conf . compile "__main" . lifter conf . parse
+  | otherwise              = showR . eval conf . compile "main" . lifter conf . parse
   where showR | verbose conf = showResults
               | otherwise    = showSimpleResult
 

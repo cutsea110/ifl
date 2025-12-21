@@ -21,7 +21,7 @@ data Config = Config { convertToListBased :: Bool
                      }
 
 runProg :: Config -> String -> String
-runProg conf | convertToListBased conf = showResults . eval . cnv . compile . parse
+runProg conf | convertToListBased conf = showResults . eval . cnv . compile . lifter conf . parse
              | otherwise = showResults . eval . compile . parse
 
 type Primitive = TiState -> TiState

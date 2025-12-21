@@ -24,8 +24,8 @@ data Config = Config { verbose           :: !Bool
 
 runProg :: Config -> String -> String
 runProg conf
-  | convertToListBase conf = showR . eval conf . cnv . compile . parse
-  | otherwise              = showR . eval conf . compile . parse
+  | convertToListBase conf = showR . eval conf . cnv . compile . lifter conf. parse
+  | otherwise              = showR . eval conf . compile . lifter conf . parse
   where showR | verbose conf = showResults
               | otherwise    = showSimpleResult
 

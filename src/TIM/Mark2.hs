@@ -23,7 +23,7 @@ data Config = Config { verbose     :: !Bool
                      }
 
 runProg :: Config -> String -> String
-runProg conf = showR . eval conf . compile . parse
+runProg conf = showR . eval conf . compile . lifter conf . parse
   where showR | verbose conf = showResults
               | otherwise    = showSimpleResult
 
