@@ -1,0 +1,97 @@
+-- def of Maybe
+Nothing = Pack{0,0};
+Just    = Pack{1,1};
+
+maybe n f x = case x of
+  <0>   -> n;
+  <1> a -> f a;
+
+-- def of Either
+Left  = Pack{1,1};
+Right = Pack{2,1};
+
+either f g x = case x of
+  <1> a -> f a;
+  <2> b -> g b;
+
+-- def of Pair
+Pair = Pack{0,2};
+
+-- map over Maybe
+fmap f x = case x of
+  <0>   -> Nothing;
+  <1> y -> Just (f y);
+
+-- def of Nat
+Zero = Pack{0,0};
+Succ = Pack{1,1};
+
+-- cata over Nat
+foldn c f n = case n of
+  <0>   -> c;
+  <1> m -> f (foldn c f m);
+
+-- ana over Nat
+unfoldn psi x = case psi x of
+  <0> -> Zero;
+  <1> y -> Succ (unfoldn psi y);
+
+-- out over Nat
+out n = case n of
+  <0>   -> Nothing;
+  <1> m -> Just m;
+
+-- def of non-empty-list. (This is F^* over F(X)=1+X)
+unit = Pack{1,1};
+cons = Pack{2,2};
+
+-- out over non-empty-list
+unwrap nel = case nel of
+  <1> x    -> Left x;
+  <2> x xs -> Right (Pair x xs);
+
+-- cata over non-empty-list
+fold c f nel = case nel of
+  <1> x   -> c x;
+  <2> x y -> f x (fold c f y);
+
+-- ana over non-empty-list
+unfold psi x = case psi x of
+  <1> a -> unit a;
+  <2> p -> case p of
+    <2> a b -> cons a (unfold psi b);
+
+-- extract over F^* as non-empty-list (a.k.a head)
+extract x = case x of
+  <1> x   -> x;
+  <2> x y -> x;
+
+-- sub over F^* as non-empty-list (a.k.a safed tail)
+sub x = case unwrap x of
+  <1> x -> Nothing;
+  <2> p -> case p of
+    <0> a b -> Just b;
+
+-- histo over Maybe
+histo phi = letrec
+              u = \n ->
+	        letrec
+	          m = fmap u (out n);
+		  val = phi m
+	        in maybe (unit val) (cons val) m
+            in compose extract u;
+
+-- dyna over Maybe
+dyna f g = compose (histo f) (unfoldn g);
+
+-- for concrete phi and psi for dyna
+phi x = case x of
+  <0>   -> 0;
+  <1> x -> extract x + maybe 1 extract (sub x);
+psi n = if (n == 0) Nothing (Just (n-1));
+
+-- def of fib
+fib n = dyna phi psi n;
+
+-- entry point
+main = fib 20
