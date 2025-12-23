@@ -235,9 +235,8 @@ isELam (ELam _ _) = True
 isELam _          = False
 
 mkELet :: IsRec -> [(a, Expr a)] -> Expr a -> Expr a
-mkELet is_rec defns body
-  | null defns = body
-  | otherwise  = ELet is_rec defns body
+mkELet _      []    body = body
+mkELet is_rec defns body = ELet is_rec defns body
 
 runS :: String -> String
 runS = pprint . lambdaLift . parse
