@@ -7,7 +7,7 @@ fmap f x = case x of
   <1> y -> Just (f y);
 
 -- def of Nat
-Zero = Pack{0,0};
+Zero   = Pack{0,0};
 Succ n = Pack{1,1} n;
 
 -- cata over Nat
@@ -17,7 +17,7 @@ foldn c f n = case n of
 
 -- ana over Nat
 unfoldn psi x = case psi x of
-  <0> -> Zero;
+  <0>   -> Zero;
   <1> y -> Succ (unfoldn psi y);
 
 -- out over Nat
@@ -26,7 +26,7 @@ out n = case n of
   <1> m -> Just m;
 
 -- def of non-empty-list. (This is F^* over F(X)=1+X)
-unit x = Pack{1,1} x;
+unit x   = Pack{1,1} x;
 cons x y = Pack{2,2} x y;
 
 -- out over non-empty-list

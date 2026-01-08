@@ -36,7 +36,7 @@ foldn c f n = case n of
 
 -- ana over Nat
 unfoldn psi x = case psi x of
-  <0> -> Zero;
+  <0>   -> Zero;
   <1> y -> Succ (unfoldn psi y);
 
 -- out over Nat
