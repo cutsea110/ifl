@@ -64,14 +64,13 @@ histo phi = letrec
 -- dyna over Maybe
 dyna f g = compose (histo f) (unfoldn g);
 
--- for concrete phi and psi for dyna
-phi x = case x of
-  <0>   -> 0;
-  <1> x -> extract x + maybe 1 extract (sub x);
-psi n = if (n == 0) Nothing (Just (n-1));
-
 -- def of fib
-fib n = dyna phi psi n;
+fib n = let
+          phi = \x -> case x of
+            <0>   -> 0;
+            <1> x -> extract x + maybe 1 extract (sub x);
+          psi = \n -> if (n == 0) Nothing (Just (n-1))
+  in dyna phi psi n;
 
 -- entry point
 main = fib 20
