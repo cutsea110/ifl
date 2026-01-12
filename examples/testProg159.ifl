@@ -75,10 +75,10 @@ sub x = case unwrap x of
 -- histo over Maybe
 histo phi = letrec
               u = \n ->
-	        letrec
-	          m = fmap u (out n);
-		  val = phi m
-	        in maybe (unit val) (cons val) m
+                letrec
+                  m   = fmap u (out n);
+                  val = phi m
+                in maybe (unit val) (cons val) m
             in compose extract u;
 
 -- dyna over Maybe
