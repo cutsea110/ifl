@@ -53,23 +53,25 @@ sub x = case unwrap x of
     <0> a b -> Just b;
 
 -- histo over Maybe
-histo phi = letrec
-              u = \n ->
-                letrec
-                  m   = fmap u (out n);
-                  val = phi m
-                in maybe (unit val) (cons val) m
-            in compose extract u;
+histo phi =
+  letrec
+    u = \n ->
+      letrec
+        m   = fmap u (out n);
+        val = phi m
+      in maybe (unit val) (cons val) m
+  in compose extract u;
 
 -- dyna over Maybe
 dyna f g = compose (histo f) (unfoldn g);
 
 -- def of fib
-fib n = let
-          phi = \x -> case x of
-            <0>   -> 0;
-            <1> x -> extract x + maybe 1 extract (sub x);
-          psi = \n -> if (n == 0) Nothing (Just (n-1))
+fib n =
+  let
+    phi = \x -> case x of
+      <0>   -> 0;
+      <1> x -> extract x + maybe 1 extract (sub x);
+    psi = \n -> if (n == 0) Nothing (Just (n-1))
   in dyna phi psi n;
 
 -- entry point
