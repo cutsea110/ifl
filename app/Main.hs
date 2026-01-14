@@ -274,4 +274,4 @@ main = do
   case rest of
     []    -> hPutStr stderr helpMessage
     [src] -> run opts src
-    _:_   -> error "Too many arguments"
+    _     -> error "Too many arguments"
