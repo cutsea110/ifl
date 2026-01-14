@@ -1,7 +1,7 @@
 # ============================
 # ビルドステージ
 # ============================
-FROM debian:bookworm-slim AS builder
+FROM debian:trixie-slim AS builder
 
 # 必要なツール・ライブラリをインストール
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgmp-dev \
     libffi8 \
     libffi-dev \
+    libnuma-dev \
     locales \
     fontconfig \
     fonts-noto-color-emoji \
@@ -29,11 +30,12 @@ RUN cabal install exe:ifl --installdir=/build/dist --overwrite-policy=always --e
 # ============================
 # 実行ステージ（distroless）
 # ============================
-FROM gcr.io/distroless/cc-debian12
+FROM gcr.io/distroless/cc-debian13
 
 COPY --from=builder /build/dist/ifl /ifl
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libgmp.so.* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libffi.so.* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libnuma.so.* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libfontconfig.so.* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libfreetype.so.* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libpng16.so.* /usr/lib/x86_64-linux-gnu/
