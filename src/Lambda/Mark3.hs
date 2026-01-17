@@ -95,6 +95,17 @@ abstractJ_e env (free, ALet is_rec defns body)
                      ]
         var_defns' = [ (name, abstractJ_e rhs_env rhs) | (name, rhs) <- var_defns]
         body' = abstractJ_e body_env body
+abstractJ_e env (free, ACase e alts) = abstractJ_case env e alts
+
+abstractJ_case :: Assoc Name [Name]
+               -> AnnExpr Name (Set Name)
+               -> [AnnAlt Name (Set Name)]
+               -> CoreExpr
+abstractJ_case env e alts = ECase e' alts'
+  where e' = abstractJ_e env e
+        alts' = [ (tag, args, abstractJ_e env rhs)
+                | (tag, args, rhs) <- alts
+                ]
 
 actualFreeList :: Assoc Name [Name] -> Set Name -> [Name]
 actualFreeList env free
