@@ -41,6 +41,7 @@ import qualified Pgmachine.Mark4 as PgMark4   (runProg, Config(..))
 
 import qualified Lambda.Mark1 as LMark1 (lambdaLift)
 import qualified Lambda.Mark2 as LMark2 (lambdaLift)
+import qualified Lambda.Mark3 as LMark3 (lambdaLift)
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -55,6 +56,7 @@ executer opts = putStr . run
         lifter = case optLifter opts of
                 LMark1 -> LMark1.lambdaLift
                 LMark2 -> LMark2.lambdaLift
+                LMark3 -> LMark3.lambdaLift
                 NoLift -> id
         threshold = optThreshold opts
         machineSize = optMachineSize opts
@@ -127,7 +129,7 @@ defaultOptions = Options
   , optMachineSize = 4
   , optShowVersion = False
   , optCompiler    = PgMark4
-  , optLifter      = LMark2
+  , optLifter      = LMark3
   , optConvertList = False
   , optProfile     = False
   }
@@ -147,19 +149,20 @@ compilerNames = map fst name2Compiler
 
 data LambdaLifter = LMark1
                   | LMark2
+                  | LMark3
                   | NoLift
                   deriving (Show, Eq)
 
 name2Lifter :: [(String, LambdaLifter)]
 name2Lifter
   = map (\c -> (map toLower (show c), c))
-    [ LMark1, LMark2 ]
+    [ LMark1, LMark2, LMark3 ]
 
 options :: [OptDescr (Options -> Options)]
 options = [ Option ['c'] ["compiler"] (ReqArg (\e opts -> opts {optCompiler = compiler e}) "Compiler")
             ("compiler name (" ++ intercalate " | " compilerNames ++ ")")
           , Option ['l'] ["lifter"] (ReqArg (\e opts -> opts {optLifter = lifter e}) "Lifter")
-            ("lambda lifter name (lmark1 | lmark2)")
+            ("lambda lifter name (lmark1 | lmark2 | lmark3)")
           , Option ['v'] ["verbose"] (NoArg (\opts -> opts {optVerbose = True}))
             "step output on stderr"
           , Option ['w'] ["pretty verbose"] (NoArg (\opts -> opts {optWerbose = True}))

@@ -20,6 +20,7 @@ library
   exposed-modules:     Iseq
                        Lambda.Mark1
                        Lambda.Mark2
+                       Lambda.Mark3
                        Language
                        Parser
                        Utils
