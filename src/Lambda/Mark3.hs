@@ -83,20 +83,16 @@ abstractJ_e env (free, ALet is_rec defns body)
   = ELet is_rec (fun_defns' ++ var_defns') body'
   where (fun_defns, var_defns) = partition (isALam . snd) defns
         fun_names = bindersOf fun_defns
-        free_in_funs = (Set.unions [freeVarsOf rhs | (name, rhs) <- fun_defns])
-                       Set.\\ (Set.fromList fun_names)
-        free_in_funs' = closureAssoc [ (name, Set.toList $ freeVarsOf rhs)
-                                     | (name, rhs) <- fun_defns]
-        vars_to_abstract = actualFreeList env free_in_funs
+        free_in_funs = closureAssoc [(name, Set.toList $ freeVarsOf rhs) | (name, rhs) <- fun_defns]
+        vars_to_abstract = actualFreeList env frees
+          where frees = (Set.unions [freeVarsOf rhs | (_, rhs) <- fun_defns]) Set.\\ (Set.fromList fun_names)
         body_env = [(fun_name, vars_to_abstract) | fun_name <- fun_names] ++ env
         rhs_env | is_rec    = body_env
                 | otherwise = env
-        fun_defns' | is_rec = [ (name, ELam (fvs ++ args) (abstractJ_e rhs_env body))
-                              | (name, (free, ALam args body)) <- fun_defns
-                              , let fvs = aLookup free_in_funs' name []
-                              ]
-                   | otherwise = [(name, ELam (vars_to_abstract ++ args) (abstractJ_e rhs_env body))
-                                 |(name, (free, ALam args body)) <- fun_defns]
+        fun_defns' = [ (name, ELam (fvs ++ args) (abstractJ_e rhs_env body))
+                     | (name, (free, ALam args body)) <- fun_defns
+                     , let fvs = if is_rec then aLookup free_in_funs name [] else vars_to_abstract
+                     ]
         var_defns' = [(name, abstractJ_e rhs_env rhs) | (name, rhs) <- var_defns]
         body' = abstractJ_e body_env body
 abstractJ_e env (free, ACase e alts) = abstractJ_case env e alts
@@ -107,6 +103,8 @@ abstractJ_e env (free, ACase e alts) = abstractJ_case env e alts
 >>> closureAssoc [("g", ["h", "x"]),("h", ["g", "y"])]
 [("g",["h","x","y"]),("h",["g","x","y"])]
 >>> closureAssoc [("g", ["h", "x"]), ("h", ["k", "y"])]
+[("g",["h","k","x","y"]),("h",["k","y"])]
+>>> closureAssoc [("h", ["k", "y"]), ("g", ["h", "x"])]
 [("g",["h","k","x","y"]),("h",["k","y"])]
 -}
 closureAssoc :: Assoc Name [Name] -> Assoc Name [Name]
