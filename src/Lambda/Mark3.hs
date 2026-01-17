@@ -167,65 +167,6 @@ isALam (free, ALam _ _) = True
 isALam _                = False
 
 
--- TODO: remove
-abstract :: AnnProgram Name (Set Name) -> CoreProgram
-abstract prog = [ (sc_name, args, abstract_e rhs)
-                | (sc_name, args, rhs) <- prog
-                ]
-
-{- |
->>> abstract_e (Set.fromList ["x"], AVar "x")
-EVar "x"
-
->>> abstract_e (Set.fromList [], AVar "x")
-EVar "x"
-
->>> abstract_e (Set.fromList ["x"], AVar "x")
-EVar "x"
-
->>> abstract_e (Set.fromList ["f","x"], AAp (Set.fromList ["f"], AVar "f") (Set.fromList ["x"], AVar "x"))
-EAp (EVar "f") (EVar "x")
-
->>> abstract_e (Set.fromList [], AAp (Set.fromList [], AVar "f") (Set.fromList [], AVar "x"))
-EAp (EVar "f") (EVar "x")
-
->>> abstract_e (Set.fromList ["x","y"], ALet False [("x",(Set.fromList [],ANum 1)),("y",(Set.fromList [],ANum 2))] (Set.fromList ["x"],AVar "x"))
-ELet False [("x",ENum 1),("y",ENum 2)] (EVar "x")
-
->>> abstract_e (Set.fromList ["f"], ALet True [("g",(Set.fromList ["f","g"],AAp (Set.fromList ["f"],AVar "f") (Set.fromList ["g"],AVar "g")))] (Set.fromList ["g"],AVar "g"))
-ELet True [("g",EAp (EVar "f") (EVar "g"))] (EVar "g")
-
->>> abstract_e (Set.fromList ["f","y"], ALam ["x"] (Set.fromList ["f","x","y"],AAp (Set.fromList ["f"],AVar "f") (Set.fromList ["x"],AVar "x")))
-EAp (EAp (ELet False [("sc",ELam ["f","y","x"] (EAp (EVar "f") (EVar "x")))] (EVar "sc")) (EVar "f")) (EVar "y")
--}
-
--- TODO: remove
-abstract_e :: AnnExpr Name (Set Name) -> CoreExpr
-abstract_e (free, AVar v) = EVar v
-abstract_e (free, ANum n) = ENum n
-abstract_e (free, AAp e1 e2) = EAp (abstract_e e1) (abstract_e e2)
-abstract_e (free, ALet is_rec defns body)
-  = ELet is_rec [ (name, abstract_e body)
-                | (name, body) <- defns
-                ] (abstract_e body)
-abstract_e (free, ALam args body)
-  = foldl EAp sc (map EVar fvList)
-  where fvList = Set.toList free
-        sc     = ELet nonRecursive [("sc", sc_rhs)] (EVar "sc")
-        sc_rhs = ELam (fvList ++ args) (abstract_e body)
-abstract_e (free, AConstr t a)  = EConstr t a
-abstract_e (free, ACase e alts) = abstract_case free e alts
-
--- TODO: remove
-abstract_case :: Set Name
-              -> AnnExpr Name (Set Name)
-              -> [AnnAlt Name (Set Name)]
-              -> CoreExpr
-abstract_case free e alts = ECase (abstract_e e) alts'
-  where alts' = [ (tag, args, abstract_e rhs)
-                | (tag, args, rhs) <- alts
-                ]
-
 {- |
 >>> rename $ parse "g x = letrec f = \\x -> x + x in f 3"
 [("g",["x_0"],ELet True [("f_1",ELam ["x_2"] (EAp (EAp (EVar "+") (EVar "x_2")) (EVar "x_2")))] (EAp (EVar "f_1") (ENum 3)))]
