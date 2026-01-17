@@ -1,6 +1,7 @@
 module Lambda.Mark3 where
 
 import Data.List (mapAccumL)
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
 
@@ -97,6 +98,50 @@ abstractJ_e env (free, ALet is_rec defns body)
         var_defns' = [ (name, abstractJ_e rhs_env rhs) | (name, rhs) <- var_defns]
         body' = abstractJ_e body_env body
 abstractJ_e env (free, ACase e alts) = abstractJ_case env e alts
+
+{-|
+>>> closureAssoc []
+[]
+>>> closureAssoc [("g", ["h", "x"]),("h", ["g", "y"])]
+[("g",["h","x","y"]),("h",["g","x","y"])]
+>>> closureAssoc [("g", ["h", "x"]), ("h", ["k", "y"])]
+[("g",["h","k","x","y"]),("h",["k","y"])]
+-}
+closureAssoc :: Assoc Name [Name] -> Assoc Name [Name]
+closureAssoc alist
+  = [ (key, Set.toList deps)
+    | key <- Map.keys m
+    , let deps = depsOf m key
+    ]
+  where m = Map.fromList alist
+
+depsOf :: Map.Map Name [Name] -> Name -> Set.Set Name
+depsOf m key = (Set.delete <*> go Set.empty) key
+  where
+    funs :: Set.Set Name
+    funs = Map.keysSet m
+
+    go :: Set.Set Name -> Name -> Set.Set Name
+    go visited current
+      | current `Set.member` visited = Set.empty
+      | otherwise =
+        let visited' = Set.insert current visited
+            direct   = Map.findWithDefault [] current m
+            (callFuns, vars) = partitionBySet funs direct
+            -- avoid self-recursion
+            callFuns' = filter (/= current) callFuns
+            directFunNames = Set.fromList callFuns'
+            directVars     = Set.fromList vars
+            trans = Set.unions [ go visited' fun | fun <- callFuns ]
+        in directFunNames `Set.union` directVars `Set.union` trans
+
+partitionBySet :: Set.Set Name -> [Name] -> ([Name], [Name])
+partitionBySet s = foldr f ([], [])
+  where
+    f x (ins, outs)
+      | x `Set.member` s = (x:ins, outs)
+      | otherwise        = (ins, x:outs)
+
 
 abstractJ_case :: Assoc Name [Name]
                -> AnnExpr Name (Set Name)
