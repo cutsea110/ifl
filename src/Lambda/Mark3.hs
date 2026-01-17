@@ -56,6 +56,12 @@ lambdaLiftJ = collectSCs . abstractJ . freeVars . rename
 >>> putStrLn $ runJ "f x = letrec g = \\y -> cons (x*y) (g y) in g 3"
 f x_0 = g_1 x_0 3 ;
 g_1 x_0 y_2 = cons (x_0 * y_2) (g_1 x_0 y_2)
+>>> putStrLn $ runJ "f x y = letrec g = \\p -> h p + x; h = \\q -> k + y + q; k = g y in g 4"
+f x_0 y_1 = letrec
+              k_4 = g_2 h_3 k_4 x_0 y_1 y_1
+            in g_2 h_3 k_4 x_0 y_1 4 ;
+g_2 h_3 k_4 x_0 y_1 p_5 = h_3 k_4 y_1 p_5 + x_0 ;
+h_3 k_4 y_1 q_6 = k_4 + y_1 + q_6
 -}
 runJ :: String -> String
 runJ = pprint . lambdaLiftJ . parse
