@@ -52,8 +52,62 @@ f x_0 = g_1 (g_1 x_0) ;
 g_1 y_3 = y_3 + 1
 -}
 lambdaLiftJ :: CoreProgram -> CoreProgram
-lambdaLiftJ = collectSCs . rename . abstract . freeVars
+lambdaLiftJ = collectSCs . abstractJ . freeVars . rename
+{- |
+>>> putStrLn $ runJ "f x = letrec g = \\y -> cons (x*y) (g y) in g 3"
+f x_0 = g_1 x_0 3 ;
+g_1 x_0 y_2 = cons (x_0 * y_2) (g_1 x_0 y_2)
+-}
+runJ :: String -> String
+runJ = pprint . lambdaLiftJ . parse
 
+abstractJ :: AnnProgram Name (Set Name) -> CoreProgram
+abstractJ prog = [ (name, args, abstractJ_e [] rhs)
+                 | (name, args, rhs) <- prog
+                 ]
+
+abstractJ_e :: Assoc Name [Name]       -- Maps each new SC to the free vars of its group
+            -> AnnExpr Name (Set Name) -- Input expression
+            -> CoreExpr                -- Result expression
+abstractJ_e env (free, ANum n)      = ENum n
+abstractJ_e env (free, AConstr t a) = EConstr t a
+abstractJ_e env (free, AAp e1 e2)
+  = EAp (abstractJ_e env e1) (abstractJ_e env e2)
+abstractJ_e env (free, AVar g)
+  = foldl' EAp (EVar g) (map EVar (aLookup env g []))
+abstractJ_e env (free, ALam args body)
+  = foldl' EAp sc (map EVar fv_list)
+  where fv_list = actualFreeList env free
+        sc      = ELet nonRecursive [("sc", sc_rhs)] (EVar "sc")
+        sc_rhs  = ELam (fv_list ++ args) (abstractJ_e env body)
+abstractJ_e env (free, ALet is_rec defns body)
+  = ELet is_rec (fun_defns' ++ var_defns') body'
+  where fun_defns = [(name, rhs) | (name, rhs) <- defns, isALam rhs]
+        var_defns = [(name, rhs) | (name, rhs) <- defns, not (isALam rhs)]
+        fun_names = bindersOf fun_defns
+        free_in_funs = (Set.unions [freeVarsOf rhs | (name, rhs) <- fun_defns]) Set.\\ (Set.fromList fun_names)
+        vars_to_abstract = actualFreeList env free_in_funs
+        body_env = [(fun_name, vars_to_abstract) | fun_name <- fun_names] ++ env
+        rhs_env | is_rec    = body_env
+                | otherwise = env
+        fun_defns' = [ (name, ELam (vars_to_abstract ++ args) (abstractJ_e rhs_env body))
+                     | (name, (free, ALam args body)) <- fun_defns
+                     ]
+        var_defns' = [ (name, abstractJ_e rhs_env rhs) | (name, rhs) <- var_defns]
+        body' = abstractJ_e body_env body
+
+actualFreeList :: Assoc Name [Name] -> Set Name -> [Name]
+actualFreeList env free
+  = Set.toList $ Set.unions [ Set.fromList (aLookup env name [name])
+                            | name <- Set.toList free
+                            ]
+
+isALam :: AnnExpr a b -> Bool
+isALam (free, ALam _ _) = True
+isALam _                = False
+
+
+-- TODO: remove
 abstract :: AnnProgram Name (Set Name) -> CoreProgram
 abstract prog = [ (sc_name, args, abstract_e rhs)
                 | (sc_name, args, rhs) <- prog
@@ -84,6 +138,8 @@ ELet True [("g",EAp (EVar "f") (EVar "g"))] (EVar "g")
 >>> abstract_e (Set.fromList ["f","y"], ALam ["x"] (Set.fromList ["f","x","y"],AAp (Set.fromList ["f"],AVar "f") (Set.fromList ["x"],AVar "x")))
 EAp (EAp (ELet False [("sc",ELam ["f","y","x"] (EAp (EVar "f") (EVar "x")))] (EVar "sc")) (EVar "f")) (EVar "y")
 -}
+
+-- TODO: remove
 abstract_e :: AnnExpr Name (Set Name) -> CoreExpr
 abstract_e (free, AVar v) = EVar v
 abstract_e (free, ANum n) = ENum n
@@ -100,6 +156,7 @@ abstract_e (free, ALam args body)
 abstract_e (free, AConstr t a)  = EConstr t a
 abstract_e (free, ACase e alts) = abstract_case free e alts
 
+-- TODO: remove
 abstract_case :: Set Name
               -> AnnExpr Name (Set Name)
               -> [AnnAlt Name (Set Name)]
