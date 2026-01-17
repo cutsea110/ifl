@@ -51,8 +51,8 @@ sc_2 x_3 y_4 = x_3 + y_4
 f x_0 = g_1 (g_1 x_0) ;
 g_1 y_3 = y_3 + 1
 -}
-lambdaLift :: CoreProgram -> CoreProgram
-lambdaLift = collectSCs . rename . abstract . freeVars
+lambdaLiftJ :: CoreProgram -> CoreProgram
+lambdaLiftJ = collectSCs . rename . abstract . freeVars
 
 abstract :: AnnProgram Name (Set Name) -> CoreProgram
 abstract prog = [ (sc_name, args, abstract_e rhs)
@@ -239,7 +239,7 @@ mkELet _      []    body = body
 mkELet is_rec defns body = ELet is_rec defns body
 
 runS :: String -> String
-runS = pprint . lambdaLift . parse
+runS = pprint . lambdaLiftJ . parse
 
 {- |
 >>> let expr = (EVar "x")

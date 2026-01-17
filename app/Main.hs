@@ -41,7 +41,7 @@ import qualified Pgmachine.Mark4 as PgMark4   (runProg, Config(..))
 
 import qualified Lambda.Mark1 as LMark1 (lambdaLift)
 import qualified Lambda.Mark2 as LMark2 (lambdaLift)
-import qualified Lambda.Mark3 as LMark3 (lambdaLift)
+import qualified Lambda.Mark3 as LMark3 (lambdaLiftJ)
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -56,7 +56,7 @@ executer opts = putStr . run
         lifter = case optLifter opts of
                 LMark1 -> LMark1.lambdaLift
                 LMark2 -> LMark2.lambdaLift
-                LMark3 -> LMark3.lambdaLift
+                LMark3 -> LMark3.lambdaLiftJ
                 NoLift -> id
         threshold = optThreshold opts
         machineSize = optMachineSize opts
