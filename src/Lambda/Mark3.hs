@@ -31,26 +31,24 @@ type AnnAlt a b = (Int, [a], AnnExpr a b)
 type AnnProgram a b = [(Name, [a], AnnExpr a b)]
 
 {- |
->>> putStrLn . pprint . lambdaLift $ parse "f = \\x -> x + 1"
-f x_1 = x_1 + 1
->>> putStrLn . pprint . lambdaLift $ parse "f = \\x -> x + y"
-f x_1 = x_1 + y
->>> putStrLn . pprint . lambdaLift $ parse "f = \\x y -> x + y"
-f x_1 y_2 = x_1 + y_2
->>> putStrLn . pprint . lambdaLift $ parse "f = \\x y -> x + 3"
-f x_1 y_2 = x_1 + 3
->>> putStrLn . pprint . lambdaLift $ parse "f x = let g = x + 1 in g"
+>>> putStrLn . pprint . lambdaLiftJ $ parse "f = \\x -> x + 1"
+f x_0 = x_0 + 1
+>>> putStrLn . pprint . lambdaLiftJ $ parse "f = \\x -> x + y"
+f x_0 = x_0 + y
+>>> putStrLn . pprint . lambdaLiftJ $ parse "f = \\x y -> x + y"
+f x_0 y_1 = x_0 + y_1
+>>> putStrLn . pprint . lambdaLiftJ $ parse "f = \\x y -> x + 3"
+f x_0 y_1 = x_0 + 3
+>>> putStrLn . pprint . lambdaLiftJ $ parse "f x = let g = x + 1 in g"
 f x_0 = let
           g_1 = x_0 + 1
         in g_1
->>> putStrLn . pprint . lambdaLift $ parse "f x = let g = \\y -> x + y in g 1"
-f x_0 = let
-          g_1 = sc_2 x_0
-        in g_1 1 ;
-sc_2 x_3 y_4 = x_3 + y_4
->>> putStrLn . pprint . lambdaLift $ parse "f x = let g = (\\y -> y + 1) in g (g x)"
+>>> putStrLn . pprint . lambdaLiftJ $ parse "f x = let g = \\y -> x + y in g 1"
+f x_0 = g_1 x_0 1 ;
+g_1 x_0 y_2 = x_0 + y_2
+>>> putStrLn . pprint . lambdaLiftJ $ parse "f x = let g = (\\y -> y + 1) in g (g x)"
 f x_0 = g_1 (g_1 x_0) ;
-g_1 y_3 = y_3 + 1
+g_1 y_2 = y_2 + 1
 -}
 lambdaLiftJ :: CoreProgram -> CoreProgram
 lambdaLiftJ = collectSCs . abstractJ . freeVars . rename
@@ -89,7 +87,7 @@ abstractJ_e env (free, ALet is_rec defns body)
         free_in_funs = (Set.unions [freeVarsOf rhs | (name, rhs) <- fun_defns])
                        Set.\\ (Set.fromList fun_names)
         free_in_funs' = closureAssoc [ (name, Set.toList $ freeVarsOf rhs)
-                                    | (name, rhs) <- fun_defns]
+                                     | (name, rhs) <- fun_defns]
         vars_to_abstract = actualFreeList env free_in_funs
         body_env = [(fun_name, vars_to_abstract) | fun_name <- fun_names] ++ env
         rhs_env | is_rec    = body_env
