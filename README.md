@@ -20,7 +20,7 @@ $ cabal run ifl -- -V
 > cabal run ifl -- [OPTION...] <program-file>
 OPTION
   -c Compiler     --compiler=Compiler      compiler name (mark1 | mark2 | mark3 | mark4 | mark5 | mark5alt | mark5gc | mark5revgc | mark5cp | gmark1 | gmark2 | gmark3 | gmark4 | gmark5 | gmark6 | gmark7 | timark1 | timark1cp | timark2 | timark3 | timark4 | timark5 | timark6 | pgmark1 | pgmark2 | pgmark3 | pgmark4)
-  -l Lifter       --lifter=Lifter          lambda lifter name (lmark1 | lmark2)
+  -l Lifter       --lifter=Lifter          lambda lifter name (lmark1 | lmark2 | lmark3)
   -v              --verbose                step output on stderr
   -w              --pretty verbose         step output with showing heap on stderr
   -t Threshold    --threshold=Threshold    threshold for Garbage Collection
@@ -39,7 +39,7 @@ $ cat test.ifl
 fib n = if (n<2) 1 (fib (n-1) + fib (n-2));
 main = fib 10
 
-$ docker run -v ./:/work -it --rm cutsea110/ifl:0.3.27 -c gmark7 /work/test.ifl
+$ docker run -v ./:/work -it --rm cutsea110/ifl:0.3.31 -c gmark7 /work/test.ifl
 89
 ```
 
@@ -63,36 +63,36 @@ docker login## For Developer
 
 ### How to build Docker image
 
-You should specify the version 0.3.29, because the latest version is 0.3.29.
+You should specify the version 0.3.31, because the latest version is 0.3.30.
 
 ```bash
-$ docker buildx build --rm --load -t cutsea110/ifl:0.3.30 .
+$ docker buildx build --rm --load -t cutsea110/ifl:0.3.31 .
 ```
 ### How to run on Docker image
 
 I suppose that you have some test programs for ifl in `${PWD}/examples` directory.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.30 -v -c pgmark1 /work/testProg80.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.31 -v -c pgmark4 /work/testProg160.ifl
 ```
 
 or try this.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.30 -t 1000 -L -v -c timark6 /work/testProg134.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.31 -t 1000 -L -v -c timark6 /work/testProg159.ifl
 ```
 
 Further more, just only on the TMark6, You can use -p option which profile your code.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.30 -t 1000 -L -v -c timark6 -p /work/testProg134.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.31 -t 1000 -L -v -c timark6 -p /work/testProg159.ifl
 ```
 
 If you want to try the latest PgMark2, you can use -w option which pretty verbose.
 This option show heap data for all steps, so you know this option make the program slow.
 
 ```bash
-$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.30 -w -c pgmark4 /work/testProg80.ifl
+$ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.31 -w -c pgmark4 /work/testProg160.ifl
 ```
 
 
@@ -100,7 +100,7 @@ $ docker run -v ${PWD}/examples:/work -it --rm cutsea110/ifl:0.3.30 -w -c pgmark
 
 ```bash
 $ docker login
-$ docker push cutsea110/ifl:0.3.30
+$ docker push cutsea110/ifl:0.3.31
 ```
 
 ### Update This README
