@@ -85,7 +85,8 @@ abstractJ_e env (free, ALet is_rec defns body)
   where fun_defns = [(name, rhs) | (name, rhs) <- defns, isALam rhs]
         var_defns = [(name, rhs) | (name, rhs) <- defns, not (isALam rhs)]
         fun_names = bindersOf fun_defns
-        free_in_funs = (Set.unions [freeVarsOf rhs | (name, rhs) <- fun_defns]) Set.\\ (Set.fromList fun_names)
+        free_in_funs = (Set.unions [freeVarsOf rhs | (name, rhs) <- fun_defns])
+                       Set.\\ (Set.fromList fun_names)
         vars_to_abstract = actualFreeList env free_in_funs
         body_env = [(fun_name, vars_to_abstract) | fun_name <- fun_names] ++ env
         rhs_env | is_rec    = body_env
