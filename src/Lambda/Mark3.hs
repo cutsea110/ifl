@@ -1,6 +1,6 @@
 module Lambda.Mark3 where
 
-import Data.List (mapAccumL)
+import Data.List (mapAccumL, partition)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -65,9 +65,9 @@ abstractJ prog = [ (name, args, abstractJ_e [] rhs)
                  | (name, args, rhs) <- prog
                  ]
 
-abstractJ_e :: Assoc Name [Name]       -- Maps each new SC to the free vars of its group
-            -> AnnExpr Name (Set Name) -- Input expression
-            -> CoreExpr                -- Result expression
+abstractJ_e :: Assoc Name [Name]       -- ^ Maps each new SC to the free vars of its group
+            -> AnnExpr Name (Set Name) -- ^ Input expression
+            -> CoreExpr                -- ^ Result expression
 abstractJ_e env (free, ANum n)      = ENum n
 abstractJ_e env (free, AConstr t a) = EConstr t a
 abstractJ_e env (free, AAp e1 e2)
@@ -81,8 +81,7 @@ abstractJ_e env (free, ALam args body)
         sc_rhs  = ELam (fv_list ++ args) (abstractJ_e env body)
 abstractJ_e env (free, ALet is_rec defns body)
   = ELet is_rec (fun_defns' ++ var_defns') body'
-  where fun_defns = [(name, rhs) | (name, rhs) <- defns, isALam rhs]
-        var_defns = [(name, rhs) | (name, rhs) <- defns, not (isALam rhs)]
+  where (fun_defns, var_defns) = partition (isALam . snd) defns
         fun_names = bindersOf fun_defns
         free_in_funs = (Set.unions [freeVarsOf rhs | (name, rhs) <- fun_defns])
                        Set.\\ (Set.fromList fun_names)
@@ -98,7 +97,7 @@ abstractJ_e env (free, ALet is_rec defns body)
                               ]
                    | otherwise = [(name, ELam (vars_to_abstract ++ args) (abstractJ_e rhs_env body))
                                  |(name, (free, ALam args body)) <- fun_defns]
-        var_defns' = [ (name, abstractJ_e rhs_env rhs) | (name, rhs) <- var_defns]
+        var_defns' = [(name, abstractJ_e rhs_env rhs) | (name, rhs) <- var_defns]
         body' = abstractJ_e body_env body
 abstractJ_e env (free, ACase e alts) = abstractJ_case env e alts
 
