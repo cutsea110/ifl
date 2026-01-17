@@ -84,14 +84,15 @@ abstractJ_e env (free, ALet is_rec defns body)
   where (fun_defns, var_defns) = partition (isALam . snd) defns
         fun_names = bindersOf fun_defns
         free_in_funs = closureAssoc [(name, Set.toList $ freeVarsOf rhs) | (name, rhs) <- fun_defns]
-        vars_to_abstract = actualFreeList env frees
-          where frees = (Set.unions [freeVarsOf rhs | (_, rhs) <- fun_defns]) Set.\\ (Set.fromList fun_names)
-        body_env = [(fun_name, vars_to_abstract) | fun_name <- fun_names] ++ env
+        body_env = [ (fun_name, fvs)
+                   | fun_name <- fun_names
+                   , let fvs = aLookup free_in_funs fun_name []
+                   ] ++ env
         rhs_env | is_rec    = body_env
                 | otherwise = env
         fun_defns' = [ (name, ELam (fvs ++ args) (abstractJ_e rhs_env body))
                      | (name, (free, ALam args body)) <- fun_defns
-                     , let fvs = if is_rec then aLookup free_in_funs name [] else vars_to_abstract
+                     , let fvs = aLookup free_in_funs name []
                      ]
         var_defns' = [(name, abstractJ_e rhs_env rhs) | (name, rhs) <- var_defns]
         body' = abstractJ_e body_env body
