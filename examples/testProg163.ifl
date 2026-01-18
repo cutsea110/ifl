@@ -1,3 +1,4 @@
+-- invalid program: this can't terminate.
 f x y = letrec
           g = \p -> h p + x;
 	  h = \q -> k + y + q;

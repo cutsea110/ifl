@@ -1,2 +1,3 @@
+-- invalid program: this can't terminate.
 f x = letrec g = \y -> cons (x*y) (g y) in g 3;
 main = f 6
