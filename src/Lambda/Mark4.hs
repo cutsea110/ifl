@@ -144,8 +144,32 @@ notMFECandidate (ANum k)      = True
 notMFECandidate (AVar v)      = True
 notMFECandidate ae            = False -- For now everything else is a candidate.
 
+renameGen_e :: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name)) -- ^ New-binders function
+            -> Assoc Name Name                                           -- ^ Maps old names to new ones
+            -> NameSupply                                                -- ^ Name supply
+            -> Expr a                                                    -- ^ Expression to be renamed
+            -> (NameSupply, Expr a)                                      -- ^ Depleted name supply and result expression
+renameGen_e = undefined
+
+renameGen :: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name))
+          -> Program a
+          -> Program a
+renameGen new_binders prog = snd (mapAccumL rename_sc initialNameSupply prog)
+  where rename_sc ns (sc_name, args, rhs)
+          = (ns2, (sc_name, args', rhs'))
+          where (ns1, args', env) = new_binders ns args
+                (ns2, rhs') = renameGen_e new_binders env ns1 rhs
+
 renameL :: Program (Name, a) -> Program (Name, a)
-renameL = undefined
+renameL prog = renameGen newNamesL prog
+
+newNamesL :: NameSupply -> [(Name, a)] -> (NameSupply, [(Name, a)], Assoc Name Name)
+newNamesL ns old_binders = (ns', new_binders, env)
+  where old_names        = [name | (name, level) <- old_binders]
+        levels           = [level | (name, level) <- old_binders]
+        (ns', new_names) = getNames ns old_names
+        new_binders      = zip new_names levels
+        env              = zip old_names new_names
 
 float :: Program (Name, Level) -> CoreProgram
 float = undefined
