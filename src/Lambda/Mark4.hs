@@ -10,6 +10,54 @@ import Iseq
 
 import Prelude hiding (head)
 
+------------------
+
+separateLams_e :: CoreExpr -> CoreExpr
+separateLams_e (EVar v)      = EVar v
+separateLams_e (EConstr t a) = EConstr t a
+separateLams_e (ENum n)      = ENum n
+separateLams_e (EAp e1 e2)   = EAp (separateLams_e e1) (separateLams_e e2)
+separateLams_e (ECase e alts)
+  = ECase (separateLams_e e) [ (tag, args, separateLams_e e)
+                             | (tag, args, e) <- alts
+                             ]
+separateLams_e (ELam args body) = mkSepLams args (separateLams_e body)
+separateLams_e (ELet is_rec defns body)
+  = ELet is_rec [(name, separateLams_e rhs) | (name, rhs) <- defns] (separateLams_e body)
+
+mkSepLams :: [Name] -> CoreExpr -> CoreExpr
+mkSepLams args body = foldr mkSepLam body args
+  where mkSepLam arg body = ELam [arg] body
+
+separateLams :: CoreProgram -> CoreProgram
+separateLams prog = [ (name, [], mkSepLams args (separateLams_e rhs))
+                    | (name, args, rhs) <- prog
+                    ]
+
+type Level = Int
+
+addLevels :: CoreProgram -> AnnProgram (Name, Level) Level
+addLevels = undefined
+
+identifyMFEs :: AnnProgram (Name, Level) Level -> Program (Name, Level)
+identifyMFEs = undefined
+
+renameL :: Program (Name, a) -> Program (Name, a)
+renameL = undefined
+
+float :: Program (Name, Level) -> CoreProgram
+float = undefined
+
+fullyLazyLift :: CoreProgram -> CoreProgram
+fullyLazyLift = float . renameL . identifyMFEs . addLevels . separateLams
+
+runF :: String -> String
+runF = pprint . lambdaLift . fullyLazyLift . parse
+
+
+
+------------------
+
 head :: [a] -> a
 head [] = error "head: empty list"
 head (x:_) = x

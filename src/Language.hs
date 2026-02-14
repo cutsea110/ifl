@@ -9,6 +9,7 @@ module Language
   , IsRec
   , Tag
   , Arity
+  , Program
   , parse
   , pprint
   , preludeDefs
