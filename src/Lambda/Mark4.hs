@@ -36,8 +36,66 @@ separateLams prog = [ (name, [], mkSepLams args (separateLams_e rhs))
 
 type Level = Int
 
+freeSetToLevel :: Assoc Name Level -> Set Name -> Level
+freeSetToLevel env free
+  -- If there are no free variables, return level 0.
+  = foldl' max 0 [aLookup env n 0 | n <- Set.toList free]
+
+freeToLevel_e :: Level                        -- ^ Level of context
+               -> Assoc Name Level            -- ^ Level of in-scope names
+               -> AnnExpr Name (Set Name)     -- ^ Input expression
+               -> AnnExpr (Name, Level) Level -- ^ Result expression
+freeToLevel_e level env (free, ANum k)      = (0, ANum k)
+freeToLevel_e level env (free, AVar v)      = (aLookup env v 0, AVar v)
+freeToLevel_e level env (free, AConstr t a) = (0, AConstr t a)
+freeToLevel_e level env (free, AAp e1 e2)
+  = (max (levelOf e1') (levelOf e2'), AAp e1' e2')
+  where e1' = freeToLevel_e level env e1
+        e2' = freeToLevel_e level env e2
+freeToLevel_e level env (free, ALam args body)
+  = (freeSetToLevel env free, ALam args' body')
+  where body' = freeToLevel_e (level + 1) (args' ++ env) body
+        args' = [(arg, level+1) | arg <- args]
+freeToLevel_e level env (free, ALet is_rec defns body)
+  = (levelOf new_body, ALet is_rec new_defns new_body)
+  where binders = bindersOf defns
+        rhss    = rhssOf defns
+
+        new_binders = [(name, max_rhs_level) | name <- binders]
+        new_rhss    = map (freeToLevel_e level rhs_env) rhss
+        new_defns   = zip new_binders new_rhss
+        new_body    = freeToLevel_e level body_env body
+
+        free_in_rhss  = Set.unions [free | (free, rhs) <- rhss]
+        max_rhs_level = freeSetToLevel level_rhs_env free_in_rhss
+
+        body_env                  = new_binders ++ env
+        rhs_env | is_rec          = body_env
+                | otherwise       = env
+        level_rhs_env | is_rec    = [(name, 0) | name <- binders] ++ env
+                      | otherwise = env
+freeToLevel_e level env (free, ACase e alts)
+  = freeToLevel_case level env free e alts
+
+freeToLevel_case :: Level
+                 -> Assoc Name Level
+                 -> Set Name
+                 -> AnnExpr Name (Set Name)
+                 -> [AnnAlt Name (Set Name)]
+                 -> AnnExpr (Name, Level) Level
+freeToLevel_case level env free e alts = error "freeToLevel_case: not yet written"
+
+levelOf :: AnnExpr a Level -> Level
+levelOf (level, e) = level
+
+freeToLevel prog = map freeToLevel_sc prog
+
+
+freeToLevel_sc (sc_name, [], rhs) = (sc_name, [], freeToLevel_e 0 [] rhs)
+
+
 addLevels :: CoreProgram -> AnnProgram (Name, Level) Level
-addLevels = undefined
+addLevels = freeToLevel . freeVars
 
 identifyMFEs :: AnnProgram (Name, Level) Level -> Program (Name, Level)
 identifyMFEs = undefined
