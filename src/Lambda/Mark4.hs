@@ -97,8 +97,52 @@ freeToLevel_sc (sc_name, [], rhs) = (sc_name, [], freeToLevel_e 0 [] rhs)
 addLevels :: CoreProgram -> AnnProgram (Name, Level) Level
 addLevels = freeToLevel . freeVars
 
+identifyMFEs_e :: Level
+               -> AnnExpr (Name, Level) Level
+               -> Expr (Name, Level)
+identifyMFEs_e cxt (level, e)
+  | level == cxt || notMFECandidate e = e'
+  | otherwise                         = transformMFE level e'
+  where e' = identifyMFEs_e1 level e
+
+transformMFE :: Level -> Expr(Name, Level) -> Expr (Name, Level)
+transformMFE level e = ELet nonRecursive [(("v", level), e)] (EVar "v")
+
+identifyMFEs_e1 :: Level                        -- ^ Level of context
+                -> AnnExpr' (Name, Level) Level -- ^ Input expression
+                -> Expr (Name, Level)           -- ^ Result expression
+identifyMFEs_e1 level (AConstr t a) = EConstr t a
+identifyMFEs_e1 level (ANum n)      = ENum n
+identifyMFEs_e1 level (AVar v)      = EVar v
+identifyMFEs_e1 level (AAp e1 e2)
+  = EAp (identifyMFEs_e level e1) (identifyMFEs_e level e2)
+identifyMFEs_e1 level (ALam args body)
+  = ELam args (identifyMFEs_e arg_level body)
+  where (name, arg_level) = head args
+identifyMFEs_e1 level (ALet is_rec defns body)
+  = ELet is_rec defns' body'
+  where body' = identifyMFEs_e level body
+        defns' = [ ((name, rhs_level), identifyMFEs_e rhs_level rhs)
+                 | ((name, rhs_level), rhs) <- defns
+                 ]
+identifyMFEs_e1 level (ACase e alts) = identifyMFEs_case1 level e alts
+
+identifyMFEs_case1 :: Level
+             -> AnnExpr (Name, Level) Level
+             -> [AnnAlt (Name, Level) Level]
+             -> Expr (Name, Level)
+identifyMFEs_case1 level e alts = error "identifyMFEs_case1: not yet written"
+
 identifyMFEs :: AnnProgram (Name, Level) Level -> Program (Name, Level)
-identifyMFEs = undefined
+identifyMFEs prog = [ (sc_name, [], identifyMFEs_e 0 rhs)
+                    | (sc_name, [], rhs) <- prog
+                    ]
+
+notMFECandidate :: AnnExpr' a Level -> Bool
+notMFECandidate (AConstr t a) = True
+notMFECandidate (ANum k)      = True
+notMFECandidate (AVar v)      = True
+notMFECandidate ae            = False -- For now everything else is a candidate.
 
 renameL :: Program (Name, a) -> Program (Name, a)
 renameL = undefined
