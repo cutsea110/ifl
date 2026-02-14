@@ -42,6 +42,7 @@ import qualified Pgmachine.Mark4 as PgMark4   (runProg, Config(..))
 import qualified Lambda.Mark1 as LMark1 (lambdaLift)
 import qualified Lambda.Mark2 as LMark2 (lambdaLift)
 import qualified Lambda.Mark3 as LMark3 (lambdaLiftJ)
+import qualified Lambda.Mark4 as LMark4 (lambdaLift)
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -57,6 +58,7 @@ executer opts = putStr . run
                 LMark1 -> LMark1.lambdaLift
                 LMark2 -> LMark2.lambdaLift
                 LMark3 -> LMark3.lambdaLiftJ
+                LMark4 -> LMark4.lambdaLift
                 NoLift -> id
         threshold = optThreshold opts
         machineSize = optMachineSize opts
@@ -129,7 +131,7 @@ defaultOptions = Options
   , optMachineSize = 4
   , optShowVersion = False
   , optCompiler    = PgMark4
-  , optLifter      = LMark3
+  , optLifter      = LMark4
   , optConvertList = False
   , optProfile     = False
   }
@@ -150,6 +152,7 @@ compilerNames = map fst name2Compiler
 data LambdaLifter = LMark1
                   | LMark2
                   | LMark3
+                  | LMark4
                   | NoLift
                   deriving (Show, Eq)
 

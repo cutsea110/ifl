@@ -21,6 +21,7 @@ library
                        Lambda.Mark1
                        Lambda.Mark2
                        Lambda.Mark3
+                       Lambda.Mark4
                        Language
                        Parser
                        Utils
