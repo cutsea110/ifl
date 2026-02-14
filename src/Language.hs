@@ -10,6 +10,7 @@ module Language
   , Tag
   , Arity
   , Program
+  , Alter
   , parse
   , pprint
   , preludeDefs

@@ -149,7 +149,47 @@ renameGen_e :: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name)) -- ^ Ne
             -> NameSupply                                                -- ^ Name supply
             -> Expr a                                                    -- ^ Expression to be renamed
             -> (NameSupply, Expr a)                                      -- ^ Depleted name supply and result expression
-renameGen_e = undefined
+renameGen_e new_binders env ns (EVar v)      = (ns, EVar (aLookup env v v))
+renameGen_e new_binders env ns (ENum n)      = (ns, ENum n)
+renameGen_e new_binders env ns (EAp e1 e2)   = (ns2, EAp e1' e2')
+  where (ns1, e1') = renameGen_e new_binders env ns  e1
+        (ns2, e2') = renameGen_e new_binders env ns1 e2
+renameGen_e new_binders env ns (ELam args body)
+  = (ns2, ELam args' body') -- NOTE: The book use ns1 here.
+  where (ns1, args', env') = new_binders ns args
+        (ns2, body') = renameGen_e new_binders (env' ++ env) ns1 body
+renameGen_e new_binders env ns (ELet is_rec defns body)
+  = (ns3, ELet is_rec (zip binders' rhss') body')
+  where binders = bindersOf defns
+        rhss    = rhssOf defns
+
+        (ns1, binders', env') = new_binders ns binders
+        body_env = env' ++ env
+        (ns2, rhss') = mapAccumL (renameGen_e new_binders rhsEnv) ns1 rhss
+        rhsEnv | is_rec   = body_env
+               | otherwise = env
+        (ns3, body') = renameGen_e new_binders body_env ns2 body
+renameGen_e new_binders env ns (EConstr t a)  = (ns, EConstr t a)
+renameGen_e new_binders env ns (ECase e alts) = renameGen_case new_binders env ns e alts
+
+renameGen_case:: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name)) -- ^ New-binders function
+            -> Assoc Name Name                                           -- ^ Maps old names to new ones
+            -> NameSupply                                                -- ^ Name supply
+            -> Expr a                                                    -- ^ Expression to be renamed
+            -> [Alter a]                                                 -- ^ Alternatives to be renamed
+            -> (NameSupply, Expr a)                                      -- ^ Depleted name supply and result expression
+renameGen_case new_binders env ns e alts = (ns2, ECase e' alts')
+  where (ns1, e') = renameGen_e new_binders env ns e
+        (ns2, alts') = mapAccumL (renameGen_alt new_binders env) ns1 alts
+
+renameGen_alt :: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name)) -- ^ New-binders function
+           -> Assoc Name Name                                           -- ^ Maps old names to new ones
+           -> NameSupply                                                -- ^ Name supply
+           -> Alter a                                                   -- ^ Alternative to be renamed
+           -> (NameSupply, Alter a)                                      -- ^ Depleted name supply and result alternative
+renameGen_alt new_binders env ns (tag, args, rhs) = (ns2, (tag, args', rhs'))
+  where (ns1, args', env') = new_binders ns args
+        (ns2, rhs') = renameGen_e new_binders (env' ++ env) ns1 rhs
 
 renameGen :: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name))
           -> Program a
