@@ -254,10 +254,10 @@ install defnGroups e = foldr installGroup e defnGroups
   where installGroup (level, is_rec, defns) e = ELet is_rec defns e
 
 float :: Program (Name, Level) -> CoreProgram
-float prog = concat (map float_sc prog)
+float prog = concatMap float_sc prog
 
 float_sc :: (Name, [a], Expr (Name, Level)) -> CoreProgram
-float_sc (name, [], rhs) = [(name, [], rhs')] ++ concat (map to_scs fds)
+float_sc (name, [], rhs) = [(name, [], rhs')] ++ concatMap to_scs fds
   where (fds, rhs') = float_e rhs
         to_scs (level, is_rec, defns) = map make_sc defns
         make_sc (name, rhs) = (name, [], rhs)

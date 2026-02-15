@@ -8,6 +8,8 @@ import System.Console.GetOpt (OptDescr(..), ArgDescr(NoArg, ReqArg), ArgOrder(Pe
 import System.Environment (getArgs)
 import System.IO (getContents, hPutStr, hPutStrLn, stdout, stderr, hSetBuffering, BufferMode(NoBuffering))
 
+import Language (parse, pprint)
+
 import qualified Template.Mark1      as Mark1 (runProg)
 import qualified Template.Mark2      as Mark2 (runProg)
 import qualified Template.Mark3      as Mark3 (runProg)
@@ -42,7 +44,7 @@ import qualified Pgmachine.Mark4 as PgMark4   (runProg, Config(..))
 import qualified Lambda.Mark1 as LMark1 (lambdaLift)
 import qualified Lambda.Mark2 as LMark2 (lambdaLift)
 import qualified Lambda.Mark3 as LMark3 (lambdaLiftJ)
-import qualified Lambda.Mark4 as LMark4 (lambdaLift)
+import qualified Lambda.Mark4 as LMark4 (fullyLazyLift)
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -50,7 +52,13 @@ import qualified Lambda.Mark4 as LMark4 (lambdaLift)
 type Executer = String -> IO ()
 
 executer :: Options -> Executer
-executer opts = putStr . run
+executer opts = \s -> do
+  when verbose $ do
+    putStrLn "Compiled Program:"
+    putStrLn "----------------------"
+    putStrLn (pprint . lifter . parse $ s)
+    putStrLn "----------------------\n"
+  putStr (run s)
   where verbose = optVerbose opts || werbose
         werbose = optWerbose opts
         compiler = optCompiler opts
@@ -58,7 +66,7 @@ executer opts = putStr . run
                 LMark1 -> LMark1.lambdaLift
                 LMark2 -> LMark2.lambdaLift
                 LMark3 -> LMark3.lambdaLiftJ
-                LMark4 -> LMark4.lambdaLift
+                LMark4 -> LMark4.fullyLazyLift
                 NoLift -> id
         threshold = optThreshold opts
         machineSize = optMachineSize opts
@@ -159,13 +167,13 @@ data LambdaLifter = LMark1
 name2Lifter :: [(String, LambdaLifter)]
 name2Lifter
   = map (\c -> (map toLower (show c), c))
-    [ LMark1, LMark2, LMark3 ]
+    [ LMark1, LMark2, LMark3, LMark4 ]
 
 options :: [OptDescr (Options -> Options)]
 options = [ Option ['c'] ["compiler"] (ReqArg (\e opts -> opts {optCompiler = compiler e}) "Compiler")
             ("compiler name (" ++ intercalate " | " compilerNames ++ ")")
           , Option ['l'] ["lifter"] (ReqArg (\e opts -> opts {optLifter = lifter e}) "Lifter")
-            ("lambda lifter name (lmark1 | lmark2 | lmark3)")
+            ("lambda lifter name (" ++ intercalate " | " (map fst name2Lifter) ++ ")")
           , Option ['v'] ["verbose"] (NoArg (\opts -> opts {optVerbose = True}))
             "step output on stderr"
           , Option ['w'] ["pretty verbose"] (NoArg (\opts -> opts {optWerbose = True}))
@@ -264,7 +272,7 @@ checkOption opts = compilerSupported ++ convToListSupported ++ gcThresholdSuppor
 run :: Options -> FilePath -> IO ()
 run opts fp = do
   warnMessage opts
-  when (optVerbose opts) $ do
+  when (optVerbose opts || optWerbose opts) $ do
     hPutStrLn stderr (settingInfos opts fp)
   prog <- readFile fp
   executer opts prog
