@@ -88,9 +88,11 @@ freeToLevel_case level env free e alts = error "freeToLevel_case: not yet writte
 levelOf :: AnnExpr a Level -> Level
 levelOf (level, e) = level
 
+freeToLevel :: AnnProgram Name (Set Name) -> AnnProgram (Name, Level) Level
 freeToLevel prog = map freeToLevel_sc prog
 
 
+freeToLevel_sc :: (Name, [Name], AnnExpr Name (Set Name)) -> (Name, [(Name, Level)], AnnExpr (Name, Level) Level)
 freeToLevel_sc (sc_name, [], rhs) = (sc_name, [], freeToLevel_e 0 [] rhs)
 
 
@@ -213,8 +215,52 @@ newNamesL ns old_binders = (ns', new_binders, env)
         new_binders      = zip new_names levels
         env              = zip old_names new_names
 
+type FloatedDefns = [(Level, IsRec, [(Name, Expr Name)])]
+
+float_e :: Expr (Name, Level) -> (FloatedDefns, Expr Name)
+float_e (EVar v) = ([], EVar v)
+float_e (EConstr t a) = ([], EConstr t a)
+float_e (ENum n) = ([], ENum n)
+float_e (EAp e1 e2) = (fd1 ++ fd2, EAp e1' e2')
+  where (fd1, e1') = float_e e1
+        (fd2, e2') = float_e e2
+float_e (ELam args body) = (fd_outer, ELam args' (install fd_this_level body'))
+  where args' = [arg | (arg, level) <- args]
+        (first_arg, this_level) = head args
+        (fd_body, body') = float_e body
+        (fd_outer, fd_this_level) = partitionFloats this_level fd_body
+float_e (ELet is_rec defns body)
+  = (rhsFloatDefns ++ [thisGroup] ++ bodyFloatDefns, body')
+  where (bodyFloatDefns, body') = float_e body
+        (rhsFloatDefns, defns') = mapAccumL float_defn [] defns
+        thisGroup = (thisLevel, is_rec, defns')
+        (name, thisLevel) = head (bindersOf defns)
+
+        float_defn floatedDefns ((name, level), rhs)
+          = (rhsFloatDefns ++ floatedDefns, (name, rhs'))
+          where (rhsFloatDefns, rhs') = float_e rhs
+float_e (ECase e alts) = float_case e alts
+
+float_case e alts = error "float_case: not yet written"
+
+partitionFloats :: Level -> FloatedDefns -> (FloatedDefns, FloatedDefns)
+partitionFloats this_level fds
+  = (filter is_outer_level fds, filter is_this_level fds)
+  where is_this_level  (level, is_rec, defns) = level >= this_level
+        is_outer_level (level, is_rec, defns) = level <  this_level
+
+install :: FloatedDefns -> Expr Name -> Expr Name
+install defnGroups e = foldr installGroup e defnGroups
+  where installGroup (level, is_rec, defns) e = ELet is_rec defns e
+
 float :: Program (Name, Level) -> CoreProgram
-float = undefined
+float prog = concat (map float_sc prog)
+
+float_sc :: (Name, [a], Expr (Name, Level)) -> CoreProgram
+float_sc (name, [], rhs) = [(name, [], rhs')] ++ concat (map to_scs fds)
+  where (fds, rhs') = float_e rhs
+        to_scs (level, is_rec, defns) = map make_sc defns
+        make_sc (name, rhs) = (name, [], rhs)
 
 fullyLazyLift :: CoreProgram -> CoreProgram
 fullyLazyLift = float . renameL . identifyMFEs . addLevels . separateLams
