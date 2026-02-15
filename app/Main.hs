@@ -8,7 +8,7 @@ import System.Console.GetOpt (OptDescr(..), ArgDescr(NoArg, ReqArg), ArgOrder(Pe
 import System.Environment (getArgs)
 import System.IO (getContents, hPutStr, hPutStrLn, stdout, stderr, hSetBuffering, BufferMode(NoBuffering))
 
-import Language (parse, pprint)
+import Language (parse, pprint, CoreProgram)
 
 import qualified Template.Mark1      as Mark1 (runProg)
 import qualified Template.Mark2      as Mark2 (runProg)
@@ -51,23 +51,21 @@ import qualified Lambda.Mark4 as LMark4 (fullyLazyLift)
 ---------------------------------------------------------------
 type Executer = String -> IO ()
 
+lambdaLifter :: Options -> CoreProgram -> CoreProgram
+lambdaLifter opts
+  = case optLifter opts of
+      LMark1 -> LMark1.lambdaLift
+      LMark2 -> LMark2.lambdaLift
+      LMark3 -> LMark3.lambdaLiftJ
+      LMark4 -> LMark4.fullyLazyLift
+      NoLift -> id
+
 executer :: Options -> Executer
-executer opts = \s -> do
-  when verbose $ do
-    putStrLn "Compiled Program:"
-    putStrLn "----------------------"
-    putStrLn (pprint . lifter . parse $ s)
-    putStrLn "----------------------\n"
-  putStr (run s)
+executer opts = putStr . run
   where verbose = optVerbose opts || werbose
         werbose = optWerbose opts
         compiler = optCompiler opts
-        lifter = case optLifter opts of
-                LMark1 -> LMark1.lambdaLift
-                LMark2 -> LMark2.lambdaLift
-                LMark3 -> LMark3.lambdaLiftJ
-                LMark4 -> LMark4.fullyLazyLift
-                NoLift -> id
+        lifter = lambdaLifter opts
         threshold = optThreshold opts
         machineSize = optMachineSize opts
         convertList = optConvertList opts
@@ -272,9 +270,20 @@ checkOption opts = compilerSupported ++ convToListSupported ++ gcThresholdSuppor
 run :: Options -> FilePath -> IO ()
 run opts fp = do
   warnMessage opts
+
   when (optVerbose opts || optWerbose opts) $ do
     hPutStrLn stderr (settingInfos opts fp)
+
   prog <- readFile fp
+
+  when (optVerbose opts || optWerbose opts) $ do
+    hPutStrLn stderr "Compiled Code"
+    hPutStrLn stderr ""
+    hPutStrLn stderr "-------------------------------"
+    hPutStrLn stderr (pprint (lambdaLifter opts (parse prog)))
+    hPutStrLn stderr "-------------------------------"
+    hPutStrLn stderr ""
+
   executer opts prog
 
 main :: IO ()
