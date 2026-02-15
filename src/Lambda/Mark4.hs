@@ -144,6 +144,8 @@ notMFECandidate :: AnnExpr' a Level -> Bool
 notMFECandidate (AConstr t a) = True
 notMFECandidate (ANum k)      = True
 notMFECandidate (AVar v)      = True
+notMFECandidate (AAp (_, AVar op) arg)
+  | op `elem` ["+", "-", "*", "/", "==", "/=", ">=", ">", "<=", "<"] = True
 notMFECandidate ae            = False -- For now everything else is a candidate.
 
 renameGen_e :: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name)) -- ^ New-binders function
