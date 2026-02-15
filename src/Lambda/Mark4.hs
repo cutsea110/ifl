@@ -200,6 +200,8 @@ renameGen new_binders prog = snd (mapAccumL rename_sc initialNameSupply prog)
           where (ns1, args', env) = new_binders ns args
                 (ns2, rhs') = renameGen_e new_binders env ns1 rhs
 
+-- a is generic, which is introduced as Level in the textbook.
+-- this is exercise 6.10
 renameL :: Program (Name, a) -> Program (Name, a)
 renameL prog = renameGen newNamesL prog
 
