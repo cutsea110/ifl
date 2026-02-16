@@ -107,7 +107,7 @@ identifyMFEs_e cxt (level, e)
   | otherwise                         = transformMFE level e'
   where e' = identifyMFEs_e1 level e
 
-transformMFE :: Level -> Expr(Name, Level) -> Expr (Name, Level)
+transformMFE :: Level -> Expr (Name, Level) -> Expr (Name, Level)
 transformMFE level e = ELet nonRecursive [(("v", level), e)] (EVar "v")
 
 identifyMFEs_e1 :: Level                        -- ^ Level of context
