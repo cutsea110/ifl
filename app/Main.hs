@@ -137,7 +137,7 @@ defaultOptions = Options
   , optMachineSize = 4
   , optShowVersion = False
   , optCompiler    = PgMark4
-  , optLifter      = LMark4
+  , optLifter      = NoLift
   , optConvertList = False
   , optProfile     = False
   }
