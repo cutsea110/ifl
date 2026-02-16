@@ -277,6 +277,10 @@ run opts fp = do
   prog <- readFile fp
 
   when (optVerbose opts || optWerbose opts) $ do
+    hPutStrLn stderr "Source Code\n"
+    hPutStrLn stderr "-------------------------------"
+    hPutStrLn stderr (pprint (parse prog))
+    hPutStrLn stderr "-------------------------------\n"
     hPutStrLn stderr "Compiled Code\n"
     hPutStrLn stderr "-------------------------------"
     hPutStrLn stderr (pprint (lambdaLifter opts (parse prog)))
