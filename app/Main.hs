@@ -2,7 +2,7 @@ module Main where
 
 import Control.Monad (forM_, unless, when)
 import Data.Char (toLower)
-import Data.List (intercalate, foldl')
+import Data.List (intercalate, foldl', intercalate)
 import Data.Maybe (fromMaybe)
 import System.Console.GetOpt (OptDescr(..), ArgDescr(NoArg, ReqArg), ArgOrder(Permute), getOpt, usageInfo)
 import System.Environment (getArgs)
@@ -277,14 +277,20 @@ run opts fp = do
   prog <- readFile fp
 
   when (optVerbose opts || optWerbose opts) $ do
-    hPutStrLn stderr "Source Code\n"
-    hPutStrLn stderr "-------------------------------"
-    hPutStrLn stderr (pprint (parse prog))
-    hPutStrLn stderr "-------------------------------\n"
-    hPutStrLn stderr "Compiled Code\n"
-    hPutStrLn stderr "-------------------------------"
-    hPutStrLn stderr (pprint (lambdaLifter opts (parse prog)))
-    hPutStrLn stderr "-------------------------------\n"
+    hPutStrLn stderr $
+      intercalate "\n" [ "Source Code"
+                       , ""
+                       , "-------------------------------"
+                       , pprint (parse prog)
+                       , "-------------------------------"
+                       , ""
+                       , "Compiled Code"
+                       , ""
+                       , "-------------------------------"
+                       , pprint (lambdaLifter opts (parse prog))
+                       , "-------------------------------"
+                       , ""
+                       ]
 
   executer opts prog
 
