@@ -137,7 +137,7 @@ defaultOptions = Options
   , optMachineSize = 4
   , optShowVersion = False
   , optCompiler    = PgMark4
-  , optLifter      = NoLift
+  , optLifter      = LMark4
   , optConvertList = False
   , optProfile     = False
   }
@@ -165,7 +165,7 @@ data LambdaLifter = LMark1
 name2Lifter :: [(String, LambdaLifter)]
 name2Lifter
   = map (\c -> (map toLower (show c), c))
-    [ LMark1, LMark2, LMark3, LMark4 ]
+    [ NoLift, LMark1, LMark2, LMark3, LMark4 ]
 
 options :: [OptDescr (Options -> Options)]
 options = [ Option ['c'] ["compiler"] (ReqArg (\e opts -> opts {optCompiler = compiler e}) "Compiler")
