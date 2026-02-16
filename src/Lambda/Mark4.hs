@@ -51,9 +51,9 @@ freeToLevel_e level env (free, AConstr t a) = (0, AConstr t a)
 freeToLevel_e level env (free, AAp (_, AAp (_, AVar op) e1) e2) -- special care for built-in infix operators
   | op `elem` ["+", "-", "*", "/", "==", "/=", ">=", ">", "<=", "<"]
   = (free', AAp (free', AAp (0, AVar op) e1') e2') -- binary operators level is 0.
-    where free' = max (levelOf e1') (levelOf e2')
-          e1'= freeToLevel_e level env e1
-          e2'= freeToLevel_e level env e2
+  where free' = max (levelOf e1') (levelOf e2')
+        e1'= freeToLevel_e level env e1
+        e2'= freeToLevel_e level env e2
 freeToLevel_e level env (free, AAp e1 e2)
   = (max (levelOf e1') (levelOf e2'), AAp e1' e2')
   where e1' = freeToLevel_e level env e1
@@ -181,20 +181,20 @@ renameGen_e new_binders env ns (EConstr t a)  = (ns, EConstr t a)
 renameGen_e new_binders env ns (ECase e alts) = renameGen_case new_binders env ns e alts
 
 renameGen_case:: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name)) -- ^ New-binders function
-            -> Assoc Name Name                                           -- ^ Maps old names to new ones
-            -> NameSupply                                                -- ^ Name supply
-            -> Expr a                                                    -- ^ Expression to be renamed
-            -> [Alter a]                                                 -- ^ Alternatives to be renamed
-            -> (NameSupply, Expr a)                                      -- ^ Depleted name supply and result expression
+              -> Assoc Name Name                                           -- ^ Maps old names to new ones
+              -> NameSupply                                                -- ^ Name supply
+              -> Expr a                                                    -- ^ Expression to be renamed
+              -> [Alter a]                                                 -- ^ Alternatives to be renamed
+              -> (NameSupply, Expr a)                                      -- ^ Depleted name supply and result expression
 renameGen_case new_binders env ns e alts = (ns2, ECase e' alts')
   where (ns1, e') = renameGen_e new_binders env ns e
         (ns2, alts') = mapAccumL (renameGen_alt new_binders env) ns1 alts
 
 renameGen_alt :: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name)) -- ^ New-binders function
-           -> Assoc Name Name                                           -- ^ Maps old names to new ones
-           -> NameSupply                                                -- ^ Name supply
-           -> Alter a                                                   -- ^ Alternative to be renamed
-           -> (NameSupply, Alter a)                                      -- ^ Depleted name supply and result alternative
+              -> Assoc Name Name                                           -- ^ Maps old names to new ones
+              -> NameSupply                                                -- ^ Name supply
+              -> Alter a                                                   -- ^ Alternative to be renamed
+              -> (NameSupply, Alter a)                                     -- ^ Depleted name supply and result alternative
 renameGen_alt new_binders env ns (tag, args, rhs) = (ns2, (tag, args', rhs'))
   where (ns1, args', env') = new_binders ns args
         (ns2, rhs') = renameGen_e new_binders (env' ++ env) ns1 rhs
@@ -535,7 +535,7 @@ freeVars_case lv e alts = (Set.union (freeVarsOf e') free, ACase e' alts')
 
 freeVars :: CoreProgram -> AnnProgram Name (Set Name)
 freeVars prog = [ (name, args, freeVars_e (Set.fromList args) body)
-                |(name, args, body) <- prog
+                | (name, args, body) <- prog
                 ]
 
 freeVarsOf :: AnnExpr a (Set Name) -> Set Name
