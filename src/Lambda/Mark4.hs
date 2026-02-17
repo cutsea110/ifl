@@ -48,10 +48,10 @@ freeToLevel_e :: Level                        -- ^ Level of context
 freeToLevel_e level env (free, ANum k)      = (0, ANum k)
 freeToLevel_e level env (free, AVar v)      = (aLookup env v 0, AVar v)
 freeToLevel_e level env (free, AConstr t a) = (0, AConstr t a)
-freeToLevel_e level env (free, AAp (_, AAp (_, AVar op) e1) e2) -- special care for built-in infix operators
-  | op `elem` ["+", "-", "*", "/", "==", "/=", ">=", ">", "<=", "<"]
-  = (free', AAp (free', AAp (0, AVar op) e1') e2') -- binary operators level is 0.
+freeToLevel_e level env (free, AAp (_, AAp (_, AVar op) e1) e2)
+  = (free', AAp (free', AAp (opl, AVar op) e1') e2')
   where free' = max (levelOf e1') (levelOf e2')
+        opl   = aLookup env op 0
         e1'= freeToLevel_e level env e1
         e2'= freeToLevel_e level env e2
 freeToLevel_e level env (free, AAp e1 e2)
