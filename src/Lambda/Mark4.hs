@@ -89,7 +89,14 @@ freeToLevel_case :: Level
                  -> AnnExpr Name (Set Name)
                  -> [AnnAlt Name (Set Name)]
                  -> AnnExpr (Name, Level) Level
-freeToLevel_case level env free e alts = error "freeToLevel_case: not yet written"
+freeToLevel_case level env free e alts
+  = (freeSetToLevel env free, ACase e' alts')
+  where e' = freeToLevel_e level env e
+        alts' = [ (tag, args', rhs')
+                | (tag, args, rhs) <- alts
+                , let args' = [(arg, level) | arg <- args]
+                      rhs'  = freeToLevel_e level (args' ++ env) rhs
+                ]
 
 levelOf :: AnnExpr a Level -> Level
 levelOf (level, e) = level
@@ -139,7 +146,11 @@ identifyMFEs_case1 :: Level
              -> AnnExpr (Name, Level) Level
              -> [AnnAlt (Name, Level) Level]
              -> Expr (Name, Level)
-identifyMFEs_case1 level e alts = error "identifyMFEs_case1: not yet written"
+identifyMFEs_case1 level e alts = ECase e' alts'
+  where e' = identifyMFEs_e level e
+        alts' = [ (tag, args, identifyMFEs_e level rhs)
+                | (tag, args, rhs) <- alts
+                ]
 
 identifyMFEs :: AnnProgram (Name, Level) Level -> Program (Name, Level)
 identifyMFEs prog = [ (sc_name, [], identifyMFEs_e 0 rhs)
@@ -247,7 +258,19 @@ float_e (ELet is_rec defns body)
           where (rhsFloatDefns, rhs') = float_e rhs
 float_e (ECase e alts) = float_case e alts
 
-float_case e alts = error "float_case: not yet written"
+float_case :: Expr (Name, Level)
+           -> [Alter (Name, Level)]
+           -> (FloatedDefns, Expr Name)
+float_case e alts = (float_scrut, ECase e' alts')
+  where (float_scrut, e') = float_e e
+        alts' = map float_alt alts
+
+        -- Keep definitions floated from each branch inside that branch.
+        -- They may depend on case-bound variables, so floating them outward
+        -- from the case would be unsound.
+        float_alt (tag, args, rhs) = (tag, args', install float_rhs rhs')
+          where args' = [name | (name, _) <- args]
+                (float_rhs, rhs') = float_e rhs
 
 partitionFloats :: Level -> FloatedDefns -> (FloatedDefns, FloatedDefns)
 partitionFloats this_level fds
