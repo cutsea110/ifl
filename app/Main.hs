@@ -281,7 +281,7 @@ run opts fp = do
     hPutStrLn stderr "-------------------------------"
     hPutStrLn stderr (pprint (parse prog))
     hPutStrLn stderr "-------------------------------\n"
-    hPutStrLn stderr "Compiled Code\n"
+    hPutStrLn stderr "Lambda-Lifted Code\n"
     hPutStrLn stderr "-------------------------------"
     hPutStrLn stderr (pprint (lambdaLifter opts (parse prog)))
     hPutStrLn stderr "-------------------------------\n"
