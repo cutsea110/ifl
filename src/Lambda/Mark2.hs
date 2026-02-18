@@ -182,6 +182,10 @@ rename_alt env ns (tag, args, rhs)
   where (ns1, args', env') = newNames ns args
         (ns2, rhs') = rename_e (env' ++ env) ns1 rhs
 
+{- |
+>>> collectSCs [("f",[], ELet False [("sc", ELam ["x"] (ELet False [("g", ELam ["y"] (EVar "y"))] (EVar "g")))] (EVar "sc"))]
+[("f",["x"],EVar "g"),("g",["y"],EVar "y")]
+-}
 collectSCs :: CoreProgram -> CoreProgram
 collectSCs prog
   = concatMap collect_one_sc prog

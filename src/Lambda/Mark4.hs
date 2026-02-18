@@ -422,6 +422,10 @@ newNames ns old_names = (ns', new_names, env)
   where (ns', new_names) = getNames ns old_names
         env = zip old_names new_names
 
+{- |
+>>> collectSCs [("f",[], ELet False [("sc", ELam ["x"] (ELet False [("g", ELam ["y"] (EVar "y"))] (EVar "g")))] (EVar "sc"))]
+[("f",["x"],EVar "g"),("g",["y"],EVar "y")]
+-}
 collectSCs :: CoreProgram -> CoreProgram
 collectSCs prog
   = concatMap collect_one_sc prog
