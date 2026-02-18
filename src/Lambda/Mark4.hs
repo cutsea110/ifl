@@ -41,10 +41,10 @@ freeSetToLevel env free
   -- If there are no free variables, return level 0.
   = foldl' max 0 [aLookup env n 0 | n <- Set.toList free]
 
-freeToLevel_e :: Level                        -- ^ Level of context
-               -> Assoc Name Level            -- ^ Level of in-scope names
-               -> AnnExpr Name (Set Name)     -- ^ Input expression
-               -> AnnExpr (Name, Level) Level -- ^ Result expression
+freeToLevel_e :: Level                       -- ^ Level of context
+              -> Assoc Name Level            -- ^ Level of in-scope names
+              -> AnnExpr Name (Set Name)     -- ^ Input expression
+              -> AnnExpr (Name, Level) Level -- ^ Result expression
 freeToLevel_e level env (free, ANum k)      = (0, ANum k)
 freeToLevel_e level env (free, AVar v)      = (aLookup env v 0, AVar v)
 freeToLevel_e level env (free, AConstr t a) = (0, AConstr t a)
@@ -143,9 +143,9 @@ identifyMFEs_e1 level (ALet is_rec defns body)
 identifyMFEs_e1 level (ACase e alts) = identifyMFEs_case1 level e alts
 
 identifyMFEs_case1 :: Level
-             -> AnnExpr (Name, Level) Level
-             -> [AnnAlt (Name, Level) Level]
-             -> Expr (Name, Level)
+                   -> AnnExpr (Name, Level) Level
+                   -> [AnnAlt (Name, Level) Level]
+                   -> Expr (Name, Level)
 identifyMFEs_case1 level e alts = ECase e' alts'
   where e' = identifyMFEs_e level e
         alts' = [ (tag, args, identifyMFEs_e level rhs)
@@ -191,12 +191,12 @@ renameGen_e new_binders env ns (ELet is_rec defns body)
 renameGen_e new_binders env ns (EConstr t a)  = (ns, EConstr t a)
 renameGen_e new_binders env ns (ECase e alts) = renameGen_case new_binders env ns e alts
 
-renameGen_case:: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name)) -- ^ New-binders function
-              -> Assoc Name Name                                           -- ^ Maps old names to new ones
-              -> NameSupply                                                -- ^ Name supply
-              -> Expr a                                                    -- ^ Expression to be renamed
-              -> [Alter a]                                                 -- ^ Alternatives to be renamed
-              -> (NameSupply, Expr a)                                      -- ^ Depleted name supply and result expression
+renameGen_case :: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name)) -- ^ New-binders function
+               -> Assoc Name Name                                           -- ^ Maps old names to new ones
+               -> NameSupply                                                -- ^ Name supply
+               -> Expr a                                                    -- ^ Expression to be renamed
+               -> [Alter a]                                                 -- ^ Alternatives to be renamed
+               -> (NameSupply, Expr a)                                      -- ^ Depleted name supply and result expression
 renameGen_case new_binders env ns e alts = (ns2, ECase e' alts')
   where (ns1, e') = renameGen_e new_binders env ns e
         (ns2, alts') = mapAccumL (renameGen_alt new_binders env) ns1 alts
