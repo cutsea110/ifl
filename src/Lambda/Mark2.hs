@@ -190,7 +190,8 @@ collectSCs prog
     -- If the rhs is a variable referring to an existing supercombinator,
     -- we can just reuse that supercombinator instead of creating a new one.
     collect_one_sc (sc_name, args, ELet False [(name, ELam args' body')] (EVar new_name))
-      | new_name == name = [(sc_name, args ++ args', body')]
+      | new_name == name = (sc_name, args ++ args', body'') : scs
+      where (scs, body'') = collectSCs_e body'
     collect_one_sc (sc_name, args, rhs) = (sc_name, args, rhs') : scs
       where (scs, rhs') = collectSCs_e rhs
 
