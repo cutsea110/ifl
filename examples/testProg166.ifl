@@ -1,0 +1,4 @@
+g = \y -> \z -> (let v1 = y + (let v2 = x * x in v2) in v1) / z;
+x = 5;
+main = g 2 3
+
