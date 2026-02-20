@@ -277,14 +277,15 @@ run opts fp = do
   prog <- readFile fp
 
   when (optVerbose opts || optWerbose opts) $ do
-    hPutStrLn stderr "Source Code\n"
-    hPutStrLn stderr "-------------------------------"
-    hPutStrLn stderr (pprint (parse prog))
-    hPutStrLn stderr "-------------------------------\n"
-    hPutStrLn stderr "Lambda-Lifted Code\n"
-    hPutStrLn stderr "-------------------------------"
-    hPutStrLn stderr (pprint (lambdaLifter opts (parse prog)))
-    hPutStrLn stderr "-------------------------------\n"
+    hPutStrLn stderr $ unlines [ "Source Code\n"
+                               , "-------------------------------"
+                               , (pprint (parse prog))
+                               , "-------------------------------\n"
+                               , "Lambda-Lifted Code\n"
+                               , "-------------------------------"
+                               , (pprint (lambdaLifter opts (parse prog)))
+                               , "-------------------------------\n"
+                               ]
 
   executer opts prog
 
