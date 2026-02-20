@@ -35,8 +35,8 @@ RUN set -eux; \
 
 ENV PATH=/opt/.ghcup/bin:/opt/.cabal/bin:$PATH
 
-RUN ghcup install ghc 9.12.2 && ghcup set ghc 9.12.2
-RUN ghcup install cabal 3.12.1.0 && ghcup set cabal 3.12.1.0
+RUN ghcup install ghc 9.14.1 && ghcup set ghc 9.14.1
+RUN ghcup install cabal 3.14.2.0 && ghcup set cabal 3.14.2.0
 RUN ghc --version && cabal --version
 
 WORKDIR /build
