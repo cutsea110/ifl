@@ -247,7 +247,7 @@ freeVars_e :: Set Name                    -- ^ Candidates for free variables
 freeVars_e lv (ENum n) = (Set.empty, ANum n)
 freeVars_e lv (EVar v)
   | v `Set.member` lv = (Set.singleton v, AVar v)
-  | otherwise         = (Set.empty,      AVar v)
+  | otherwise         = (Set.empty,       AVar v)
 freeVars_e lv (EAp e1 e2)
   = (Set.union (freeVarsOf e1') (freeVarsOf e2'), AAp e1' e2')
     where e1' = freeVars_e lv e1
