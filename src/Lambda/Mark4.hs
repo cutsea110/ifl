@@ -10,6 +10,10 @@ import Iseq
 
 import Prelude hiding (head)
 
+head :: [a] -> a
+head [] = error "head: empty list"
+head (x:_) = x
+
 ------------------
 
 separateLams_e :: CoreExpr -> CoreExpr
@@ -104,10 +108,8 @@ levelOf (level, e) = level
 freeToLevel :: AnnProgram Name (Set Name) -> AnnProgram (Name, Level) Level
 freeToLevel prog = map freeToLevel_sc prog
 
-
 freeToLevel_sc :: (Name, [Name], AnnExpr Name (Set Name)) -> (Name, [(Name, Level)], AnnExpr (Name, Level) Level)
 freeToLevel_sc (sc_name, [], rhs) = (sc_name, [], freeToLevel_e 0 [] rhs)
-
 
 addLevels :: CoreProgram -> AnnProgram (Name, Level) Level
 addLevels = freeToLevel . freeVars
@@ -297,13 +299,7 @@ fullyLazyLift = lambdaLift . float . renameL . identifyMFEs . addLevels . separa
 runF :: String -> String
 runF = pprint . lambdaLift . fullyLazyLift . parse
 
-
-
 ------------------
-
-head :: [a] -> a
-head [] = error "head: empty list"
-head (x:_) = x
 
 type AnnExpr a b = (b, AnnExpr' a b)
 
