@@ -16,6 +16,15 @@ head (x:_) = x
 
 ------------------
 
+{- |
+>>> separateLams_e (ELam ["x","y"] (EVar "x"))
+ELam ["x"] (ELam ["y"] (EVar "x"))
+>>> (\e -> case e of EAp (ELam ["x"] (ELam ["y"] (EVar "x"))) (ENum 3) -> True; _ -> False) (separateLams_e (EAp (ELam ["x","y"] (EVar "x")) (ENum 3)))
+True
+
+>>> separateLams_e (ELet nonRecursive [("f", ELam ["a","b"] (EVar "a"))] (EVar "f"))
+ELet False [("f",ELam ["a"] (ELam ["b"] (EVar "a")))] (EVar "f")
+-}
 separateLams_e :: CoreExpr -> CoreExpr
 separateLams_e (EVar v)      = EVar v
 separateLams_e (EConstr t a) = EConstr t a
@@ -45,6 +54,16 @@ freeSetToLevel env free
   -- If there are no free variables, return level 0.
   = foldl' max 0 [aLookup env n 0 | n <- Set.toList free]
 
+{- |
+>>> freeToLevel_e 0 [] (Set.empty, ANum 7)
+(0,ANum 7)
+
+>>> freeToLevel_e 0 [("x", 2)] (Set.fromList ["x"], AVar "x")
+(2,AVar "x")
+
+>>> freeToLevel_e 0 [("f", 1)] (Set.fromList ["f"], ALam ["x"] (Set.fromList ["f","x"], AAp (Set.fromList ["f"], AVar "f") (Set.fromList ["x"], AVar "x")))
+(1,ALam [("x",1)] (1,AAp (1,AVar "f") (1,AVar "x")))
+-}
 freeToLevel_e :: Level                       -- ^ Level of context
               -> Assoc Name Level            -- ^ Level of in-scope names
               -> AnnExpr Name (Set Name)     -- ^ Input expression
@@ -114,6 +133,16 @@ freeToLevel_sc (sc_name, [], rhs) = (sc_name, [], freeToLevel_e 0 [] rhs)
 addLevels :: CoreProgram -> AnnProgram (Name, Level) Level
 addLevels = freeToLevel . freeVars
 
+{- |
+>>> identifyMFEs_e 0 (0, AVar "x")
+EVar "x"
+
+>>> identifyMFEs_e 0 (1, AAp (1, AVar "f") (0, ANum 3))
+ELet False [(("v",1),EAp (EVar "f") (ENum 3))] (EVar "v")
+
+>>> identifyMFEs_e 1 (1, AAp (1, AVar "f") (0, ANum 3))
+EAp (EVar "f") (ENum 3)
+-}
 identifyMFEs_e :: Level
                -> AnnExpr (Name, Level) Level
                -> Expr (Name, Level)
@@ -236,6 +265,16 @@ newNamesL ns old_binders = (ns', new_binders, env)
 
 type FloatedDefns = [(Level, IsRec, [(Name, Expr Name)])]
 
+{- |
+>>> float_e (EVar "x")
+([],EVar "x")
+
+>>> float_e (ELet nonRecursive [(("x", 0), ENum 1)] (EVar "x"))
+([(0,False,[("x",ENum 1)])],EVar "x")
+
+>>> float_e (ELam [("x",1)] (ELet nonRecursive [(("y",1), ENum 1)] (EVar "y")))
+([],ELam ["x"] (ELet False [("y",ENum 1)] (EVar "y")))
+-}
 float_e :: Expr (Name, Level) -> (FloatedDefns, Expr Name)
 float_e (EVar v) = ([], EVar v)
 float_e (EConstr t a) = ([], EConstr t a)
@@ -280,6 +319,16 @@ partitionFloats this_level fds
   where is_this_level  (level, is_rec, defns) = level >= this_level
         is_outer_level (level, is_rec, defns) = level <  this_level
 
+{- |
+>>> install [] (EVar "z")
+EVar "z"
+
+>>> install [(0, nonRecursive, [("x", ENum 1)])] (EVar "z")
+ELet False [("x",ENum 1)] (EVar "z")
+
+>>> install [(0, nonRecursive, [("x", ENum 1)]), (1, True, [("y", ENum 2)])] (EVar "z")
+ELet False [("x",ENum 1)] (ELet True [("y",ENum 2)] (EVar "z"))
+-}
 install :: FloatedDefns -> Expr Name -> Expr Name
 install defnGroups e = foldr installGroup e defnGroups
   where installGroup (level, is_rec, defns) e = ELet is_rec defns e
