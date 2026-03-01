@@ -45,6 +45,7 @@ import qualified Lambda.Mark1 as LMark1 (lambdaLift)
 import qualified Lambda.Mark2 as LMark2 (lambdaLift)
 import qualified Lambda.Mark3 as LMark3 (lambdaLiftJ)
 import qualified Lambda.Mark4 as LMark4 (fullyLazyLift)
+import qualified Lambda.Mark5 as LMark5 (fullyLazyLift)
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -58,6 +59,7 @@ lambdaLifter opts
       LMark2 -> LMark2.lambdaLift
       LMark3 -> LMark3.lambdaLiftJ
       LMark4 -> LMark4.fullyLazyLift
+      LMark5 -> LMark5.fullyLazyLift
       NoLift -> id
 
 executer :: Options -> Executer
@@ -137,7 +139,7 @@ defaultOptions = Options
   , optMachineSize = 4
   , optShowVersion = False
   , optCompiler    = PgMark4
-  , optLifter      = LMark4
+  , optLifter      = LMark5
   , optConvertList = False
   , optProfile     = False
   }
@@ -159,13 +161,14 @@ data LambdaLifter = LMark1
                   | LMark2
                   | LMark3
                   | LMark4
+                  | LMark5
                   | NoLift
                   deriving (Show, Eq)
 
 name2Lifter :: [(String, LambdaLifter)]
 name2Lifter
   = map (\c -> (map toLower (show c), c))
-    [ NoLift, LMark1, LMark2, LMark3, LMark4 ]
+    [ NoLift, LMark1, LMark2, LMark3, LMark4, LMark5 ]
 
 options :: [OptDescr (Options -> Options)]
 options = [ Option ['c'] ["compiler"] (ReqArg (\e opts -> opts {optCompiler = compiler e}) "Compiler")
