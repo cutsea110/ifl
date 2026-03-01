@@ -265,6 +265,10 @@ newNamesL ns old_binders = (ns', new_binders, env)
 
 type FloatedDefns = [(Level, IsRec, [(Name, Expr Name)])]
 
+mkELam :: [Name] -> CoreExpr -> CoreExpr
+mkELam args (ELam args' body) = ELam (args ++ args') body
+mkELam args other_body        = ELam args other_body
+
 {- |
 >>> float_e (EVar "x")
 ([],EVar "x")
@@ -282,7 +286,7 @@ float_e (ENum n) = ([], ENum n)
 float_e (EAp e1 e2) = (fd1 ++ fd2, EAp e1' e2')
   where (fd1, e1') = float_e e1
         (fd2, e2') = float_e e2
-float_e (ELam args body) = (fd_outer, ELam args' (install fd_this_level body'))
+float_e (ELam args body) = (fd_outer, mkELam args' (install fd_this_level body'))
   where args' = [arg | (arg, level) <- args]
         (first_arg, this_level) = head args
         (fd_body, body') = float_e body
