@@ -278,6 +278,9 @@ mkELam args other_body        = ELam args other_body
 
 >>> float_e (ELam [("x",1)] (ELet nonRecursive [(("y",1), ENum 1)] (EVar "y")))
 ([],ELam ["x"] (ELet False [("y",ENum 1)] (EVar "y")))
+
+>>> float_e (ELam [("x",1)] (ELam [("y",2)] (EAp (EAp (EVar "+") (EVar "x")) (EVar "y"))))
+([],ELam ["x","y"] (EAp (EAp (EVar "+") (EVar "x")) (EVar "y")))
 -}
 float_e :: Expr (Name, Level) -> (FloatedDefns, Expr Name)
 float_e (EVar v) = ([], EVar v)
