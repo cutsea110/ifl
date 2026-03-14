@@ -54,6 +54,12 @@ freeSetToLevel env free
   -- If there are no free variables, return level 0.
   = foldl' max 0 [aLookup env n 0 | n <- Set.toList free]
 
+isOp :: AnnExpr a b -> Bool
+isOp (_, AVar v)      = True
+isOp (_, AConstr _ _) = True
+isOp (_, ALam _ _)    = True
+isOp _                = False
+
 {- |
 >>> freeToLevel_e 0 [] (Set.empty, ANum 7)
 (0,ANum 7)
@@ -71,12 +77,12 @@ freeToLevel_e :: Level                       -- ^ Level of context
 freeToLevel_e level env (free, ANum k)      = (0, ANum k)
 freeToLevel_e level env (free, AVar v)      = (aLookup env v 0, AVar v)
 freeToLevel_e level env (free, AConstr t a) = (0, AConstr t a)
-freeToLevel_e level env (free, AAp (_, AAp (_, AVar op) e1) e2)
-  = (free', AAp (free', AAp (opfree, AVar op) e1') e2')
-  where free'  = max (levelOf e1') (levelOf e2')
-        opfree = aLookup env op 0
-        e1'= freeToLevel_e level env e1
-        e2'= freeToLevel_e level env e2
+freeToLevel_e level env (free, AAp (_, AAp e0 e1) e2)
+  | isOp e0 = (free', AAp (free', AAp e0' e1') e2')
+  where free'  = maximum [levelOf e0', levelOf e1', levelOf e2']
+        e0' = freeToLevel_e level env e0
+        e1' = freeToLevel_e level env e1
+        e2' = freeToLevel_e level env e2
 freeToLevel_e level env (free, AAp e1 e2)
   = (max (levelOf e1') (levelOf e2'), AAp e1' e2')
   where e1' = freeToLevel_e level env e1
