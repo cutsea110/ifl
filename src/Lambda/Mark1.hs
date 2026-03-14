@@ -317,6 +317,13 @@ pprintAnnSc ppra pprb (name, args, body) =
   <1> y -> ({- () -} y);
   <2> z -> ({- () -} 3)
 
+>>> p ((), ACase ((), AVar "x") [(1, ["y"], ((), ALet False [("z", ((), ANum 1))] ((), AVar "z")))])
+{- () -} case ({- () -} x) of
+  <1> y -> ({- () -} (let
+               z = ({- () -} 1)
+             in
+               ({- () -} z)))
+
 >>> p ((), ALet False [("x", ((), ANum 1)), ("y", ((), ANum 2))] ((), AVar "x"))
 {- () -} let
   x = ({- () -} 1);
@@ -328,6 +335,15 @@ in
 {- () -} letrec
   x = ({- () -} 1);
   y = ({- () -} 2)
+in
+  ({- () -} x)
+
+>>> p ((), ALet False [("x", ((), ALet False [("y", ((), ANum 1))] ((), AVar "y")))] ((), AVar "x"))
+{- () -} let
+  x = ({- () -} (let
+    y = ({- () -} 1)
+  in
+    ({- () -} y)))
 in
   ({- () -} x)
 
@@ -377,7 +393,7 @@ pprintAnnExpr' ppra pprb d (ALet isRec defs body)
         bodyDoc = pprintAnnExpr ppra pprb d' body
         doc     = iConcat [ letDoc, iNewline
                           , defsDoc, iNewline
-                          , iStr "in", iNewline
+                          , iStr (space (2 * d)), iStr "in", iNewline
                           , iStr (space (2 * d')), bodyDoc
                           ]
     in if d > 0 then iParen doc else doc
@@ -405,6 +421,6 @@ pprintAnnAlt ppra pprb d (tag, args, expr)
   = let argsDoc = iInterleave iSpace (map ppra args)
         exprDoc = pprintAnnExpr ppra pprb d expr
     in iConcat [ iStr (space (d * 2)), iStr "<", iNum tag, iStr ">", sep, argsDoc
-               , iStr " -> ", exprDoc
+               , iStr " -> ", iIndent exprDoc
                ]
        where sep = if null args then iNil else iSpace
