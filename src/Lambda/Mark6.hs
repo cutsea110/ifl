@@ -14,6 +14,24 @@ head :: [a] -> a
 head [] = error "head: empty list"
 head (x:_) = x
 
+depthFirstSearch :: Ord a =>
+                    (a -> [a])           -- ^ Map
+                 -> (Set.Set a, [a])     -- ^ State: visited set, current sequence of vertices
+                 -> [a]                  -- ^ Input vertices sequence
+                 -> (Set.Set a, [a])     -- ^ Final state
+depthFirstSearch = foldl' . search
+  where
+    search :: Ord a =>
+              (a -> [a])           -- ^ Map
+           -> (Set.Set a, [a])     -- ^ State: visited set, current sequence of vertices
+           -> a                    -- ^ Input vertex
+           -> (Set.Set a, [a])     -- ^ Final state
+    search relation (visited, sequence) vertex
+      | Set.member vertex visited = (visited, sequence)
+      | otherwise = (visited', vertex:sequence')
+      where (visited', sequence')
+              = depthFirstSearch relation (Set.union visited (Set.singleton vertex), sequence) (relation vertex)
+
 ------------------
 
 {- |
