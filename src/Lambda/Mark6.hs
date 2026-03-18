@@ -107,7 +107,7 @@ depends_e (free, ALet is_rec defns body)
                   | otherwise = Set.empty
         edges = [ (n, f)
                 | (n, (free, e)) <- defns
-                , f <- Set.toList (Set.difference free binderSet)
+                , f <- Set.toList (Set.intersection free binderSet)
                 ]
         ins  v = [u | (u, w) <- edges, v==w]
         outs v = [w | (u, w) <- edges, v==u]
