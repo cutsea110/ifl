@@ -14,6 +14,12 @@ head :: [a] -> a
 head [] = error "head: empty list"
 head (x:_) = x
 
+{-|
+>>> depthFirstSearch (\x -> case x of 1 -> [2,3]; 2 -> [4]; 3 -> []; 4 -> []) (Set.empty, []) [1]
+(fromList [1,2,3,4],[1,3,2,4])
+>>> depthFirstSearch (\x -> case x of 1 -> [2,3]; 2 -> [4]; 3 -> []; 4 -> []) (Set.empty, []) [1,2]
+(fromList [1,2,3,4],[1,3,2,4])
+-}
 depthFirstSearch :: Ord a =>
                     (a -> [a])           -- ^ Map
                  -> (Set.Set a, [a])     -- ^ State: visited set, current sequence of vertices
@@ -32,6 +38,12 @@ depthFirstSearch = foldl' . search
       where (visited', sequence')
               = depthFirstSearch relation (Set.union visited (Set.singleton vertex), sequence) (relation vertex)
 
+{-|
+>>> spanningSearch (\x -> case x of 1 -> [2,3]; 2 -> [4]; 3 -> []; 4 -> []) (Set.empty, []) [1]
+(fromList [1,2,3,4],[fromList [1,2,3,4]])
+>>> spanningSearch (\x -> case x of 1 -> [2,3]; 2 -> [4]; 3 -> []; 4 -> []) (Set.empty, []) [1,2]
+(fromList [1,2,3,4],[fromList [1,2,3,4]])
+-}
 spanningSearch :: Ord a =>
                   (a -> [a])                -- ^ The map
                -> (Set.Set a, [Set.Set a])  -- ^ Current state: visited set, current sequence of vertice sets
