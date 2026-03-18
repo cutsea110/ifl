@@ -46,7 +46,7 @@ import qualified Lambda.Mark2 as LMark2 (lambdaLift)
 import qualified Lambda.Mark3 as LMark3 (lambdaLiftJ)
 import qualified Lambda.Mark4 as LMark4 (fullyLazyLift)
 import qualified Lambda.Mark5 as LMark5 (fullyLazyLift)
-import qualified Lambda.Mark6 as LMark6 (fullyLazyLift)
+import qualified Lambda.Mark6 as LMark6 (lazyLift)
 
 ---------------------------------------------------------------
 -- COMPILER
@@ -61,7 +61,7 @@ lambdaLifter opts
       LMark3 -> LMark3.lambdaLiftJ
       LMark4 -> LMark4.fullyLazyLift
       LMark5 -> LMark5.fullyLazyLift
-      LMark6 -> LMark6.fullyLazyLift
+      LMark6 -> LMark6.lazyLift
       NoLift -> id
 
 executer :: Options -> Executer

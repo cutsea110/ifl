@@ -120,7 +120,10 @@ depends_e (free, ALet is_rec defns body)
 
 mkDependLet :: IsRec -> [(Name, AnnExpr Name (Set Name))] -> CoreExpr -> CoreExpr
 mkDependLet is_rec dfs e = ELet is_rec [(n, depends_e e) | (n,e) <- dfs] e
-                     
+
+lazyLift :: CoreProgram -> CoreProgram
+lazyLift = lambdaLift . dependency
+
 ------------------
 
 {- |
