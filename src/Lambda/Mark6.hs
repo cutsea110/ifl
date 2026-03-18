@@ -22,16 +22,16 @@ head (x:_) = x
 -}
 depthFirstSearch :: Ord a =>
                     (a -> [a])           -- ^ Map
-                 -> (Set.Set a, [a])     -- ^ State: visited set, current sequence of vertices
+                 -> (Set a, [a])         -- ^ State: visited set, current sequence of vertices
                  -> [a]                  -- ^ Input vertices sequence
-                 -> (Set.Set a, [a])     -- ^ Final state
+                 -> (Set a, [a])         -- ^ Final state
 depthFirstSearch = foldl' . search
   where
     search :: Ord a =>
               (a -> [a])           -- ^ Map
-           -> (Set.Set a, [a])     -- ^ State: visited set, current sequence of vertices
+           -> (Set a, [a])         -- ^ State: visited set, current sequence of vertices
            -> a                    -- ^ Input vertex
-           -> (Set.Set a, [a])     -- ^ Final state
+           -> (Set a, [a])         -- ^ Final state
     search relation (visited, sequence) vertex
       | Set.member vertex visited = (visited, sequence)
       | otherwise = (visited', vertex:sequence')
@@ -46,9 +46,9 @@ depthFirstSearch = foldl' . search
 -}
 spanningSearch :: Ord a =>
                   (a -> [a])                -- ^ The map
-               -> (Set.Set a, [Set.Set a])  -- ^ Current state: visited set, current sequence of vertice sets
+               -> (Set a, [Set a])          -- ^ Current state: visited set, current sequence of vertice sets
                -> [a]                       -- ^ Input sequence of vertices
-               -> (Set.Set a, [Set.Set a])  -- ^ Final state
+               -> (Set a, [Set a])          -- ^ Final state
 spanningSearch = foldl' . search
   where
     search relation (visited, setSequence) vertex
@@ -57,6 +57,54 @@ spanningSearch = foldl' . search
       where (visited', sequence)
               = depthFirstSearch relation (Set.union visited (Set.singleton vertex), []) (relation vertex)
 
+scc :: Ord a =>
+       (a -> [a])   -- ^ The "ins" map
+    -> (a -> [a])   -- ^ The "outs" map
+    -> [a]          -- ^ The root vertices
+    -> [Set a]      -- ^ The topologically sorted components
+scc ins outs = spanning . depthFirst
+  where depthFirst = snd . depthFirstSearch outs (Set.empty, [])
+        spanning   = snd . spanningSearch ins (Set.empty, [])
+
+dependency :: CoreProgram -> CoreProgram
+dependency = depends . freeVars
+
+runD :: String -> String
+runD = pprint . dependency . parse
+
+depends :: AnnProgram Name (Set Name) -> CoreProgram
+depends prog = [(name, args, depends_e rhs) | (name, args, rhs) <- prog]
+
+depends_e :: AnnExpr Name (Set Name) -> CoreExpr
+depends_e (free, ANum n)          = ENum n
+depends_e (free, AConstr t a)     = EConstr t a
+depends_e (free, AVar v)          = EVar v
+depends_e (free, AAp e1 e2)       = EAp (depends_e e1) (depends_e e2)
+depends_e (free, ACase body alts) = ECase (depends_e body)
+                                    [ (tag, args, depends_e e)
+                                    | (tag, args, e) <- alts
+                                    ]
+depends_e (free, ALam ns body)    = ELam ns (depends_e body)                                    
+depends_e (free, ALet is_rec defns body)
+  = foldr (mkDependLet is_rec) (depends_e body) defnGroups
+  where binders = bindersOf defns
+        binderSet | is_rec = Set.fromList binders
+                  | otherwise = Set.empty
+        edges = [ (n, f)
+                | (n, (free, e)) <- defns
+                , f <- Set.toList (Set.difference free binderSet)
+                ]
+        ins v  = [u | (u, w) <- edges, v==w]
+        outs v = [w | (u, w) <- edges, v==u]
+
+        components = map Set.toList (scc ins outs binders)
+        defnGroups = [ [(n, aLookup defns n (error "defnGroups")) | n <- ns]
+                     | ns <- components
+                     ]
+
+mkDependLet :: IsRec -> [(Name, AnnExpr Name (Set Name))] -> CoreExpr -> CoreExpr
+mkDependLet is_rec dfs e = ELet is_rec [(n, depends_e e) | (n,e) <- dfs] e
+                     
 ------------------
 
 {- |
