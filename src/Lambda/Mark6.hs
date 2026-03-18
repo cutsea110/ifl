@@ -57,6 +57,20 @@ spanningSearch = foldl' . search
       where (visited', sequence)
               = depthFirstSearch relation (Set.union visited (Set.singleton vertex), []) (relation vertex)
 
+{-|
+>>> scc (\x -> case x of 1 -> [2,3]; 2 -> [4]; 3 -> []; 4 -> []) (\x -> case x of 1 -> []; 2 -> [1]; 3 -> [1]; 4 -> [2]) [1]
+[fromList [1,2,3,4]]
+>>> scc (\x -> case x of 1 -> [2,3]; 2 -> [4]; 3 -> []; 4 -> []) (\x -> case x of 1 -> []; 2 -> [1]; 3 -> [1]; 4 -> [2]) [2]
+[fromList [1,3],fromList [2,4]]
+>>> scc (\x -> case x of 1 -> [2,3]; 2 -> [4]; 3 -> []; 4 -> []) (\x -> case x of 1 -> []; 2 -> [1]; 3 -> [1]; 4 -> [2]) [3]
+[fromList [1,2,4],fromList [3]]
+>>> scc (\x -> case x of 1 -> [2,3]; 2 -> [4]; 3 -> []; 4 -> []) (\x -> case x of 1 -> []; 2 -> [1]; 3 -> [1]; 4 -> [2]) [4]
+[fromList [1,3],fromList [2],fromList [4]]
+>>> scc (\x -> case x of 1 -> [2]; 2 -> []; 3 -> [4]; 4 -> []) (\x -> case x of 1 -> []; 2 -> [1]; 3 -> []; 4 -> [3]) [1,3]
+[fromList [1,2],fromList [3,4]]
+>>> scc (\x -> case x of 1 -> [2]; 2 -> []; 3 -> [4]; 4 -> []) (\x -> case x of 1 -> []; 2 -> [1]; 3 -> []; 4 -> [3]) [2,4]
+[fromList [1],fromList [2],fromList [3],fromList [4]]
+-}
 scc :: Ord a =>
        (a -> [a])   -- ^ The "ins" map
     -> (a -> [a])   -- ^ The "outs" map
