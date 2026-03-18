@@ -1,0 +1,7 @@
+f x = let
+        g = \y -> letrec
+                    h = y+1;
+                    k = x+2
+                  in h+k
+      in g 4;
+main = f 3

@@ -1,0 +1,5 @@
+f = letrec x = y + 7 * snd z;
+           y = 5;
+           z = Pair x y
+    in x + y * fst z;
+main = f
