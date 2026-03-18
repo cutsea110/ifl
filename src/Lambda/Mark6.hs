@@ -32,6 +32,19 @@ depthFirstSearch = foldl' . search
       where (visited', sequence')
               = depthFirstSearch relation (Set.union visited (Set.singleton vertex), sequence) (relation vertex)
 
+spanningSearch :: Ord a =>
+                  (a -> [a])                -- ^ The map
+               -> (Set.Set a, [Set.Set a])  -- ^ Current state: visited set, current sequence of vertice sets
+               -> [a]                       -- ^ Input sequence of vertices
+               -> (Set.Set a, [Set.Set a])  -- ^ Final state
+spanningSearch = foldl' . search
+  where
+    search relation (visited, setSequence) vertex
+      | Set.member vertex visited = (visited, setSequence)
+      | otherwise = (visited', Set.fromList (vertex:sequence):setSequence)
+      where (visited', sequence)
+              = depthFirstSearch relation (Set.union visited (Set.singleton vertex), []) (relation vertex)
+
 ------------------
 
 {- |
