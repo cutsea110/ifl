@@ -94,10 +94,9 @@ depends_e (free, ANum n)          = ENum n
 depends_e (free, AConstr t a)     = EConstr t a
 depends_e (free, AVar v)          = EVar v
 depends_e (free, AAp e1 e2)       = EAp (depends_e e1) (depends_e e2)
-depends_e (free, ACase body alts) = ECase (depends_e body)
-                                    [ (tag, args, depends_e e)
-                                    | (tag, args, e) <- alts
-                                    ]
+depends_e (free, ACase body alts) = ECase (depends_e body) [ (tag, args, depends_e e)
+                                                           | (tag, args, e) <- alts
+                                                           ]
 depends_e (free, ALam ns body)    = ELam ns (depends_e body)                                    
 depends_e (free, ALet is_rec defns body)
   = foldr (mkDependLet is_rec) (depends_e body) defnGroups
