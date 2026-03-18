@@ -88,17 +88,18 @@ depends_e (free, ALam ns body)    = ELam ns (depends_e body)
 depends_e (free, ALet is_rec defns body)
   = foldr (mkDependLet is_rec) (depends_e body) defnGroups
   where binders = bindersOf defns
-        binderSet | is_rec = Set.fromList binders
+        binderSet | is_rec    = Set.fromList binders
                   | otherwise = Set.empty
         edges = [ (n, f)
                 | (n, (free, e)) <- defns
                 , f <- Set.toList (Set.difference free binderSet)
                 ]
-        ins v  = [u | (u, w) <- edges, v==w]
+        ins  v = [u | (u, w) <- edges, v==w]
         outs v = [w | (u, w) <- edges, v==u]
 
         components = map Set.toList (scc ins outs binders)
-        defnGroups = [ [(n, aLookup defns n (error "defnGroups")) | n <- ns]
+        defnGroups = [ [(n, aLookup defns n (error $ "defnGroups: " ++ show n))
+                       | n <- ns]
                      | ns <- components
                      ]
 
