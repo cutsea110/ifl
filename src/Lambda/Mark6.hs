@@ -72,6 +72,8 @@ spanningSearch = foldl' . search
 [fromList [1],fromList [2],fromList [3],fromList [4]]
 >>> scc (\x -> case x of 'x' -> ['z']; 'y' -> ['x','z']; 'z' -> ['x']) (\x -> case x of 'x' -> ['y','z']; 'y' -> []; 'z' -> ['x','y']) ['x','y','z']
 [fromList "y",fromList "xz"]
+>>> scc (\x -> case x of 'x' -> ['z']; 'y' -> ['x','z']; 'z' -> ['x']; 'w' -> []) (\x -> case x of 'x' -> ['y','z']; 'y' -> []; 'z' -> ['x','y']; 'w' -> []) ['x','y','z', 'w']
+[fromList "y",fromList "xz",fromList "w"]
 -}
 scc :: Ord a =>
        (a -> [a])   -- ^ The "ins" map
