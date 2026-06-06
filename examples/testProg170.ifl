@@ -1,0 +1,22 @@
+-- error
+undefined = undefined;
+
+fix f = letrec x = f x in x;
+memoFix f = letrec g = \cache -> map (f (index cache)) (from 0)
+            in index (fix g);
+
+from i = let psi = \n -> Just (Pair n (n+1))
+          in unfoldr psi i;
+
+-- (!!)
+index xxs n = case xxs of
+  <1>      -> undefined;
+  <2> x xs -> if (n == 0) x (index xs (n-1));
+
+
+fibOpen rec n = if (n <= 1) n
+	           (rec (n - 1) + rec (n - 2));
+
+fib = memoFix fibOpen;
+
+main = fib 15
