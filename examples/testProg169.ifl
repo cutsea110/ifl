@@ -1,8 +1,11 @@
+-- Y
 fix f = letrec x = f x in x;
 
-fibOpen rec n = if (n <= 1) n
-	           (rec (n - 1) + rec (n - 2));
+-- fib is the fix point of this function.
+fibOpen rec n = if (n<=1) n
+	           (rec (n-1) + rec (n-2));
 
+-- fib is fibOpen's fix point
 fib = fix fibOpen;
 
 main = fib 15
