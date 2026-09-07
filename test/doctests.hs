@@ -1,13 +1,24 @@
 module Main where
 
-import Test.DocTest
-import System.Directory
-import System.FilePath ((</>))
+import Control.Monad (forM)
+import System.Directory (doesDirectoryExist, listDirectory)
+import System.FilePath (takeExtension, (</>))
+import Test.DocTest (doctest)
 
-srcDir :: FilePath
-srcDir = "src"
+targetDir :: [FilePath]
+targetDir = ["src"]
+
+findHsFiles :: FilePath -> IO [FilePath]
+findHsFiles dir = do
+  entries <- listDirectory dir
+  concat <$> forM entries (\entry -> do
+    let path = dir </> entry
+    isDir <- doesDirectoryExist path
+    if isDir
+      then findHsFiles path
+      else return [path | takeExtension path == ".hs"])
 
 main :: IO ()
 main = do
-  fs <- listDirectory srcDir
-  doctest $ "-isrc" : map (srcDir </>) fs
+  files <- concat <$> forM targetDir findHsFiles
+  doctest $ map ("-i" ++) targetDir ++ files
